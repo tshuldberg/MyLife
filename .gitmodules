@@ -1,6 +1,3 @@
-[submodule "HumanHomes"]
-	path = MyHomes
-	url = https://github.com/tshuldberg/HumanHomes.git
 [submodule "MyBooks"]
 	path = MyBooks
 	url = https://github.com/tshuldberg/MyBooks.git
@@ -64,3 +61,6 @@
 [submodule "MyWorkouts"]
 	path = MyWorkouts
 	url = https://github.com/tshuldberg/MyWorkouts.git
+[submodule "MyHomes"]
+	path = MyHomes
+	url = https://github.com/tshuldberg/MyHomes.git
