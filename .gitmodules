@@ -1,0 +1,66 @@
+[submodule "HumanHomes"]
+	path = HumanHomes
+	url = https://github.com/tshuldberg/HumanHomes.git
+[submodule "MyBooks"]
+	path = MyBooks
+	url = https://github.com/tshuldberg/MyBooks.git
+[submodule "MyBudget"]
+	path = MyBudget
+	url = https://github.com/tshuldberg/MyBudget
+[submodule "MyCar"]
+	path = MyCar
+	url = https://github.com/tshuldberg/MyCar.git
+[submodule "MyCloset"]
+	path = MyCloset
+	url = https://github.com/tshuldberg/MyCloset.git
+[submodule "MyCycle"]
+	path = MyCycle
+	url = https://github.com/tshuldberg/MyCycle.git
+[submodule "MyFast"]
+	path = MyFast
+	url = https://github.com/tshuldberg/MyFast.git
+[submodule "MyFlash"]
+	path = MyFlash
+	url = https://github.com/tshuldberg/MyFlash.git
+[submodule "MyGarden"]
+	path = MyGarden
+	url = https://github.com/tshuldberg/MyGarden.git
+[submodule "MyHabits"]
+	path = MyHabits
+	url = https://github.com/tshuldberg/MyHabits.git
+[submodule "MyJournal"]
+	path = MyJournal
+	url = https://github.com/tshuldberg/MyJournal.git
+[submodule "MyMeds"]
+	path = MyMeds
+	url = https://github.com/tshuldberg/MyMeds.git
+[submodule "MyMood"]
+	path = MyMood
+	url = https://github.com/tshuldberg/MyMood.git
+[submodule "MyNotes"]
+	path = MyNotes
+	url = https://github.com/tshuldberg/MyNotes.git
+[submodule "MyPets"]
+	path = MyPets
+	url = https://github.com/tshuldberg/MyPets.git
+[submodule "MyRecipes"]
+	path = MyRecipes
+	url = https://github.com/tshuldberg/MyRecipes.git
+[submodule "MyStars"]
+	path = MyStars
+	url = https://github.com/tshuldberg/MyStars.git
+[submodule "MySubs"]
+	path = MySubs
+	url = https://github.com/tshuldberg/MySubs.git
+[submodule "MySurf"]
+	path = MySurf
+	url = https://github.com/tshuldberg/MySurf.git
+[submodule "MyTrails"]
+	path = MyTrails
+	url = https://github.com/tshuldberg/MyTrails.git
+[submodule "MyVoice"]
+	path = MyVoice
+	url = https://github.com/tshuldberg/MyVoice.git
+[submodule "MyWorkouts"]
+	path = MyWorkouts
+	url = https://github.com/tshuldberg/MyWorkouts.git
