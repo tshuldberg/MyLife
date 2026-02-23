@@ -1,5 +1,5 @@
 [submodule "HumanHomes"]
-	path = HumanHomes
+	path = MyHomes
 	url = https://github.com/tshuldberg/HumanHomes.git
 [submodule "MyBooks"]
 	path = MyBooks
