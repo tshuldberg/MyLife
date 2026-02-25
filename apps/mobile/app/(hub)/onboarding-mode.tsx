@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Card, Text, colors, spacing, borderRadius } from '@mylife/ui';
 import type { PlanMode } from '@mylife/entitlements';

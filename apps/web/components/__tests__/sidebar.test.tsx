@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 
 const mockUsePathname = vi.fn();
 vi.mock('next/navigation', () => ({
@@ -57,7 +56,6 @@ describe('Sidebar', () => {
   });
 
   it('renders logo with link to home', () => {
-    const user = userEvent.setup();
     render(<Sidebar />);
 
     expect(screen.getByText('M')).toBeInTheDocument();
@@ -73,7 +71,6 @@ describe('Sidebar', () => {
       makeModule('budget', 'MyBudget', '\uD83D\uDCB0'),
     ]);
 
-    const user = userEvent.setup();
     render(<Sidebar />);
 
     const booksLink = screen.getByRole('link', { name: /books/i });
@@ -90,7 +87,6 @@ describe('Sidebar', () => {
       makeModule('budget', 'MyBudget', '\uD83D\uDCB0'),
     ]);
 
-    const user = userEvent.setup();
     render(<Sidebar />);
 
     // Active link gets elevated background style — just verify link exists with correct href
@@ -99,7 +95,6 @@ describe('Sidebar', () => {
   });
 
   it('shows Discover and Settings links', () => {
-    const user = userEvent.setup();
     render(<Sidebar />);
 
     const discoverLink = screen.getByRole('link', { name: /discover/i });
@@ -112,7 +107,6 @@ describe('Sidebar', () => {
   it('shows empty state when no modules enabled', () => {
     mockRegistry.getEnabled.mockReturnValue([]);
 
-    const user = userEvent.setup();
     render(<Sidebar />);
 
     expect(screen.getByText(/no modules enabled/i)).toBeInTheDocument();
@@ -124,7 +118,6 @@ describe('Sidebar', () => {
       makeModule('voice', 'MyVoice', '\uD83C\uDFA4'),
     ]);
 
-    const user = userEvent.setup();
     render(<Sidebar />);
 
     expect(screen.getByText(/books/i)).toBeInTheDocument();
@@ -136,7 +129,6 @@ describe('Sidebar', () => {
       makeModule('books', 'MyBooks', '\uD83D\uDCDA'),
     ]);
 
-    const user = userEvent.setup();
     render(<Sidebar />);
 
     expect(screen.getByText('\uD83D\uDCDA')).toBeInTheDocument();
