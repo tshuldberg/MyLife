@@ -16,6 +16,7 @@ const MODULE_ROUTES: Record<string, string> = {
   car: '/car',
   habits: '/habits',
   meds: '/meds',
+  words: '/words',
   subs: '/subs',
 };
 

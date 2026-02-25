@@ -24,4 +24,5 @@ vi.mock('next/link', () => ({
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });

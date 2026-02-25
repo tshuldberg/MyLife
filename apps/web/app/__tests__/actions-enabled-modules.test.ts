@@ -69,7 +69,7 @@ describe('getEnabledModuleIds', () => {
     }
     expect(mockSetPreference).toHaveBeenCalledWith(
       dbAdapter,
-      'web.bootstrap.enabled_modules.v2',
+      'web.bootstrap.enabled_modules.v5',
       '1',
     );
   });
@@ -85,7 +85,7 @@ describe('getEnabledModuleIds', () => {
     expect(mockEnableModule).toHaveBeenCalledTimes(WEB_SUPPORTED_MODULE_IDS.length);
     expect(mockSetPreference).toHaveBeenCalledWith(
       dbAdapter,
-      'web.bootstrap.enabled_modules.v2',
+      'web.bootstrap.enabled_modules.v5',
       '1',
     );
   });
@@ -106,7 +106,7 @@ describe('getEnabledModuleIds', () => {
     expect(mockEnableModule).not.toHaveBeenCalledWith(dbAdapter, 'budget');
     expect(mockSetPreference).toHaveBeenCalledWith(
       dbAdapter,
-      'web.bootstrap.enabled_modules.v2',
+      'web.bootstrap.enabled_modules.v5',
       '1',
     );
   });

@@ -14,6 +14,9 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^8.46.0
         version: 8.56.1(eslint@8.57.1)(typescript@5.9.3)
+      '@vitest/coverage-v8':
+        specifier: ^3.2.4
+        version: 3.2.4(vitest@3.2.4(@types/node@25.3.0)(jsdom@26.1.0)(lightningcss@1.27.0)(terser@5.46.0))
       eslint:
         specifier: ^8.57.1
         version: 8.57.1
@@ -38,6 +41,9 @@ importers:
       '@mylife/budget':
         specifier: workspace:*
         version: link:../../modules/budget
+      '@mylife/car':
+        specifier: workspace:*
+        version: link:../../modules/car
       '@mylife/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -47,9 +53,21 @@ importers:
       '@mylife/fast':
         specifier: workspace:*
         version: link:../../modules/fast
+      '@mylife/habits':
+        specifier: workspace:*
+        version: link:../../modules/habits
+      '@mylife/homes':
+        specifier: workspace:*
+        version: link:../../modules/homes
+      '@mylife/meds':
+        specifier: workspace:*
+        version: link:../../modules/meds
       '@mylife/module-registry':
         specifier: workspace:*
         version: link:../../packages/module-registry
+      '@mylife/recipes':
+        specifier: workspace:*
+        version: link:../../modules/recipes
       '@mylife/subs':
         specifier: workspace:*
         version: link:../../modules/subs
@@ -59,6 +77,12 @@ importers:
       '@mylife/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@mylife/words':
+        specifier: workspace:*
+        version: link:../../modules/words
+      '@mylife/workouts':
+        specifier: workspace:*
+        version: link:../../modules/workouts
       expo:
         specifier: ~52.0.0
         version: 52.0.49(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0))(@expo/metro-runtime@4.0.1(react-native@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0))(@types/react@18.3.28)(react@18.3.1)))(react-native@0.76.9(@babel/core@7.29.0)(@babel/preset-env@7.29.0(@babel/core@7.29.0))(@types/react@18.3.28)(react@18.3.1))(react@18.3.1)
@@ -162,6 +186,9 @@ importers:
       '@mylife/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@mylife/words':
+        specifier: workspace:*
+        version: link:../../modules/words
       '@mylife/workouts':
         specifier: workspace:*
         version: link:../../modules/workouts
@@ -490,6 +517,25 @@ importers:
         version: 5.9.3
       vitest:
         specifier: ^3.0.0
+        version: 3.2.4(@types/node@25.3.0)(jsdom@26.1.0)(lightningcss@1.27.0)(terser@5.46.0)
+
+  modules/words:
+    dependencies:
+      '@mylife/module-registry':
+        specifier: workspace:*
+        version: link:../../packages/module-registry
+      zod:
+        specifier: ^3.24.0
+        version: 3.25.76
+    devDependencies:
+      '@mylife/typescript-config':
+        specifier: workspace:*
+        version: link:../../packages/typescript-config
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.4
         version: 3.2.4(@types/node@25.3.0)(jsdom@26.1.0)(lightningcss@1.27.0)(terser@5.46.0)
 
   modules/workouts:
@@ -1640,7 +1686,7 @@ packages:
 
   '@expo/bunyan@4.0.1':
     resolution: {integrity: sha512-+Lla7nYSiHZirgK+U/uYzsLv/X+HaJienbD5AKX1UQZHYfWaP+9uuQluRB4GrEVWF0GZ7vEVp/jzaOT9k/SQlg==}
-    engines: {'0': node >=0.10.0}
+    engines: {node: '>=0.10.0'}
 
   '@expo/cli@0.22.28':
     resolution: {integrity: sha512-lvt72KNitGuixYD2l3SZmRKVu2G4zJpmg5V7WfUBNpmUU5oODBw/6qmiJ6kSLAlfDozscUk+BBGknBBzxUrwrA==}

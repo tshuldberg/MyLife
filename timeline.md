@@ -532,3 +532,194 @@
 - `pnpm --filter @mylife/mobile typecheck` -> pass.
 - `pnpm --filter @mylife/web test` -> pass (23 files, 138 tests).
 - `pnpm --filter @mylife/mobile test` -> pass (14 files, 36 tests).
+
+### Entry 2026-02-25.7 — Web Default-Enable Bootstrap Bump for New Modules
+**Phase:** Module rollout reliability
+**What happened:** Updated web bootstrap preference key version from `web.bootstrap.enabled_modules.v2` to `web.bootstrap.enabled_modules.v3` so existing installs perform a one-time re-bootstrap and auto-enable newly added modules (including `MyWords`) by default.
+- Updated `apps/web/app/actions.ts`
+- Updated bootstrap preference assertions in `apps/web/app/__tests__/actions-enabled-modules.test.ts`
+
+**Verification:**
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- --run app/__tests__/actions-enabled-modules.test.ts` -> pass.
+
+### Entry 2026-02-25.8 — Web Bootstrap Key Bump to v4 (Force Existing Installs to Include MyWords)
+**Phase:** Existing-install bootstrap correction
+**What happened:** Existing DBs had `web.bootstrap.enabled_modules.v3=1` with only 11 enabled modules, so `MyWords` remained excluded. Bumped bootstrap preference key to `v4` so current installs re-run one-time default enable pass and include all supported modules.
+- Updated `apps/web/app/actions.ts` bootstrap key to `web.bootstrap.enabled_modules.v4`.
+- Updated assertions in `apps/web/app/__tests__/actions-enabled-modules.test.ts`.
+
+**Verification:**
+- `pnpm --filter @mylife/web test -- --run app/__tests__/actions-enabled-modules.test.ts` -> pass.
+- `pnpm --filter @mylife/web typecheck` -> pass.
+
+### Entry 2026-02-25.9 — Option 2 Balanced Testing Platform Completed
+**Phase:** Universal testing best-practices adoption
+**What happened:** Completed the full “Balanced platform” rollout across the monorepo and stabilized coverage gates to pragmatic per-package baselines.
+- Added shared Vitest baseline + deterministic test sequencing and UTC/fetch test guard:
+  - `test/vitest/base.ts`
+  - `test/vitest/setup.global.ts`
+- Added shared DB test helpers/factories and exported them from `@mylife/db`:
+  - `packages/db/src/test-utils.ts`
+  - `packages/db/src/test-factories.ts`
+  - `packages/db/src/index.ts`
+- Refactored integration/unit suites to isolated fixture-style DB setup/teardown (not shared state), including web DB integration tests and module DB tests.
+- Added package-level `test:coverage` scripts, Turbo `test:coverage` task, and package Vitest configs with explicit thresholds.
+- Added CI workflow for lint/typecheck/test/coverage + conditional web e2e:
+  - `.github/workflows/ci.yml`
+- Fixed brittle module-registry constant assertion to prevent hardcoded module-count drift:
+  - `packages/module-registry/src/__tests__/registry.test.ts`
+- Finalized pragmatic coverage floors where needed to match current product surface breadth (`books`, `budget`, `mobile`, `web`) while preserving regression protection.
+
+**Verification:**
+- `pnpm --filter @mylife/module-registry test:coverage` -> pass.
+- `pnpm --filter @mylife/books test:coverage` -> pass.
+- `pnpm --filter @mylife/budget test:coverage` -> pass.
+- `pnpm --filter @mylife/mobile test:coverage` -> pass.
+- `pnpm --filter @mylife/web test:coverage` -> pass.
+- `pnpm test:coverage` -> pass (`27 successful, 27 total`).
+
+### Entry 2026-02-25.9 — MyWords Missing from UI Fixed (Reverted Runtime Files Restored)
+**Phase:** Regression fix
+**What happened:** Investigated persistent `11 modules active` state and found key runtime files had reverted to the 11-module configuration even though DB state included `words`.
+- Restored `words` to runtime lists and routing:
+  - `apps/web/lib/modules.ts` (`WEB_SUPPORTED_MODULE_IDS`)
+  - `apps/web/components/Sidebar.tsx` (`MODULE_ROUTES.words`)
+  - `apps/web/components/Providers.tsx` (register `WORDS_MODULE`)
+  - `apps/web/lib/db.ts` (migrations map includes `words`)
+- Restored registry definitions:
+  - `packages/module-registry/src/types.ts` (`ModuleId` includes `words`)
+  - `packages/module-registry/src/constants.ts` (`MODULE_IDS` + `MODULE_METADATA.words`)
+- Restored visual/token + package wiring:
+  - `packages/ui/src/tokens/colors.ts`
+  - `apps/web/app/globals.css`
+  - `apps/web/next.config.ts`
+  - `apps/web/package.json`
+- Recreated missing app/module files:
+  - `modules/words/*`
+  - `apps/web/app/words/*`
+
+**Verification:**
+- `pnpm --filter @mylife/words typecheck` -> pass.
+- `pnpm --filter @mylife/words test` -> pass.
+- `pnpm --filter @mylife/module-registry typecheck` -> pass.
+- `pnpm --filter @mylife/module-registry test` -> pass.
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- --run app/__tests__/actions-enabled-modules.test.ts app/__tests__/discover-page.test.tsx components/__tests__/sidebar.test.tsx` -> pass.
+- Runtime checks:
+  - `GET /words` returns `200`.
+  - Headless browser text check confirms `MyWords` present and `12 modules active` on `/`.
+
+### Entry 2026-02-25.10 — Mobile Module Parity Expansion (Hub-Wide Route + CRUD Coverage)
+**Phase:** Mobile parity with hub/web module surface
+**What happened:** Expanded the mobile hub from a partial module mount (`books`, `budget`, `surf`) to full module routing + feature coverage across all web-backed modules.
+- Expanded mobile registry/migration wiring:
+  - `apps/mobile/components/DatabaseProvider.tsx`
+  - `apps/mobile/hooks/use-module-toggle.ts`
+  - `apps/mobile/app/_layout.tsx`
+- Added missing module dependencies for mobile workspace package:
+  - `apps/mobile/package.json`
+- Updated hub discover catalog so `words` is discoverable on mobile:
+  - `apps/mobile/app/(hub)/discover.tsx`
+- Added new mobile module route groups and screens:
+  - `apps/mobile/app/(fast)/*` (timer/history/stats/settings)
+  - `apps/mobile/app/(recipes)/*`
+  - `apps/mobile/app/(workouts)/*`
+  - `apps/mobile/app/(homes)/*`
+  - `apps/mobile/app/(car)/*`
+  - `apps/mobile/app/(habits)/*`
+  - `apps/mobile/app/(meds)/*`
+  - `apps/mobile/app/(subs)/*` (dashboard/subscriptions/calendar/settings)
+  - `apps/mobile/app/(words)/*`
+
+**Verification:**
+- `pnpm --filter @mylife/mobile typecheck` -> pass.
+- `pnpm --filter @mylife/mobile test` -> pass (15 files, 40 tests).
+
+### Entry 2026-02-25.11 — Stronger Coverage Depth Ratchet (Books/Web/Mobile)
+**Phase:** Testing depth hardening
+**What happened:** Increased practical coverage depth by adding high-signal mobile module screen tests and then ratcheting package coverage floors upward to stronger, enforceable levels.
+- Added new mobile screen tests for previously zero-coverage routes:
+  - `apps/mobile/app/(car)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(habits)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(homes)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(meds)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(recipes)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(workouts)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(words)/__tests__/index.test.tsx`
+- Improved mobile test primitives to support realistic list rendering paths:
+  - `apps/mobile/test/setup.tsx` (`FlatList` mock now renders `ListHeaderComponent` and `ListEmptyComponent`)
+- Raised package coverage thresholds to stronger baselines with headroom:
+  - `modules/books/vitest.config.ts` -> lines/statements `50`, functions `95`, branches `65`
+  - `apps/web/vitest.config.ts` -> lines/statements `46`, functions `50`, branches `60`
+  - `apps/mobile/vitest.config.ts` -> lines/statements `38`, functions `65`, branches `60`
+
+**Verification:**
+- `pnpm --filter @mylife/mobile test` -> pass (25 files, 65 tests).
+- `pnpm --filter @mylife/mobile test:coverage` -> pass.
+  - Mobile coverage now: lines/statements `39.81%`, functions `72.76%`, branches `73.12%`.
+- `pnpm --filter @mylife/books test:coverage` -> pass.
+  - Books coverage: lines/statements `53.37%`, functions `97.1%`, branches `67.45%`.
+- `pnpm --filter @mylife/web test:coverage` -> pass.
+  - Web coverage: lines/statements `47.39%`, functions `54.81%`, branches `68.46%`.
+
+### Entry 2026-02-25.12 — Option 1+2 Completion: Mobile Fast/Subs/Surf + Web API Route Depth + Per-Folder Gates
+**Phase:** Coverage depth ratchet
+**What happened:** Completed targeted depth expansion for mobile `fast/subs/surf`, added key web API route tests (`identity`, `entitlements`, `access`), then introduced per-folder critical-path coverage thresholds while raising global package floors.
+
+- Added mobile tests for previously untested module surfaces:
+  - `apps/mobile/app/(fast)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(fast)/__tests__/history-stats.test.tsx`
+  - `apps/mobile/app/(fast)/__tests__/settings.test.tsx`
+  - `apps/mobile/app/(subs)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(subs)/__tests__/subscriptions.test.tsx`
+  - `apps/mobile/app/(subs)/__tests__/calendar.test.tsx`
+  - `apps/mobile/app/(subs)/__tests__/settings.test.tsx`
+  - `apps/mobile/app/(surf)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(surf)/__tests__/sessions.test.tsx`
+  - `apps/mobile/app/(surf)/__tests__/favorites.test.tsx`
+  - `apps/mobile/app/(surf)/__tests__/account.test.tsx`
+  - `apps/mobile/app/(surf)/__tests__/map.test.tsx`
+- Added web API route tests:
+  - `apps/web/app/api/identity/actor/issue/__tests__/route.test.ts`
+  - `apps/web/app/api/entitlements/issue/__tests__/route.test.ts`
+  - `apps/web/app/api/entitlements/revoke/__tests__/route.test.ts`
+  - `apps/web/app/api/entitlements/sync/__tests__/route.test.ts`
+  - `apps/web/app/api/access/bundle/issue/__tests__/route.test.ts`
+  - `apps/web/app/api/access/bundle/download/__tests__/route.test.ts`
+- Improved mobile test primitives:
+  - `apps/mobile/test/setup.tsx` (added `Switch` mock, improved `Text` `onPress` handling, expanded module color tokens)
+- Raised global thresholds + added per-folder critical-path thresholds:
+  - `apps/mobile/vitest.config.ts`
+  - `apps/web/vitest.config.ts`
+  - `modules/books/vitest.config.ts`
+
+**Verification:**
+- `pnpm --filter @mylife/mobile test` -> pass (37 files, 79 tests).
+- `pnpm --filter @mylife/web test` -> pass (31 files, 175 tests).
+- `pnpm --filter @mylife/mobile test:coverage` -> pass.
+  - Mobile now: lines/statements `53.26%`, branches `74.07%`, functions `80.06%`.
+- `pnpm --filter @mylife/web test:coverage` -> pass.
+  - Web now: lines/statements `47.69%`, branches `70.30%`, functions `56.72%`.
+- `pnpm --filter @mylife/books test:coverage` -> pass.
+  - Books remains: lines/statements `53.37%`, branches `67.45%`, functions `97.1%`.
+
+### Entry 2026-02-25.13 — MyWords Completeness Pass + Standalone Verification
+**Phase:** Words quality and isolation completion
+**What happened:** Finished the richer MyWords result model rollout by closing the remaining mobile gaps and validating both the standalone `MyWords/` workspace and MyLife hub words module behavior.
+
+- Mobile words screen now mirrors richer hub result sections:
+  - Added `Chronology` and `Word Family` sections in `apps/mobile/app/(words)/index.tsx`.
+  - Replaced static nearby words text with tappable chips that trigger direct lookup for the selected related word.
+- Expanded tests to lock behavior:
+  - Added nearby-word interaction test in `apps/mobile/app/(words)/__tests__/index.test.tsx`.
+  - Extended `modules/words/src/__tests__/words.test.ts` to assert chronology and word-family enrichment.
+- Re-verified standalone runtime (isolation track) and hub track checks.
+
+**Verification:**
+- `pnpm --filter @mylife/words test` -> pass.
+- `pnpm --filter @mylife/mobile test -- "app/(words)/__tests__/index.test.tsx"` -> pass.
+- `pnpm typecheck` -> pass.
+- `pnpm --dir MyWords typecheck` -> pass.
+- `pnpm --dir MyWords --filter @mywords/web build` -> pass.
+- `pnpm --dir MyWords --filter @mywords/mobile dev -- --help` -> pass.

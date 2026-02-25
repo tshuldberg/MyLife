@@ -1,7 +1,6 @@
-import { describe, expect, it, beforeEach } from 'vitest';
-import Database from 'better-sqlite3';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import {
-  createHubTables,
+  createHubTestDatabase,
   runModuleMigrations,
   createFriendInvite,
   acceptFriendInvite,
@@ -16,30 +15,14 @@ import {
   deleteShareEvent,
 } from '../sharing';
 
-function createAdapter(): DatabaseAdapter {
-  const sqlite = new Database(':memory:');
-  sqlite.pragma('journal_mode = WAL');
-  sqlite.pragma('foreign_keys = ON');
-
-  return {
-    execute(sql: string, params?: unknown[]): void {
-      sqlite.prepare(sql).run(...(params ?? []));
-    },
-    query<T>(sql: string, params?: unknown[]): T[] {
-      return sqlite.prepare(sql).all(...(params ?? [])) as T[];
-    },
-    transaction(fn: () => void): void {
-      sqlite.transaction(fn)();
-    },
-  };
-}
-
 describe('books sharing primitives', () => {
   let db: DatabaseAdapter;
+  let closeDb: () => void;
 
   beforeEach(() => {
-    db = createAdapter();
-    createHubTables(db);
+    const testDb = createHubTestDatabase();
+    db = testDb.adapter;
+    closeDb = testDb.close;
     runModuleMigrations(db, 'books', BOOKS_MODULE.migrations ?? []);
 
     createFriendInvite(db, {
@@ -48,6 +31,10 @@ describe('books sharing primitives', () => {
       to_user_id: 'bob',
     });
     expect(acceptFriendInvite(db, 'invite-1', 'bob')).toBe(true);
+  });
+
+  afterEach(() => {
+    closeDb();
   });
 
   it('applies private/friends/public visibility rules', () => {

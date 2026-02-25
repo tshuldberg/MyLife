@@ -20,6 +20,14 @@ Project-specific agent instructions for `/Users/trey/Desktop/Apps/MyLife`.
 - For new product/runtime code, prefer .ts/.tsx over .js/.jsx.
 - Use JavaScript only when a toolchain file requires it (for example Babel or Metro config).
 
+## App Isolation + Hub Inclusion (Critical)
+
+- Any app added to the `/Users/trey/Desktop/Apps` workspace must be either:
+  - a fully isolated standalone app directory (for example `MyWords/`), or
+  - a module integrated into the MyLife hub (`modules/<name>/` with routes wired in `apps/mobile` and/or `apps/web`).
+- If an app exists in both forms, keep the standalone app fully isolated in its own directory and keep hub integration inside MyLife module/app boundaries.
+- Do not scatter standalone app files directly in the MyLife root.
+
 ## Skills Availability
 
 - Skills are sourced from the global Codex skills directory: `/Users/trey/.codex/skills`.

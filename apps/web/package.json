@@ -9,7 +9,8 @@
     "lint": "eslint app components lib test --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "next": "^15.0.0",
@@ -25,6 +26,7 @@
     "@mylife/recipes": "workspace:*",
     "@mylife/subs": "workspace:*",
     "@mylife/surf": "workspace:*",
+    "@mylife/words": "workspace:*",
     "@mylife/ui": "workspace:*",
     "@mylife/module-registry": "workspace:*",
     "@mylife/db": "workspace:*",

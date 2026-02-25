@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import Database from 'better-sqlite3';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { DatabaseAdapter } from '@mylife/db';
-import { initializeHubDatabase, runModuleMigrations } from '@mylife/db';
+import { createModuleTestDatabase } from '@mylife/db';
 import { FAST_MODULE } from '../definition';
 import { computeTimerState, formatDuration } from '../timer';
 import { PRESET_PROTOCOLS } from '../protocols';
@@ -20,30 +19,18 @@ import { computeStreaks } from '../stats/streaks';
 import { averageDuration, adherenceRate } from '../stats/aggregation';
 import { exportFastsCSV } from '../export';
 
-function createTestAdapter(): DatabaseAdapter {
-  const db = new Database(':memory:');
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  return {
-    execute(sql: string, params?: unknown[]): void {
-      db.prepare(sql).run(...(params ?? []));
-    },
-    query<T>(sql: string, params?: unknown[]): T[] {
-      return db.prepare(sql).all(...(params ?? [])) as T[];
-    },
-    transaction(fn: () => void): void {
-      db.transaction(fn)();
-    },
-  };
-}
-
 describe('@mylife/fast', () => {
   let adapter: DatabaseAdapter;
+  let closeDb: () => void;
 
   beforeEach(() => {
-    adapter = createTestAdapter();
-    initializeHubDatabase(adapter);
-    runModuleMigrations(adapter, 'fast', FAST_MODULE.migrations!);
+    const testDb = createModuleTestDatabase('fast', FAST_MODULE.migrations!);
+    adapter = testDb.adapter;
+    closeDb = testDb.close;
+  });
+
+  afterEach(() => {
+    closeDb();
   });
 
   // ─────────────────────────────────────────────────────────────────────────

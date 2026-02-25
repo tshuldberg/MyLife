@@ -11,6 +11,7 @@ export const WEB_SUPPORTED_MODULE_IDS: readonly ModuleId[] = [
   'car',
   'habits',
   'meds',
+  'words',
   'subs',
 ];
 

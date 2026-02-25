@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import Database from 'better-sqlite3';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { DatabaseAdapter, Migration } from '../adapter';
 import { createHubTables } from '../hub-schema';
 import { runModuleMigrations, initializeHubDatabase } from '../migration-runner';
+import { createHubTestDatabase } from '../test-utils';
 import {
   getEnabledModules,
   isModuleEnabled,
@@ -57,29 +57,18 @@ import {
   getAllSchemaVersions,
 } from '../hub-queries';
 
-function createTestAdapter(): DatabaseAdapter {
-  const db = new Database(':memory:');
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  return {
-    execute(sql: string, params?: unknown[]): void {
-      db.prepare(sql).run(...(params ?? []));
-    },
-    query<T>(sql: string, params?: unknown[]): T[] {
-      return db.prepare(sql).all(...(params ?? [])) as T[];
-    },
-    transaction(fn: () => void): void {
-      db.transaction(fn)();
-    },
-  };
-}
-
 describe('@mylife/db', () => {
   let adapter: DatabaseAdapter;
+  let closeDb: () => void;
 
   beforeEach(() => {
-    adapter = createTestAdapter();
-    createHubTables(adapter);
+    const testDb = createHubTestDatabase();
+    adapter = testDb.adapter;
+    closeDb = testDb.close;
+  });
+
+  afterEach(() => {
+    closeDb();
   });
 
   // ─────────────────────────────────────────────────────────────────────────

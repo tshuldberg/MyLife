@@ -30,12 +30,18 @@ vi.mock('react-native', () => {
     data = [],
     keyExtractor,
     renderItem,
+    ListHeaderComponent,
+    ListEmptyComponent,
   }: {
     data?: unknown[];
     keyExtractor?: (item: unknown, index: number) => string;
     renderItem?: (arg: { item: unknown; index: number }) => ReactNode;
+    ListHeaderComponent?: ReactNode;
+    ListEmptyComponent?: ReactNode;
   }) => (
     <div>
+      {ListHeaderComponent}
+      {data.length === 0 ? ListEmptyComponent : null}
       {data.map((item, index) => (
         <div key={keyExtractor ? keyExtractor(item, index) : String(index)}>
           {renderItem ? renderItem({ item, index }) : null}
@@ -153,6 +159,29 @@ vi.mock('react-native', () => {
         );
       })()
     ),
+    Switch: ({
+      value,
+      onValueChange,
+      ...props
+    }: {
+      value?: boolean;
+      onValueChange?: (value: boolean) => void;
+      [key: string]: unknown;
+    }) => {
+      const domProps = { ...props } as Record<string, unknown>;
+      delete domProps.trackColor;
+      delete domProps.thumbColor;
+      return (
+        <input
+          type="checkbox"
+          checked={Boolean(value)}
+          onChange={(event) =>
+            onValueChange?.((event.target as HTMLInputElement).checked)
+          }
+          {...domProps}
+        />
+      );
+    },
     StyleSheet: {
       create: <T extends Record<string, unknown>>(styles: T): T => styles,
       hairlineWidth: 1,
@@ -172,12 +201,18 @@ vi.mock('@mylife/ui', () => ({
   Text: ({
     children,
     numberOfLines,
+    onPress,
     ...props
   }: {
     children?: ReactNode;
     numberOfLines?: number;
+    onPress?: () => void;
     [key: string]: unknown;
-  }) => <span {...props}>{children}</span>,
+  }) => (
+    <span onClick={onPress} {...props}>
+      {children}
+    </span>
+  ),
   Card: ({
     children,
     ...props
@@ -238,6 +273,9 @@ vi.mock('@mylife/ui', () => ({
     star: '#ffcc66',
     modules: {
       books: '#C9894D',
+      fast: '#14B8A6',
+      subs: '#EC4899',
+      surf: '#3B82F6',
     },
   },
   spacing: {
@@ -258,4 +296,5 @@ vi.mock('@mylife/ui', () => ({
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });

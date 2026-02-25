@@ -31,7 +31,7 @@ export type SelfHostConnectionMethod =
 
 const SELF_HOST_CONNECTION_METHOD_KEY = 'self_host.connection_method';
 const DEFAULT_SELF_HOST_CONNECTION_METHOD: SelfHostConnectionMethod = 'port_forward_tls';
-const WEB_MODULE_BOOTSTRAP_PREF_KEY = 'web.bootstrap.enabled_modules.v2';
+const WEB_MODULE_BOOTSTRAP_PREF_KEY = 'web.bootstrap.enabled_modules.v5';
 
 /** Get all enabled module IDs from SQLite. */
 export async function getEnabledModuleIds(): Promise<string[]> {

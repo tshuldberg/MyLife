@@ -12,6 +12,7 @@ export type ModuleId =
   | 'car'
   | 'habits'
   | 'meds'
+  | 'words'
   | 'subs';
 
 /** Zod schema for runtime validation of ModuleId values. */
@@ -26,6 +27,7 @@ export const ModuleIdSchema = z.enum([
   'car',
   'habits',
   'meds',
+  'words',
   'subs',
 ]);
 

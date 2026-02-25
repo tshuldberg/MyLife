@@ -27,6 +27,14 @@ MyLife is a unified hub app consolidating 11+ privacy-first personal app modules
 - New runtime code should be .ts/.tsx with strict typing and no implicit any.
 - Use .js/.cjs only where required by tooling or platform constraints.
 
+## App Isolation + Hub Inclusion (Critical)
+
+- Any app added to the `/Users/trey/Desktop/Apps` workspace must be either:
+  - a fully isolated standalone app directory (for example `MyWords/`), or
+  - a module integrated into the MyLife hub (`modules/<name>/` with routes wired in `apps/mobile` and/or `apps/web`).
+- If an app exists in both forms, keep the standalone app fully isolated in its own directory and keep hub integration inside MyLife module/app boundaries.
+- Do not scatter standalone app files directly in the MyLife root.
+
 ## Agent Instructions and Tooling
 
 - Persistent agent instructions are stored in both `AGENTS.md` and `CLAUDE.md`. Keep them in sync when rules change.

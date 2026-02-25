@@ -19,6 +19,7 @@ import { MEDS_MODULE } from '@mylife/meds';
 import { SURF_MODULE } from '@mylife/surf';
 import { WORKOUTS_MODULE } from '@mylife/workouts';
 import { HOMES_MODULE } from '@mylife/homes';
+import { WORDS_MODULE } from '@mylife/words';
 
 const RegistryProvider =
   ModuleRegistryContext.Provider as unknown as React.ComponentType<{
@@ -49,6 +50,7 @@ export function Providers({ children, initialEnabledIds }: ProvidersProps) {
     reg.register(SURF_MODULE);
     reg.register(WORKOUTS_MODULE);
     reg.register(HOMES_MODULE);
+    reg.register(WORDS_MODULE);
     // Restore enabled state from SQLite (passed from server layout)
     for (const id of initialEnabledIds) {
       reg.enable(id as ModuleId);

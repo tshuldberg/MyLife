@@ -6,11 +6,11 @@
  * exercises the module's exported CRUD functions against real SQL.
  */
 
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import Database from 'better-sqlite3';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { DatabaseAdapter } from '@mylife/db';
-import { initializeHubDatabase, runModuleMigrations } from '@mylife/db';
 import {
+  createHubTestDatabase,
+  createModuleTestDatabase,
   enableModule,
   disableModule,
   isModuleEnabled,
@@ -92,46 +92,21 @@ import {
   listTransactions,
 } from '@mylife/budget';
 
-// ─── Helper: build an in-memory DatabaseAdapter backed by better-sqlite3 ────
-
-function createTestAdapter(): {
-  adapter: DatabaseAdapter;
-  rawDb: InstanceType<typeof Database>;
-} {
-  const rawDb = new Database(':memory:');
-  rawDb.pragma('journal_mode = WAL');
-  rawDb.pragma('foreign_keys = ON');
-
-  const adapter: DatabaseAdapter = {
-    execute(sql: string, params?: unknown[]): void {
-      rawDb.prepare(sql).run(...(params ?? []));
-    },
-    query<T = Record<string, unknown>>(sql: string, params?: unknown[]): T[] {
-      return rawDb.prepare(sql).all(...(params ?? [])) as T[];
-    },
-    transaction(fn: () => void): void {
-      rawDb.transaction(fn)();
-    },
-  };
-
-  return { adapter, rawDb };
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // A. Recipes module DB operations
 // ═══════════════════════════════════════════════════════════════════════════════
 
 describe('Module: Recipes', () => {
   let db: DatabaseAdapter;
-  let rawDb: InstanceType<typeof Database>;
+  let closeDb: () => void;
 
-  beforeAll(() => {
-    ({ adapter: db, rawDb } = createTestAdapter());
-    initializeHubDatabase(db);
-    runModuleMigrations(db, 'recipes', RECIPES_MODULE.migrations!);
+  beforeEach(() => {
+    const testDb = createModuleTestDatabase('recipes', RECIPES_MODULE.migrations!);
+    db = testDb.adapter;
+    closeDb = testDb.close;
   });
 
-  afterAll(() => rawDb.close());
+  afterEach(() => closeDb());
 
   it('creates a recipe and retrieves it by id', () => {
     const recipe = createRecipe(db, 'rc-1', {
@@ -160,7 +135,7 @@ describe('Module: Recipes', () => {
     createRecipe(db, 'rc-3', { title: 'Beef Stew' });
 
     const all = getRecipes(db);
-    expect(all.length).toBeGreaterThanOrEqual(3);
+    expect(all).toHaveLength(2);
 
     const filtered = getRecipes(db, { search: 'Chicken' });
     expect(filtered.length).toBe(1);
@@ -168,6 +143,11 @@ describe('Module: Recipes', () => {
   });
 
   it('updates recipe fields', () => {
+    createRecipe(db, 'rc-1', {
+      title: 'Pasta Carbonara',
+      servings: 4,
+      difficulty: 'medium',
+    });
     updateRecipe(db, 'rc-1', { title: 'Spaghetti Carbonara', rating: 5 });
 
     const updated = getRecipeById(db, 'rc-1');
@@ -178,6 +158,7 @@ describe('Module: Recipes', () => {
   });
 
   it('deletes a recipe', () => {
+    createRecipe(db, 'rc-3', { title: 'Delete Me' });
     const result = deleteRecipe(db, 'rc-3');
     expect(result).toBe(true);
 
@@ -186,6 +167,7 @@ describe('Module: Recipes', () => {
   });
 
   it('manages ingredients (add, list, delete)', () => {
+    createRecipe(db, 'rc-1', { title: 'Base Recipe' });
     const ingredient = addIngredient(db, 'ing-1', {
       recipe_id: 'rc-1',
       name: 'Spaghetti',
@@ -216,6 +198,7 @@ describe('Module: Recipes', () => {
   });
 
   it('manages tags (add, list, delete)', () => {
+    createRecipe(db, 'rc-1', { title: 'Tagged Recipe' });
     const tag = addTag(db, 'tag-1', 'rc-1', 'Italian');
     expect(tag.tag).toBe('Italian');
 
@@ -232,8 +215,10 @@ describe('Module: Recipes', () => {
   });
 
   it('counts recipes with and without filters', () => {
+    createRecipe(db, 'rc-1', { title: 'Pasta Carbonara' });
+    createRecipe(db, 'rc-2', { title: 'Chicken Tikka Masala' });
     const total = countRecipes(db);
-    expect(total).toBeGreaterThanOrEqual(2); // rc-1 and rc-2 remain
+    expect(total).toBe(2);
 
     const chickenCount = countRecipes(db, { search: 'Chicken' });
     expect(chickenCount).toBe(1);
@@ -249,15 +234,15 @@ describe('Module: Recipes', () => {
 
 describe('Module: Car', () => {
   let db: DatabaseAdapter;
-  let rawDb: InstanceType<typeof Database>;
+  let closeDb: () => void;
 
-  beforeAll(() => {
-    ({ adapter: db, rawDb } = createTestAdapter());
-    initializeHubDatabase(db);
-    runModuleMigrations(db, 'car', CAR_MODULE.migrations!);
+  beforeEach(() => {
+    const testDb = createModuleTestDatabase('car', CAR_MODULE.migrations!);
+    db = testDb.adapter;
+    closeDb = testDb.close;
   });
 
-  afterAll(() => rawDb.close());
+  afterEach(() => closeDb());
 
   it('creates a vehicle and retrieves it', () => {
     createVehicle(db, 'v-1', {
@@ -277,6 +262,12 @@ describe('Module: Car', () => {
   });
 
   it('updates vehicle fields (odometer, name)', () => {
+    createVehicle(db, 'v-1', {
+      name: 'Daily Driver',
+      make: 'Toyota',
+      model: 'Camry',
+      year: 2022,
+    });
     updateVehicle(db, 'v-1', { odometer: 35000, name: 'My Camry' });
 
     const updated = getVehicleById(db, 'v-1');
@@ -300,6 +291,12 @@ describe('Module: Car', () => {
   });
 
   it('creates maintenance records for a vehicle', () => {
+    createVehicle(db, 'v-1', {
+      name: 'Daily Driver',
+      make: 'Toyota',
+      model: 'Camry',
+      year: 2022,
+    });
     createMaintenance(db, 'm-1', 'v-1', {
       type: 'oil_change',
       performedAt: '2026-01-15',
@@ -321,6 +318,12 @@ describe('Module: Car', () => {
   });
 
   it('creates fuel logs for a vehicle', () => {
+    createVehicle(db, 'v-1', {
+      name: 'Daily Driver',
+      make: 'Toyota',
+      model: 'Camry',
+      year: 2022,
+    });
     createFuelLog(db, 'f-1', 'v-1', {
       gallons: 12.5,
       costCents: 4375,
@@ -337,8 +340,14 @@ describe('Module: Car', () => {
   });
 
   it('counts vehicles', () => {
+    createVehicle(db, 'v-1', {
+      name: 'Daily Driver',
+      make: 'Toyota',
+      model: 'Camry',
+      year: 2022,
+    });
     const count = countVehicles(db);
-    expect(count).toBe(1); // Only v-1 remains (v-del was deleted)
+    expect(count).toBe(1);
   });
 });
 
@@ -348,15 +357,15 @@ describe('Module: Car', () => {
 
 describe('Module: Habits', () => {
   let db: DatabaseAdapter;
-  let rawDb: InstanceType<typeof Database>;
+  let closeDb: () => void;
 
-  beforeAll(() => {
-    ({ adapter: db, rawDb } = createTestAdapter());
-    initializeHubDatabase(db);
-    runModuleMigrations(db, 'habits', HABITS_MODULE.migrations!);
+  beforeEach(() => {
+    const testDb = createModuleTestDatabase('habits', HABITS_MODULE.migrations!);
+    db = testDb.adapter;
+    closeDb = testDb.close;
   });
 
-  afterAll(() => rawDb.close());
+  afterEach(() => closeDb());
 
   it('creates a habit and retrieves it', () => {
     createHabit(db, 'h-1', { name: 'Morning Meditation', frequency: 'daily' });
@@ -370,6 +379,7 @@ describe('Module: Habits', () => {
   });
 
   it('updates habit fields', () => {
+    createHabit(db, 'h-1', { name: 'Morning Meditation', frequency: 'daily' });
     updateHabit(db, 'h-1', { name: 'Meditation', targetCount: 2 });
 
     const updated = getHabitById(db, 'h-1');
@@ -387,6 +397,7 @@ describe('Module: Habits', () => {
   });
 
   it('records completions and retrieves by date', () => {
+    createHabit(db, 'h-1', { name: 'Morning Meditation', frequency: 'daily' });
     const today = new Date().toISOString().slice(0, 10);
 
     recordCompletion(db, 'c-1', 'h-1', `${today}T08:00:00.000Z`);
@@ -434,15 +445,15 @@ describe('Module: Habits', () => {
 
 describe('Module: Meds', () => {
   let db: DatabaseAdapter;
-  let rawDb: InstanceType<typeof Database>;
+  let closeDb: () => void;
 
-  beforeAll(() => {
-    ({ adapter: db, rawDb } = createTestAdapter());
-    initializeHubDatabase(db);
-    runModuleMigrations(db, 'meds', MEDS_MODULE.migrations!);
+  beforeEach(() => {
+    const testDb = createModuleTestDatabase('meds', MEDS_MODULE.migrations!);
+    db = testDb.adapter;
+    closeDb = testDb.close;
   });
 
-  afterAll(() => rawDb.close());
+  afterEach(() => closeDb());
 
   it('creates a medication and retrieves it', () => {
     createMedication(db, 'med-1', {
@@ -462,6 +473,12 @@ describe('Module: Meds', () => {
   });
 
   it('updates medication fields', () => {
+    createMedication(db, 'med-1', {
+      name: 'Metformin',
+      dosage: '500',
+      unit: 'mg',
+      frequency: 'twice_daily',
+    });
     updateMedication(db, 'med-1', { dosage: '1000', frequency: 'daily' });
 
     const updated = getMedicationById(db, 'med-1');
@@ -480,6 +497,12 @@ describe('Module: Meds', () => {
   });
 
   it('records doses (taken and skipped)', () => {
+    createMedication(db, 'med-1', {
+      name: 'Metformin',
+      dosage: '500',
+      unit: 'mg',
+      frequency: 'twice_daily',
+    });
     const today = new Date().toISOString().slice(0, 10);
 
     recordDose(db, 'dose-1', 'med-1', `${today}T08:00:00.000Z`, false);
@@ -495,6 +518,12 @@ describe('Module: Meds', () => {
   });
 
   it('retrieves doses for a specific date', () => {
+    createMedication(db, 'med-1', {
+      name: 'Metformin',
+      dosage: '500',
+      unit: 'mg',
+      frequency: 'twice_daily',
+    });
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
     recordDose(db, 'dose-y1', 'med-1', `${yesterday}T09:00:00.000Z`, false);
 
@@ -510,7 +539,16 @@ describe('Module: Meds', () => {
   });
 
   it('calculates adherence rate', () => {
-    // We have 3 doses for med-1: dose-1 (taken), dose-2 (skipped), dose-y1 (taken)
+    createMedication(db, 'med-1', {
+      name: 'Metformin',
+      dosage: '500',
+      unit: 'mg',
+      frequency: 'twice_daily',
+    });
+    recordDose(db, 'dose-1', 'med-1', '2026-02-20T08:00:00.000Z', false);
+    recordDose(db, 'dose-2', 'med-1', '2026-02-20T20:00:00.000Z', true);
+    recordDose(db, 'dose-y1', 'med-1', '2026-02-19T09:00:00.000Z', false);
+
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
     const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
@@ -538,15 +576,15 @@ describe('Module: Meds', () => {
 
 describe('Module: Budget', () => {
   let db: DatabaseAdapter;
-  let rawDb: InstanceType<typeof Database>;
+  let closeDb: () => void;
 
-  beforeAll(() => {
-    ({ adapter: db, rawDb } = createTestAdapter());
-    initializeHubDatabase(db);
-    runModuleMigrations(db, 'budget', BUDGET_MODULE.migrations!);
+  beforeEach(() => {
+    const testDb = createModuleTestDatabase('budget', BUDGET_MODULE.migrations!);
+    db = testDb.adapter;
+    closeDb = testDb.close;
   });
 
-  afterAll(() => rawDb.close());
+  afterEach(() => closeDb());
 
   it('creates and lists envelopes', () => {
     const envelope = createEnvelope(db, 'env-test', {
@@ -603,6 +641,13 @@ describe('Module: Budget', () => {
   });
 
   it('creates and lists transactions with filters', () => {
+    createEnvelope(db, 'env-test', { name: 'Test Envelope' });
+    createAccount(db, 'acct-test', {
+      name: 'Test Checking',
+      type: 'checking',
+      current_balance: 100000,
+    });
+
     const tx = createTransaction(db, 'tx-1', {
       envelope_id: 'env-test',
       account_id: 'acct-test',
@@ -625,7 +670,7 @@ describe('Module: Budget', () => {
 
     // All transactions
     const allTxns = listTransactions(db);
-    expect(allTxns.length).toBeGreaterThanOrEqual(2);
+    expect(allTxns).toHaveLength(2);
 
     // Filter by direction
     const outflows = listTransactions(db, { direction: 'outflow' });
@@ -642,7 +687,7 @@ describe('Module: Budget', () => {
 
     // Filter by account
     const accountTxns = listTransactions(db, { account_id: 'acct-test' });
-    expect(accountTxns.length).toBeGreaterThanOrEqual(2);
+    expect(accountTxns).toHaveLength(2);
   });
 });
 
@@ -652,14 +697,15 @@ describe('Module: Budget', () => {
 
 describe('Hub operations', () => {
   let db: DatabaseAdapter;
-  let rawDb: InstanceType<typeof Database>;
+  let closeDb: () => void;
 
-  beforeAll(() => {
-    ({ adapter: db, rawDb } = createTestAdapter());
-    initializeHubDatabase(db);
+  beforeEach(() => {
+    const testDb = createHubTestDatabase();
+    db = testDb.adapter;
+    closeDb = testDb.close;
   });
 
-  afterAll(() => rawDb.close());
+  afterEach(() => closeDb());
 
   it('enables and disables modules', () => {
     enableModule(db, 'recipes');
