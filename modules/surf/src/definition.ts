@@ -1,4 +1,16 @@
 import type { ModuleDefinition } from '@mylife/module-registry';
+import type { Migration } from '@mylife/module-registry';
+import { ALL_TABLES, CREATE_INDEXES } from './db/schema';
+
+const SURF_MIGRATION_V1: Migration = {
+  version: 1,
+  description: 'Initial surf schema — spots and sessions',
+  up: [...ALL_TABLES, ...CREATE_INDEXES],
+  down: [
+    'DROP TABLE IF EXISTS sf_sessions',
+    'DROP TABLE IF EXISTS sf_spots',
+  ],
+};
 
 export const SURF_MODULE: ModuleDefinition = {
   id: 'surf',
@@ -8,6 +20,9 @@ export const SURF_MODULE: ModuleDefinition = {
   accentColor: '#3B82F6',
   tier: 'premium',
   storageType: 'supabase',
+  migrations: [SURF_MIGRATION_V1],
+  schemaVersion: 1,
+  tablePrefix: 'sf_',
   navigation: {
     tabs: [
       { key: 'forecast', label: 'Forecast', icon: 'cloud' },
@@ -23,6 +38,6 @@ export const SURF_MODULE: ModuleDefinition = {
     ],
   },
   requiresAuth: true,
-  requiresNetwork: true,
+  requiresNetwork: false,
   version: '0.1.0',
 };

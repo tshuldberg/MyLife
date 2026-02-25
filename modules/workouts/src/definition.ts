@@ -1,4 +1,16 @@
 import type { ModuleDefinition } from '@mylife/module-registry';
+import type { Migration } from '@mylife/module-registry';
+import { ALL_TABLES, CREATE_INDEXES } from './db/schema';
+
+const WORKOUTS_MIGRATION_V1: Migration = {
+  version: 1,
+  description: 'Initial workouts schema — programs and workout logs',
+  up: [...ALL_TABLES, ...CREATE_INDEXES],
+  down: [
+    'DROP TABLE IF EXISTS wk_workout_logs',
+    'DROP TABLE IF EXISTS wk_programs',
+  ],
+};
 
 export const WORKOUTS_MODULE: ModuleDefinition = {
   id: 'workouts',
@@ -8,6 +20,9 @@ export const WORKOUTS_MODULE: ModuleDefinition = {
   accentColor: '#EF4444',
   tier: 'premium',
   storageType: 'supabase',
+  migrations: [WORKOUTS_MIGRATION_V1],
+  schemaVersion: 1,
+  tablePrefix: 'wk_',
   navigation: {
     tabs: [
       { key: 'today', label: 'Today', icon: 'zap' },
@@ -23,6 +38,6 @@ export const WORKOUTS_MODULE: ModuleDefinition = {
     ],
   },
   requiresAuth: true,
-  requiresNetwork: true,
+  requiresNetwork: false,
   version: '0.1.0',
 };

@@ -51,6 +51,20 @@ describe('HubDashboard', () => {
   });
 
   it('filters out modules that are not web-supported', () => {
+    const unsupportedModule = {
+      id: 'voice',
+      name: 'MyVoice',
+      tagline: 'Private voice notes',
+      icon: '🎙️',
+      accentColor: '#9CA3AF',
+      tier: 'premium',
+      storageType: 'sqlite',
+      navigation: { tabs: [], screens: [] },
+      requiresAuth: false,
+      requiresNetwork: false,
+      version: '0.1.0',
+    } as unknown as ModuleDefinition;
+
     enabledModules = [
       {
         id: 'books',
@@ -65,24 +79,12 @@ describe('HubDashboard', () => {
         requiresNetwork: false,
         version: '0.1.0',
       },
-      {
-        id: 'surf',
-        name: 'MySurf',
-        tagline: 'Surf forecasts and spot intel',
-        icon: '🏄',
-        accentColor: '#3B82F6',
-        tier: 'premium',
-        storageType: 'supabase',
-        navigation: { tabs: [], screens: [] },
-        requiresAuth: true,
-        requiresNetwork: true,
-        version: '0.1.0',
-      },
+      unsupportedModule,
     ] as ModuleDefinition[];
 
     render(<HubDashboard />);
 
     expect(screen.getByText('1 module active')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /MySurf/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /MyVoice/i })).not.toBeInTheDocument();
   });
 });

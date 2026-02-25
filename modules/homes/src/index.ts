@@ -1,5 +1,24 @@
-// @mylife/homes — MyHomes module
-// Business logic will be migrated from standalone MyHomes app
-
-export const MODULE_ID = 'homes' as const;
-export { HOMES_MODULE } from './definition.js';
+export { HOMES_MODULE } from './definition';
+export type {
+  HomeListing,
+  HomeTour,
+  HomeListingStatus,
+  HomeMarketMetrics,
+} from './types';
+export {
+  HomeListingSchema,
+  HomeTourSchema,
+  HomeListingStatusSchema,
+} from './types';
+export {
+  createListing,
+  getListings,
+  toggleListingSaved,
+  updateListingStatus,
+  deleteListing,
+  countSavedListings,
+  getHomeMarketMetrics,
+  createTour,
+  getToursByListing,
+  deleteTour,
+} from './db';
