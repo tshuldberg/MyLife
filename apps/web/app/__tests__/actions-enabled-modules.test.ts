@@ -69,7 +69,7 @@ describe('getEnabledModuleIds', () => {
     }
     expect(mockSetPreference).toHaveBeenCalledWith(
       dbAdapter,
-      'web.bootstrap.enabled_modules.v1',
+      'web.bootstrap.enabled_modules.v2',
       '1',
     );
   });
@@ -85,7 +85,28 @@ describe('getEnabledModuleIds', () => {
     expect(mockEnableModule).toHaveBeenCalledTimes(WEB_SUPPORTED_MODULE_IDS.length);
     expect(mockSetPreference).toHaveBeenCalledWith(
       dbAdapter,
-      'web.bootstrap.enabled_modules.v1',
+      'web.bootstrap.enabled_modules.v2',
+      '1',
+    );
+  });
+
+  it('upgrades partial enabled state by enabling missing web-supported modules', async () => {
+    mockGetEnabledModules.mockReturnValue([
+      { module_id: 'books', enabled_at: '2026-02-25 04:12:44' },
+      { module_id: 'budget', enabled_at: '2026-02-25 04:13:44' },
+    ]);
+
+    const ids = await getEnabledModuleIds();
+
+    expect(ids).toEqual(WEB_SUPPORTED_MODULE_IDS);
+    expect(mockEnableModule).toHaveBeenCalledTimes(
+      WEB_SUPPORTED_MODULE_IDS.length - 2,
+    );
+    expect(mockEnableModule).not.toHaveBeenCalledWith(dbAdapter, 'books');
+    expect(mockEnableModule).not.toHaveBeenCalledWith(dbAdapter, 'budget');
+    expect(mockSetPreference).toHaveBeenCalledWith(
+      dbAdapter,
+      'web.bootstrap.enabled_modules.v2',
       '1',
     );
   });
@@ -111,11 +132,12 @@ describe('getEnabledModuleIds', () => {
       { module_id: 'books', enabled_at: '2026-02-25 04:12:44' },
       { module_id: 'surf', enabled_at: '2026-02-25 04:13:44' },
       { module_id: 'workouts', enabled_at: '2026-02-25 04:14:44' },
+      { module_id: 'voice', enabled_at: '2026-02-25 04:15:44' },
     ]);
 
     const ids = await getEnabledModuleIds();
 
-    expect(ids).toEqual(['books']);
+    expect(ids).toEqual(['books', 'surf', 'workouts']);
     expect(mockEnableModule).not.toHaveBeenCalled();
   });
 });

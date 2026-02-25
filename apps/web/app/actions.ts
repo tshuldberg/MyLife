@@ -31,7 +31,7 @@ export type SelfHostConnectionMethod =
 
 const SELF_HOST_CONNECTION_METHOD_KEY = 'self_host.connection_method';
 const DEFAULT_SELF_HOST_CONNECTION_METHOD: SelfHostConnectionMethod = 'port_forward_tls';
-const WEB_MODULE_BOOTSTRAP_PREF_KEY = 'web.bootstrap.enabled_modules.v1';
+const WEB_MODULE_BOOTSTRAP_PREF_KEY = 'web.bootstrap.enabled_modules.v2';
 
 /** Get all enabled module IDs from SQLite. */
 export async function getEnabledModuleIds(): Promise<string[]> {
@@ -40,24 +40,31 @@ export async function getEnabledModuleIds(): Promise<string[]> {
     .map((row) => row.module_id)
     .filter(isWebSupportedModuleId);
 
-  // One-time bootstrap for fresh/legacy DBs that only had MyBooks enabled.
+  // One-time bootstrap for fresh/legacy DBs and older web installs.
   const bootstrapState = getPreference(db, WEB_MODULE_BOOTSTRAP_PREF_KEY);
-  const hasOnlyLegacyBooks = enabledIds.length === 1 && enabledIds[0] === 'books';
-  const shouldBootstrap =
-    bootstrapState !== '1'
-    && (enabledIds.length === 0 || hasOnlyLegacyBooks);
-
-  if (!shouldBootstrap) {
+  if (bootstrapState === '1') {
     return enabledIds;
   }
 
-  for (const moduleId of WEB_SUPPORTED_MODULE_IDS) {
+  const hasOnlyLegacyBooks = enabledIds.length === 1 && enabledIds[0] === 'books';
+  const shouldBootstrapAll = enabledIds.length === 0 || hasOnlyLegacyBooks;
+  const modulesToEnable = shouldBootstrapAll
+    ? [...WEB_SUPPORTED_MODULE_IDS]
+    : WEB_SUPPORTED_MODULE_IDS.filter((moduleId) => !enabledIds.includes(moduleId));
+
+  if (modulesToEnable.length === 0) {
+    setPreference(db, WEB_MODULE_BOOTSTRAP_PREF_KEY, '1');
+    return enabledIds;
+  }
+
+  for (const moduleId of modulesToEnable) {
     enableModule(db, moduleId);
     ensureModuleMigrations(moduleId);
   }
   setPreference(db, WEB_MODULE_BOOTSTRAP_PREF_KEY, '1');
 
-  return [...WEB_SUPPORTED_MODULE_IDS];
+  const mergedEnabled = new Set<string>([...enabledIds, ...modulesToEnable]);
+  return WEB_SUPPORTED_MODULE_IDS.filter((moduleId) => mergedEnabled.has(moduleId));
 }
 
 /** Enable a module: persist to SQLite, run migrations. */

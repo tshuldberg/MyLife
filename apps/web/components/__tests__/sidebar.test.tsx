@@ -16,7 +16,19 @@ vi.mock('@mylife/module-registry', () => ({
 
 vi.mock('@/lib/modules', () => ({
   isWebSupportedModuleId: (id: string) =>
-    ['books', 'budget', 'fast', 'recipes', 'car', 'habits', 'meds', 'subs'].includes(id),
+    [
+      'books',
+      'budget',
+      'fast',
+      'recipes',
+      'surf',
+      'workouts',
+      'homes',
+      'car',
+      'habits',
+      'meds',
+      'subs',
+    ].includes(id),
 }));
 
 import { Sidebar } from '../Sidebar';
@@ -109,14 +121,14 @@ describe('Sidebar', () => {
   it('filters out non-web-supported modules', () => {
     mockRegistry.getEnabled.mockReturnValue([
       makeModule('books', 'MyBooks', '\uD83D\uDCDA'),
-      makeModule('surf', 'MySurf', '\uD83C\uDFC4'),
+      makeModule('voice', 'MyVoice', '\uD83C\uDFA4'),
     ]);
 
     const user = userEvent.setup();
     render(<Sidebar />);
 
     expect(screen.getByText(/books/i)).toBeInTheDocument();
-    expect(screen.queryByText(/surf/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/voice/i)).not.toBeInTheDocument();
   });
 
   it('renders module icons and names', () => {

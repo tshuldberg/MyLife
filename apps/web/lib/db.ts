@@ -16,6 +16,9 @@ import { RECIPES_MODULE } from '@mylife/recipes';
 import { CAR_MODULE } from '@mylife/car';
 import { HABITS_MODULE } from '@mylife/habits';
 import { MEDS_MODULE } from '@mylife/meds';
+import { SURF_MODULE } from '@mylife/surf';
+import { WORKOUTS_MODULE } from '@mylife/workouts';
+import { HOMES_MODULE } from '@mylife/homes';
 
 let adapter: DatabaseAdapter | null = null;
 
@@ -74,6 +77,9 @@ const MODULE_DEFINITIONS_WITH_MIGRATIONS = {
   car: CAR_MODULE,
   habits: HABITS_MODULE,
   meds: MEDS_MODULE,
+  surf: SURF_MODULE,
+  workouts: WORKOUTS_MODULE,
+  homes: HOMES_MODULE,
 } as const;
 
 /**

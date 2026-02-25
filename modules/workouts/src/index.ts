@@ -1,5 +1,22 @@
-// @mylife/workouts — MyWorkouts module
-// Business logic will be migrated from standalone MyWorkouts app
-
-export const MODULE_ID = 'workouts' as const;
-export { WORKOUTS_MODULE } from './definition.js';
+export { WORKOUTS_MODULE } from './definition';
+export type {
+  WorkoutLog,
+  WorkoutProgram,
+  WorkoutMetrics,
+  WorkoutFocus,
+} from './types';
+export {
+  WorkoutLogSchema,
+  WorkoutProgramSchema,
+  WorkoutFocusSchema,
+} from './types';
+export {
+  createWorkoutLog,
+  getWorkoutLogs,
+  deleteWorkoutLog,
+  createWorkoutProgram,
+  getWorkoutPrograms,
+  setActiveWorkoutProgram,
+  deleteWorkoutProgram,
+  getWorkoutMetrics,
+} from './db';

@@ -1,4 +1,16 @@
 import type { ModuleDefinition } from '@mylife/module-registry';
+import type { Migration } from '@mylife/module-registry';
+import { ALL_TABLES, CREATE_INDEXES } from './db/schema';
+
+const HOMES_MIGRATION_V1: Migration = {
+  version: 1,
+  description: 'Initial homes schema — listings and tours',
+  up: [...ALL_TABLES, ...CREATE_INDEXES],
+  down: [
+    'DROP TABLE IF EXISTS hm_tours',
+    'DROP TABLE IF EXISTS hm_listings',
+  ],
+};
 
 export const HOMES_MODULE: ModuleDefinition = {
   id: 'homes',
@@ -8,6 +20,9 @@ export const HOMES_MODULE: ModuleDefinition = {
   accentColor: '#D97706',
   tier: 'premium',
   storageType: 'drizzle',
+  migrations: [HOMES_MIGRATION_V1],
+  schemaVersion: 1,
+  tablePrefix: 'hm_',
   navigation: {
     tabs: [
       { key: 'search', label: 'Search', icon: 'search' },
@@ -23,6 +38,6 @@ export const HOMES_MODULE: ModuleDefinition = {
     ],
   },
   requiresAuth: true,
-  requiresNetwork: true,
+  requiresNetwork: false,
   version: '0.1.0',
 };

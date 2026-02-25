@@ -1,5 +1,27 @@
-// @mylife/surf — MySurf module
-// Business logic will be migrated from standalone MySurf app
-
-export const MODULE_ID = 'surf' as const;
-export { SURF_MODULE } from './definition.js';
+export { SURF_MODULE } from './definition';
+export type {
+  SurfSpot,
+  SurfSession,
+  SurfBreakType,
+  SurfTide,
+} from './types';
+export {
+  SurfSpotSchema,
+  SurfSessionSchema,
+  SurfBreakTypeSchema,
+  SurfTideSchema,
+} from './types';
+export {
+  createSpot,
+  getSpots,
+  updateSpotConditions,
+  toggleSpotFavorite,
+  deleteSpot,
+  countSpots,
+  countFavoriteSpots,
+  getAverageWaveHeightFt,
+  createSession,
+  getSessions,
+  deleteSession,
+  countSessions,
+} from './db';
