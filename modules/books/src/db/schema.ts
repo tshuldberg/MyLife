@@ -102,6 +102,56 @@ CREATE TABLE IF NOT EXISTS bk_share_events (
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );`;
 
+// -- 5c. Reader Documents --
+export const CREATE_READER_DOCUMENTS = `
+CREATE TABLE IF NOT EXISTS bk_reader_documents (
+  id TEXT PRIMARY KEY NOT NULL,
+  book_id TEXT REFERENCES bk_books(id) ON DELETE SET NULL,
+  title TEXT NOT NULL,
+  author TEXT,
+  source_type TEXT NOT NULL DEFAULT 'upload'
+    CHECK (source_type IN ('upload', 'import', 'note')),
+  mime_type TEXT,
+  file_name TEXT,
+  file_extension TEXT,
+  text_content TEXT NOT NULL,
+  content_hash TEXT,
+  total_chars INTEGER NOT NULL DEFAULT 0,
+  total_words INTEGER NOT NULL DEFAULT 0,
+  current_position INTEGER NOT NULL DEFAULT 0,
+  progress_percent REAL NOT NULL DEFAULT 0,
+  last_opened_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`;
+
+export const CREATE_READER_NOTES = `
+CREATE TABLE IF NOT EXISTS bk_reader_notes (
+  id TEXT PRIMARY KEY NOT NULL,
+  document_id TEXT NOT NULL REFERENCES bk_reader_documents(id) ON DELETE CASCADE,
+  note_type TEXT NOT NULL DEFAULT 'note'
+    CHECK (note_type IN ('note', 'highlight', 'bookmark')),
+  selection_start INTEGER NOT NULL DEFAULT 0,
+  selection_end INTEGER NOT NULL DEFAULT 0,
+  selected_text TEXT,
+  note_text TEXT,
+  color TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`;
+
+export const CREATE_READER_PREFERENCES = `
+CREATE TABLE IF NOT EXISTS bk_reader_preferences (
+  document_id TEXT PRIMARY KEY NOT NULL REFERENCES bk_reader_documents(id) ON DELETE CASCADE,
+  font_size INTEGER NOT NULL DEFAULT 20,
+  line_height REAL NOT NULL DEFAULT 1.6,
+  font_family TEXT NOT NULL DEFAULT 'serif',
+  theme TEXT NOT NULL DEFAULT 'sepia'
+    CHECK (theme IN ('dark', 'sepia', 'light')),
+  margin_size INTEGER NOT NULL DEFAULT 20,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`;
+
 // -- 6. Tags --
 export const CREATE_TAGS = `
 CREATE TABLE IF NOT EXISTS bk_tags (
@@ -217,6 +267,19 @@ export const CREATE_SHARE_INDEXES = [
      ON bk_share_events(object_type, object_id);`,
   `CREATE INDEX IF NOT EXISTS bk_share_events_visibility_created_idx
      ON bk_share_events(visibility, created_at DESC);`,
+];
+
+export const CREATE_READER_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS bk_reader_documents_book_idx
+     ON bk_reader_documents(book_id);`,
+  `CREATE INDEX IF NOT EXISTS bk_reader_documents_last_opened_idx
+     ON bk_reader_documents(last_opened_at DESC);`,
+  `CREATE INDEX IF NOT EXISTS bk_reader_documents_updated_idx
+     ON bk_reader_documents(updated_at DESC);`,
+  `CREATE INDEX IF NOT EXISTS bk_reader_notes_document_created_idx
+     ON bk_reader_notes(document_id, created_at DESC);`,
+  `CREATE INDEX IF NOT EXISTS bk_reader_notes_type_idx
+     ON bk_reader_notes(note_type);`,
 ];
 
 // -- System shelf seeds --

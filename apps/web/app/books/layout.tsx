@@ -21,6 +21,9 @@ export default function BooksLayout({
         <Link href="/books/search" style={styles.subnavLink}>
           Search
         </Link>
+        <Link href="/books/reader" style={styles.subnavLink}>
+          Reader
+        </Link>
         <Link href="/books/stats" style={styles.subnavLink}>
           Stats
         </Link>

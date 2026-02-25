@@ -191,6 +191,102 @@ export const ShareEventInsertSchema = ShareEventSchema.omit({
 });
 export type ShareEventInsert = z.infer<typeof ShareEventInsertSchema>;
 
+// --- 5c. Reader Documents ---
+
+export const ReaderDocumentSource = z.enum(['upload', 'import', 'note']);
+export type ReaderDocumentSource = z.infer<typeof ReaderDocumentSource>;
+
+export const ReaderDocumentSchema = z.object({
+  id,
+  book_id: z.string().uuid().nullable(),
+  title: z.string().min(1),
+  author: z.string().nullable(),
+  source_type: ReaderDocumentSource.default('upload'),
+  mime_type: z.string().nullable(),
+  file_name: z.string().nullable(),
+  file_extension: z.string().nullable(),
+  text_content: z.string(),
+  content_hash: z.string().nullable(),
+  total_chars: z.number().int().nonnegative(),
+  total_words: z.number().int().nonnegative(),
+  current_position: z.number().int().nonnegative(),
+  progress_percent: z.number().min(0).max(100),
+  last_opened_at: isoDatetime.nullable(),
+  created_at: timestamp,
+  updated_at: timestamp,
+});
+export type ReaderDocument = z.infer<typeof ReaderDocumentSchema>;
+
+export const ReaderDocumentInsertSchema = z.object({
+  book_id: z.string().uuid().nullable().optional(),
+  title: z.string().min(1),
+  author: z.string().nullable().optional(),
+  source_type: ReaderDocumentSource.default('upload'),
+  mime_type: z.string().nullable().optional(),
+  file_name: z.string().nullable().optional(),
+  file_extension: z.string().nullable().optional(),
+  text_content: z.string().min(1),
+  content_hash: z.string().nullable().optional(),
+  total_chars: z.number().int().nonnegative().optional(),
+  total_words: z.number().int().nonnegative().optional(),
+  current_position: z.number().int().nonnegative().optional(),
+  progress_percent: z.number().min(0).max(100).optional(),
+  last_opened_at: isoDatetime.nullable().optional(),
+});
+export type ReaderDocumentInsert = z.infer<typeof ReaderDocumentInsertSchema>;
+
+export const ReaderNoteType = z.enum(['note', 'highlight', 'bookmark']);
+export type ReaderNoteType = z.infer<typeof ReaderNoteType>;
+
+export const ReaderDocumentNoteSchema = z.object({
+  id,
+  document_id: z.string().uuid(),
+  note_type: ReaderNoteType.default('note'),
+  selection_start: z.number().int().nonnegative(),
+  selection_end: z.number().int().nonnegative(),
+  selected_text: z.string().nullable(),
+  note_text: z.string().nullable(),
+  color: z.string().nullable(),
+  created_at: timestamp,
+  updated_at: timestamp,
+});
+export type ReaderDocumentNote = z.infer<typeof ReaderDocumentNoteSchema>;
+
+export const ReaderDocumentNoteInsertSchema = z.object({
+  document_id: z.string().uuid(),
+  note_type: ReaderNoteType.default('note'),
+  selection_start: z.number().int().nonnegative(),
+  selection_end: z.number().int().nonnegative(),
+  selected_text: z.string().nullable().optional(),
+  note_text: z.string().nullable().optional(),
+  color: z.string().nullable().optional(),
+});
+export type ReaderDocumentNoteInsert = z.infer<typeof ReaderDocumentNoteInsertSchema>;
+
+export const ReaderTheme = z.enum(['dark', 'sepia', 'light']);
+export type ReaderTheme = z.infer<typeof ReaderTheme>;
+
+export const ReaderDocumentPreferenceSchema = z.object({
+  document_id: z.string().uuid(),
+  font_size: z.number().int().min(12).max(48),
+  line_height: z.number().min(1).max(3),
+  font_family: z.string().min(1),
+  theme: ReaderTheme.default('sepia'),
+  margin_size: z.number().int().min(0).max(64),
+  updated_at: timestamp,
+});
+export type ReaderDocumentPreference = z.infer<typeof ReaderDocumentPreferenceSchema>;
+
+export const ReaderDocumentPreferenceInsertSchema = z.object({
+  document_id: z.string().uuid(),
+  font_size: z.number().int().min(12).max(48).optional(),
+  line_height: z.number().min(1).max(3).optional(),
+  font_family: z.string().min(1).optional(),
+  theme: ReaderTheme.optional(),
+  margin_size: z.number().int().min(0).max(64).optional(),
+});
+export type ReaderDocumentPreferenceInsert = z.infer<typeof ReaderDocumentPreferenceInsertSchema>;
+
 // --- 6. Tags ---
 
 export const TagSchema = z.object({

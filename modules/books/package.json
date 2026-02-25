@@ -12,6 +12,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "jszip": "^3.10.1",
     "zod": "^3.24.0"
   },
   "peerDependencies": {
