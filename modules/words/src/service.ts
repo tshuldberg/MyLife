@@ -1,4 +1,5 @@
 import {
+  fetchEnglishContextualMeaningFromDatamuse,
   fetchEnglishRhymesFromDatamuse,
   fetchEnglishThesaurusFromDatamuse,
   fetchWordsByPrefixFromDatamuse,
@@ -15,13 +16,19 @@ import type {
   MyWordsLookupResult,
   MyWordsProvider,
   MyWordsSense,
+  MyWordsWordHelperResult,
+  MyWordsWordHelperSuggestion,
+  WordHelperInput,
 } from './types';
 
 const LANG_CACHE_MS = 24 * 60 * 60 * 1000;
 const LOOKUP_CACHE_MS = 5 * 60 * 1000;
 const ALPHABETICAL_CACHE_MS = 10 * 60 * 1000;
+const WORD_HELPER_CACHE_MS = 5 * 60 * 1000;
 const DEFAULT_PAGE_SIZE = 60;
 const MAX_PAGE_SIZE = 120;
+const DEFAULT_WORD_HELPER_SUGGESTIONS = 24;
+const MAX_WORD_HELPER_SUGGESTIONS = 64;
 
 const FALLBACK_LANGUAGES: MyWordsLanguage[] = [
   { code: 'en', name: 'English', words: 1343902 },
@@ -57,6 +64,7 @@ const ATTR_WIKTIONARY: MyWordsAttribution = {
 let languageCache: { expiresAt: number; value: MyWordsLanguage[] } | null = null;
 const lookupCache = new Map<string, { expiresAt: number; value: MyWordsLookupResult | null }>();
 const alphabeticalCache = new Map<string, { expiresAt: number; value: string[] }>();
+const wordHelperCache = new Map<string, { expiresAt: number; value: MyWordsWordHelperResult }>();
 
 function dedupe(values: string[]): string[] {
   const seen = new Set<string>();
@@ -176,6 +184,75 @@ function normalizeLetter(value: string): string {
     throw new Error('Letter must be A-Z.');
   }
   return normalized;
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function normalizeContextToken(value: string): string {
+  return value.replace(/^[^A-Za-z]+|[^A-Za-z]+$/g, '').toLocaleLowerCase();
+}
+
+function splitSentenceWords(sentence: string): string[] {
+  const matches = sentence.match(/[A-Za-z][A-Za-z'-]*/g) ?? [];
+  return dedupe(matches.map((word) => word.trim()).filter(Boolean));
+}
+
+function findWordInSentence(sentence: string, targetWord: string): { index: number; matched: string } | null {
+  const escaped = escapeRegex(targetWord);
+  const wordBoundaryRegex = new RegExp(`\\b${escaped}\\b`, 'i');
+  const byBoundary = wordBoundaryRegex.exec(sentence);
+  if (byBoundary && typeof byBoundary.index === 'number') {
+    return { index: byBoundary.index, matched: byBoundary[0] };
+  }
+
+  const lowerSentence = sentence.toLocaleLowerCase();
+  const lowerTarget = targetWord.toLocaleLowerCase();
+  const fallbackIndex = lowerSentence.indexOf(lowerTarget);
+  if (fallbackIndex < 0) return null;
+  return { index: fallbackIndex, matched: sentence.slice(fallbackIndex, fallbackIndex + targetWord.length) };
+}
+
+function applyMatchCase(templateWord: string, replacement: string): string {
+  if (!replacement) return replacement;
+  if (templateWord.toUpperCase() === templateWord) return replacement.toUpperCase();
+  const capitalizedTemplate = templateWord[0]?.toUpperCase() === templateWord[0]
+    && templateWord.slice(1).toLowerCase() === templateWord.slice(1);
+  if (capitalizedTemplate) {
+    return `${replacement[0]?.toUpperCase() ?? ''}${replacement.slice(1)}`;
+  }
+  return replacement;
+}
+
+function collectSynonymCandidates(lookup: MyWordsLookupResult, normalizedTargetWord: string): string[] {
+  const senseSynonyms = lookup.entries.flatMap((entry) =>
+    flattenSenses(entry.senses).flatMap((sense) => sense.synonyms),
+  );
+  const entrySynonyms = lookup.entries.flatMap((entry) => entry.synonyms);
+  return dedupe([...lookup.synonyms, ...entrySynonyms, ...senseSynonyms])
+    .filter((candidate) => candidate.toLocaleLowerCase() !== normalizedTargetWord);
+}
+
+function dedupeAttributions(attributions: MyWordsAttribution[]): MyWordsAttribution[] {
+  const seen = new Set<string>();
+  const out: MyWordsAttribution[] = [];
+  for (const attribution of attributions) {
+    const key = `${attribution.name}::${attribution.url}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(attribution);
+  }
+  return out;
+}
+
+function wordHelperCacheKey(input: WordHelperInput): string {
+  return [
+    input.languageCode.trim().toLocaleLowerCase(),
+    input.targetWord.trim().toLocaleLowerCase(),
+    input.sentence.trim().toLocaleLowerCase(),
+    String(clampInt(input.maxSuggestions, DEFAULT_WORD_HELPER_SUGGESTIONS, 1, MAX_WORD_HELPER_SUGGESTIONS)),
+  ].join('::');
 }
 
 export async function getMyWordsLanguages(): Promise<MyWordsLanguage[]> {
@@ -325,8 +402,155 @@ export async function browseWordsAlphabetically(
   };
 }
 
+export async function suggestWordReplacements(input: WordHelperInput): Promise<MyWordsWordHelperResult> {
+  const languageCode = input.languageCode.trim().toLocaleLowerCase();
+  const sentence = input.sentence.trim();
+  const targetWord = input.targetWord.trim();
+  const maxSuggestions = clampInt(
+    input.maxSuggestions,
+    DEFAULT_WORD_HELPER_SUGGESTIONS,
+    1,
+    MAX_WORD_HELPER_SUGGESTIONS,
+  );
+
+  if (!languageCode) throw new Error('Language code is required.');
+  if (!sentence) throw new Error('Sentence is required.');
+  if (!targetWord) throw new Error('Selected word is required.');
+
+  const sentenceWords = splitSentenceWords(sentence);
+  if (sentenceWords.length === 0) {
+    throw new Error('Sentence must include at least one word.');
+  }
+
+  const targetLocation = findWordInSentence(sentence, targetWord);
+  if (!targetLocation) {
+    throw new Error('Selected word must appear in the sentence.');
+  }
+
+  const cacheKey = wordHelperCacheKey({ languageCode, sentence, targetWord, maxSuggestions });
+  const now = Date.now();
+  const cached = wordHelperCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.value;
+  }
+
+  const lookup = await lookupWord({ languageCode, word: targetWord });
+  if (!lookup) {
+    return {
+      languageCode,
+      sentence,
+      targetWord,
+      normalizedTargetWord: targetWord.toLocaleLowerCase(),
+      suggestions: [],
+      supported: false,
+      message: `No thesaurus/dictionary entry found for "${targetWord}" in ${languageCode.toUpperCase()}.`,
+      providers: [],
+      attributions: [],
+    };
+  }
+
+  const normalizedTargetWord = targetWord.toLocaleLowerCase();
+  const dictionaryCandidates = collectSynonymCandidates(lookup, normalizedTargetWord);
+  const knownCandidates = dedupe([
+    ...dictionaryCandidates,
+    ...(lookup.nearbyWords ?? []),
+    ...(lookup.wordFamily ?? []),
+  ]).filter((candidate) => candidate.toLocaleLowerCase() !== normalizedTargetWord);
+
+  const before = sentence.slice(0, targetLocation.index);
+  const after = sentence.slice(targetLocation.index + targetLocation.matched.length);
+  const beforeParts = before.split(/\s+/).filter(Boolean);
+  const afterParts = after.split(/\s+/).filter(Boolean);
+  const leftContext = normalizeContextToken(beforeParts[beforeParts.length - 1] ?? '');
+  const rightContext = normalizeContextToken(afterParts[0] ?? '');
+
+  let contextualCandidates: Array<{ word: string; score: number }> = [];
+  if (languageCode === 'en') {
+    try {
+      contextualCandidates = await fetchEnglishContextualMeaningFromDatamuse({
+        word: targetWord,
+        leftContext,
+        rightContext,
+        max: Math.max(48, maxSuggestions * 4),
+      });
+    } catch {
+      contextualCandidates = [];
+    }
+  }
+
+  const contextRankByWord = new Map<string, { rank: number; score: number }>();
+  contextualCandidates.forEach((item, rank) => {
+    const key = item.word.toLocaleLowerCase();
+    const previous = contextRankByWord.get(key);
+    if (!previous || item.score > previous.score) {
+      contextRankByWord.set(key, { rank, score: item.score });
+    }
+  });
+
+  const suggestions: MyWordsWordHelperSuggestion[] = knownCandidates
+    .map((candidate) => {
+      const key = candidate.toLocaleLowerCase();
+      const context = contextRankByWord.get(key);
+      const contextMatch = Boolean(context);
+      const score = context?.score ?? 0;
+      const relevance: MyWordsWordHelperSuggestion['relevance'] = !context
+        ? 'related'
+        : (context.rank <= 12 || score >= 120000)
+          ? 'high'
+          : 'medium';
+      const replacement = applyMatchCase(targetLocation.matched, candidate);
+      return {
+        replacement: candidate,
+        replacedSentence:
+          `${sentence.slice(0, targetLocation.index)}`
+          + `${replacement}`
+          + `${sentence.slice(targetLocation.index + targetLocation.matched.length)}`,
+        score,
+        relevance,
+        contextMatch,
+      };
+    })
+    .sort((a, b) => {
+      if (a.contextMatch !== b.contextMatch) return a.contextMatch ? -1 : 1;
+      if (a.score !== b.score) return b.score - a.score;
+      return a.replacement.localeCompare(b.replacement, 'en', { sensitivity: 'base' });
+    })
+    .slice(0, maxSuggestions);
+
+  const providers: MyWordsProvider[] = [...lookup.providers];
+  if (contextualCandidates.length > 0 && !providers.includes('datamuse')) {
+    providers.push('datamuse');
+  }
+
+  const attributions = dedupeAttributions([
+    ...lookup.attributions,
+    ...(contextualCandidates.length > 0 ? [ATTR_DATAMUSE] : []),
+  ]);
+
+  const result: MyWordsWordHelperResult = {
+    languageCode,
+    sentence,
+    targetWord,
+    normalizedTargetWord,
+    suggestions,
+    supported: suggestions.length > 0,
+    message:
+      suggestions.length === 0
+        ? `No replacement options found for "${targetWord}".`
+        : languageCode === 'en'
+          ? undefined
+          : 'Context ranking is currently strongest for English; showing dictionary/thesaurus options.',
+    providers,
+    attributions,
+  };
+
+  wordHelperCache.set(cacheKey, { expiresAt: now + WORD_HELPER_CACHE_MS, value: result });
+  return result;
+}
+
 export function __resetMyWordsServiceCacheForTests(): void {
   languageCache = null;
   lookupCache.clear();
   alphabeticalCache.clear();
+  wordHelperCache.clear();
 }

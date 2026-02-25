@@ -1,12 +1,19 @@
 'use server';
 
-import { browseWordsAlphabetically, getMyWordsLanguages, lookupWord } from '@mylife/words';
+import {
+  browseWordsAlphabetically,
+  getMyWordsLanguages,
+  lookupWord,
+  suggestWordReplacements,
+} from '@mylife/words';
 import type {
   BrowseAlphabeticalWordsInput,
   LookupWordInput,
   MyWordsAlphabeticalBrowseResult,
   MyWordsLanguage,
   MyWordsLookupResult,
+  MyWordsWordHelperResult,
+  WordHelperInput,
 } from '@mylife/words';
 
 export async function fetchMyWordsLanguagesAction(): Promise<MyWordsLanguage[]> {
@@ -21,4 +28,10 @@ export async function browseAlphabeticalWordsAction(
   input: BrowseAlphabeticalWordsInput,
 ): Promise<MyWordsAlphabeticalBrowseResult> {
   return browseWordsAlphabetically(input);
+}
+
+export async function suggestWordReplacementsAction(
+  input: WordHelperInput,
+): Promise<MyWordsWordHelperResult> {
+  return suggestWordReplacements(input);
 }

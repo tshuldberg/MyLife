@@ -90,3 +90,30 @@ export interface MyWordsAlphabeticalBrowseResult {
   supported: boolean;
   message?: string;
 }
+
+export interface WordHelperInput {
+  languageCode: string;
+  sentence: string;
+  targetWord: string;
+  maxSuggestions?: number;
+}
+
+export interface MyWordsWordHelperSuggestion {
+  replacement: string;
+  replacedSentence: string;
+  score: number;
+  relevance: 'high' | 'medium' | 'related';
+  contextMatch: boolean;
+}
+
+export interface MyWordsWordHelperResult {
+  languageCode: string;
+  sentence: string;
+  targetWord: string;
+  normalizedTargetWord: string;
+  suggestions: MyWordsWordHelperSuggestion[];
+  supported: boolean;
+  message?: string;
+  providers: MyWordsProvider[];
+  attributions: MyWordsAttribution[];
+}

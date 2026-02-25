@@ -4,6 +4,7 @@ import {
   browseWordsAlphabetically,
   getMyWordsLanguages,
   lookupWord,
+  suggestWordReplacements,
 } from '../service';
 
 function json(payload: unknown, status = 200): Response {
@@ -224,5 +225,60 @@ describe('@mylife/words', () => {
       browseWordsAlphabetically({ languageCode: 'en', letter: 'ab' }),
     ).rejects.toThrow('Letter must be A-Z.');
     expect(fetchMock).toHaveBeenCalledTimes(0);
+  });
+
+  it('suggests context-aware sentence replacements for english', async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.includes('/entries/en/bright')) {
+        return json({
+          word: 'bright',
+          entries: [{
+            language: { code: 'en', name: 'English' },
+            partOfSpeech: 'adjective',
+            pronunciations: [{ text: '/brait/' }],
+            forms: [{ word: 'brighter' }],
+            senses: [{
+              definition: 'full of light',
+              synonyms: ['luminous', 'radiant', 'vivid'],
+              antonyms: ['dark'],
+            }],
+          }],
+        });
+      }
+      if (url.includes('/words?ml=bright') && url.includes('lc=the') && url.includes('rc=sun')) {
+        return json([
+          { word: 'radiant', score: 990 },
+          { word: 'vivid', score: 760 },
+        ]);
+      }
+      if (url.includes('/words?rel_syn=bright')) return json([]);
+      if (url.includes('/words?rel_ant=bright')) return json([]);
+      if (url.includes('/words?rel_rhy=bright')) return json([]);
+      throw new Error(`unexpected ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock as unknown as typeof fetch);
+
+    const result = await suggestWordReplacements({
+      languageCode: 'en',
+      sentence: 'The bright sun warmed the room.',
+      targetWord: 'bright',
+      maxSuggestions: 3,
+    });
+
+    expect(result.supported).toBe(true);
+    expect(result.suggestions[0]?.replacement).toBe('radiant');
+    expect(result.suggestions[0]?.replacedSentence).toBe('The radiant sun warmed the room.');
+    expect(result.providers).toContain('datamuse');
+  });
+
+  it('throws when selected word is not in sentence', async () => {
+    await expect(
+      suggestWordReplacements({
+        languageCode: 'en',
+        sentence: 'The sky is blue.',
+        targetWord: 'green',
+      }),
+    ).rejects.toThrow('Selected word must appear in the sentence.');
   });
 });

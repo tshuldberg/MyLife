@@ -6,19 +6,22 @@ import type {
   MyWordsLanguage,
   MyWordsLookupResult,
   MyWordsSense,
+  MyWordsWordHelperResult,
 } from '@mylife/words';
 import {
   browseAlphabeticalWordsAction,
   fetchMyWordsLanguagesAction,
   lookupWordAction,
+  suggestWordReplacementsAction,
 } from './actions';
 
-type MyWordsTab = 'search' | 'dictionary' | 'thesaurus';
+type MyWordsTab = 'search' | 'dictionary' | 'thesaurus' | 'helper';
 
 const TABS: Array<{ key: MyWordsTab; label: string; subtitle: string }> = [
   { key: 'search', label: 'Search', subtitle: 'Direct word lookup' },
   { key: 'dictionary', label: 'Dictionary A-Z', subtitle: 'Browse words by letter' },
   { key: 'thesaurus', label: 'Thesaurus A-Z', subtitle: 'Browse words, then open synonyms/antonyms' },
+  { key: 'helper', label: 'Word Helper', subtitle: 'Replace a selected word in sentence context' },
 ];
 
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
@@ -36,6 +39,11 @@ function dedupeLabels(labels: string[]): string[] {
     out.push(normalized);
   }
   return out;
+}
+
+function extractSelectableWords(sentence: string): string[] {
+  const matches = sentence.match(/[A-Za-z][A-Za-z'-]*/g) ?? [];
+  return dedupeLabels(matches).slice(0, 120);
 }
 
 function getPronunciationLabels(result: MyWordsLookupResult | null): string[] {
@@ -132,6 +140,12 @@ export default function MyWordsPage() {
   const [browseError, setBrowseError] = useState<string | null>(null);
   const [browseLoading, setBrowseLoading] = useState(false);
 
+  const [helperSentence, setHelperSentence] = useState('');
+  const [helperTargetWord, setHelperTargetWord] = useState('');
+  const [helperResult, setHelperResult] = useState<MyWordsWordHelperResult | null>(null);
+  const [helperError, setHelperError] = useState<string | null>(null);
+  const [helperLoading, setHelperLoading] = useState(false);
+
   const selectedLanguage = useMemo(
     () => languages.find((lang) => lang.code === languageCode),
     [languages, languageCode],
@@ -143,6 +157,10 @@ export default function MyWordsPage() {
   const resultWordFamily = result?.wordFamily ?? [];
   const resultRhymes = result?.rhymes ?? [];
   const resultNearbyWords = result?.nearbyWords ?? [];
+  const helperSelectableWords = useMemo(
+    () => extractSelectableWords(helperSentence),
+    [helperSentence],
+  );
 
   const totalBrowsePages = useMemo(() => {
     if (!browseResult || browseResult.pageSize < 1) return 1;
@@ -220,14 +238,53 @@ export default function MyWordsPage() {
     [],
   );
 
+  const runWordHelper = useCallback(async (): Promise<void> => {
+    const sentence = helperSentence.trim();
+    const targetWord = helperTargetWord.trim();
+    if (!sentence) {
+      setHelperError('Enter a sentence.');
+      setHelperResult(null);
+      return;
+    }
+    if (!targetWord) {
+      setHelperError('Select or enter a word to replace.');
+      setHelperResult(null);
+      return;
+    }
+
+    setHelperLoading(true);
+    setHelperError(null);
+    try {
+      const data = await suggestWordReplacementsAction({
+        languageCode,
+        sentence,
+        targetWord,
+      });
+      setHelperResult(data);
+      if (!data.supported && data.message) {
+        setHelperError(data.message);
+      }
+    } catch (err) {
+      setHelperResult(null);
+      setHelperError(err instanceof Error ? err.message : 'Word helper failed.');
+    } finally {
+      setHelperLoading(false);
+    }
+  }, [helperSentence, helperTargetWord, languageCode]);
+
   useEffect(() => {
-    if (tab === 'search') return;
+    if (tab !== 'dictionary' && tab !== 'thesaurus') return;
     void loadBrowse(languageCode, browseLetter, browsePage);
   }, [tab, languageCode, browseLetter, browsePage, loadBrowse]);
 
   const onSearchSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await runLookup(word, languageCode);
+  };
+
+  const onHelperSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await runWordHelper();
   };
 
   const onOpenWordFromBrowse = async (selectedWord: string) => {
@@ -294,7 +351,7 @@ export default function MyWordsPage() {
         )}
       </div>
 
-      {tab !== 'search' && (
+      {(tab === 'dictionary' || tab === 'thesaurus') && (
         <div style={styles.browseWrap}>
           <div style={styles.letterGrid}>
             {LETTERS.map((letter) => {
@@ -377,7 +434,88 @@ export default function MyWordsPage() {
         </div>
       )}
 
-      {searchError && <p style={styles.error}>{searchError}</p>}
+      {tab === 'helper' && (
+        <div style={styles.helperWrap}>
+          <form onSubmit={(event) => void onHelperSubmit(event)} style={styles.helperForm}>
+            <textarea
+              value={helperSentence}
+              onChange={(event) => setHelperSentence(event.target.value)}
+              placeholder="Enter a sentence, e.g. The bright sun warmed the room."
+              style={styles.helperTextarea}
+              rows={4}
+            />
+            <div style={styles.helperWordRow}>
+              <input
+                value={helperTargetWord}
+                onChange={(event) => setHelperTargetWord(event.target.value)}
+                placeholder="Word to replace"
+                style={styles.input}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button type="submit" style={styles.button} disabled={helperLoading}>
+                {helperLoading ? 'Finding Options...' : 'Suggest Replacements'}
+              </button>
+            </div>
+
+            {helperSelectableWords.length > 0 && (
+              <div style={styles.helperWordChips}>
+                {helperSelectableWords.map((item) => {
+                  const active = helperTargetWord.trim().toLocaleLowerCase() === item.toLocaleLowerCase();
+                  return (
+                    <button
+                      key={`helper-word-${item}`}
+                      type="button"
+                      onClick={() => setHelperTargetWord(item)}
+                      style={{
+                        ...styles.helperWordChip,
+                        ...(active ? styles.helperWordChipActive : {}),
+                      }}
+                    >
+                      {item}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </form>
+
+          {helperError && <p style={styles.error}>{helperError}</p>}
+
+          {helperResult && (
+            <div style={styles.helperResultCard}>
+              {helperResult.message && <p style={styles.muted}>{helperResult.message}</p>}
+              <p style={styles.muted}>
+                {helperResult.suggestions.length} option{helperResult.suggestions.length === 1 ? '' : 's'} for "{helperResult.targetWord}".
+              </p>
+              <div style={styles.helperSuggestionList}>
+                {helperResult.suggestions.map((item) => (
+                  <div key={`${item.replacement}-${item.replacedSentence}`} style={styles.helperSuggestionItem}>
+                    <div style={styles.helperSuggestionHeader}>
+                      <button
+                        type="button"
+                        style={styles.helperReplacementButton}
+                        onClick={() => void onOpenWordFromBrowse(item.replacement)}
+                      >
+                        {item.replacement}
+                      </button>
+                      <span style={styles.helperSuggestionMeta}>
+                        {item.relevance}{item.contextMatch ? ' • context match' : ''}
+                      </span>
+                    </div>
+                    <p style={styles.helperSentencePreview}>{item.replacedSentence}</p>
+                  </div>
+                ))}
+              </div>
+              {helperResult.suggestions.length === 0 && (
+                <p style={styles.muted}>No replacement options found for this sentence.</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'search' && searchError && <p style={styles.error}>{searchError}</p>}
 
       {result && (
         <div style={styles.resultWrap}>
@@ -607,6 +745,70 @@ const styles: Record<string, React.CSSProperties> = {
     background: 'var(--surface-elevated)',
     padding: '0.85rem',
   },
+  helperWrap: { display: 'grid', gap: '0.85rem', marginBottom: '1rem' },
+  helperForm: {
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-lg)',
+    background: 'var(--surface-elevated)',
+    padding: '0.85rem',
+    display: 'grid',
+    gap: '0.75rem',
+  },
+  helperTextarea: {
+    width: '100%',
+    minHeight: '112px',
+    resize: 'vertical',
+    background: 'var(--surface)',
+    color: 'var(--text)',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    padding: '0.6rem 0.7rem',
+    fontFamily: 'inherit',
+    lineHeight: 1.45,
+  },
+  helperWordRow: { display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' },
+  helperWordChips: { display: 'flex', flexWrap: 'wrap', gap: '0.5rem' },
+  helperWordChip: {
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    background: 'var(--surface)',
+    color: 'var(--text-secondary)',
+    padding: '0.35rem 0.52rem',
+    cursor: 'pointer',
+  },
+  helperWordChipActive: {
+    borderColor: 'var(--accent-words)',
+    color: 'var(--accent-words)',
+    background: 'rgba(14, 165, 233, 0.14)',
+  },
+  helperResultCard: {
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-lg)',
+    background: 'var(--surface-elevated)',
+    padding: '0.85rem',
+    display: 'grid',
+    gap: '0.6rem',
+  },
+  helperSuggestionList: { display: 'grid', gap: '0.55rem' },
+  helperSuggestionItem: {
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    background: 'var(--surface)',
+    padding: '0.6rem 0.65rem',
+    display: 'grid',
+    gap: '0.35rem',
+  },
+  helperSuggestionHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.7rem' },
+  helperReplacementButton: {
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    background: 'transparent',
+    color: 'var(--accent-words)',
+    padding: '0.2rem 0.45rem',
+    cursor: 'pointer',
+  },
+  helperSuggestionMeta: { color: 'var(--text-tertiary)', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em' },
+  helperSentencePreview: { margin: 0, color: 'var(--text-secondary)', lineHeight: 1.45 },
   hint: { margin: '0 0 0.5rem', color: 'var(--text-secondary)' },
   wordGrid: {
     display: 'grid',

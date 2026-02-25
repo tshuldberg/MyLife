@@ -301,6 +301,7 @@ export const MODULE_METADATA: Record<ModuleId, ModuleDefinition> = {
     navigation: {
       tabs: [
         { key: 'lookup', label: 'Lookup', icon: 'search' },
+        { key: 'helper', label: 'Word Helper', icon: 'sparkles' },
         { key: 'languages', label: 'Languages', icon: 'globe' },
         { key: 'saved', label: 'Saved', icon: 'bookmark' },
         { key: 'settings', label: 'Settings', icon: 'settings' },
