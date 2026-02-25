@@ -1,0 +1,20 @@
+{
+  "extends": "@mylife/typescript-config/react.json",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "**/__tests__/**",
+    "test/**",
+    "vitest.config.ts"
+  ]
+}

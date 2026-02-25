@@ -1,0 +1,490 @@
+# Timeline
+
+## 2026-02-24
+
+- Identified and completed the highest-priority start step: restore monorepo typecheck health before new feature work.
+- Updated `@mylife/ui` button/text compatibility to match existing mobile usage (`label` prop support, `ghost` variant, `bookAuthor` typography variant).
+- Fixed Expo SQLite adapter typing in mobile database provider.
+- Added React provider type bridges in mobile and web app providers to avoid cross-package React type conflicts.
+- Updated web books/subscriptions flows to align with current module contracts and enum values.
+- Added app-level TypeScript overrides for web (`composite/declaration` disabled) to avoid TS2742 portability errors in app routes.
+- Verification: `pnpm typecheck` now passes across all 23 workspace packages.
+- Began Phase 2 implementation in `@mylife/budget` with a full module scaffold:
+  module definition + migration, SQLite schema, core Zod types, and CRUD operations.
+- Added workspace peer dependency wiring for budget module and re-linked workspace with `pnpm install`.
+- Verification: `pnpm -C modules/budget typecheck` and root `pnpm typecheck` pass after scaffold.
+- Continued Phase 2 by wiring `BUDGET_MODULE` into mobile/web migration execution paths:
+  - mobile registry bootstrap and module toggle migration map
+  - mobile database startup migration map
+  - web provider full-module registration and web migration map
+- Added `@mylife/budget` dependency references to `apps/mobile` and `apps/web`.
+- Verification: `pnpm -C modules/budget typecheck`, `pnpm -C apps/mobile typecheck`, and `pnpm -C apps/web typecheck` pass.
+- Note: root `pnpm typecheck` is currently blocked by unrelated `packages/entitlements` setup issues (outside budget wiring scope).
+- Implemented first Budget web data flow:
+  - Added server actions for envelope list/create in `apps/web/app/budget/actions.ts`
+  - Added `/budget` page UI with envelope list, total monthly budget, and create-envelope form.
+- Re-validated entitlements package health:
+  - `pnpm -C packages/entitlements typecheck` passes
+  - `pnpm -C packages/entitlements test` passes (7/7)
+- Verification: root `pnpm typecheck` now passes across all workspace packages (including `@mylife/entitlements`).
+- Continued dual-model rollout implementation for Milestone 3 and deploy kit foundation:
+  - Added shared endpoint resolution and validation helpers in web/mobile (`apps/web/lib/server-endpoint.ts`, `apps/mobile/lib/server-endpoint.ts`).
+  - Wired web/mobile entitlement refresh flows to use mode-aware endpoint resolution.
+  - Added self-host setup + connection test screens:
+    - web: `apps/web/app/settings/self-host/page.tsx`
+    - mobile: `apps/mobile/app/(hub)/self-host.tsx`
+  - Linked setup screens from settings and registered hidden mobile route.
+  - Added web health route at `apps/web/app/health/route.ts`.
+- Implemented first self-host deployment bundle:
+  - Added `deploy/self-host/docker-compose.yml` and `.env.example` (API + Postgres + MinIO).
+  - Added minimal self-host API container at `deploy/self-host/api/` with health/auth/sync/friends/share endpoints.
+  - Added operational scripts:
+    - `deploy/self-host/scripts/migrate.sh`
+    - `deploy/self-host/scripts/seed.sh`
+    - `deploy/self-host/scripts/backup.sh`
+    - `deploy/self-host/scripts/restore.sh`
+- Updated self-host docs and contract:
+  - Expanded `docs/self-host/README.md` to full setup/validation workflow.
+  - Expanded `docs/self-host/troubleshooting.md` with concrete diagnostics.
+  - Updated `docs/self-host/api-contract.yaml` to include auth session endpoint.
+- Verification:
+  - `pnpm --filter @mylife/web typecheck` passes.
+  - `pnpm --filter @mylife/mobile typecheck` passes.
+  - `node --check deploy/self-host/api/src/server.js` passes.
+  - `sh -n` syntax checks pass for all self-host scripts.
+  - `docker compose -f deploy/self-host/docker-compose.yml --env-file deploy/self-host/.env.example config` passes.
+- Added gated customization artifacts under `ai-customization/`:
+  - `quickstart.md`, `prompt-templates.md`, and `change-safe-checklist.md`.
+  - Linked the kit from `docs/self-host/README.md`.
+- Added AI workflow helper scripts:
+  - `scripts/dev/plan-from-request.ts` for request-to-implementation planning output.
+  - `scripts/dev/run-regression-suite.sh` for one-command web/mobile/type+core tests.
+- Verification:
+  - `pnpm dlx tsx scripts/dev/plan-from-request.ts "Add self-host connection diagnostics in settings"` outputs plan successfully.
+  - `scripts/dev/run-regression-suite.sh` passes.
+
+## 2026-02-25
+
+- Continued MyBudget implementation with the next mobile parity step after list/create:
+  - Added envelope detail/edit route at `apps/mobile/app/(budget)/[id].tsx`.
+  - Implemented mobile envelope save, archive/restore, and delete actions using `@mylife/budget` CRUD APIs.
+  - Wired budget list rows to open the new detail screen from `apps/mobile/app/(budget)/index.tsx`.
+  - Registered the detail route in `apps/mobile/app/(budget)/_layout.tsx`.
+- Verification:
+  - `pnpm -C apps/mobile -s typecheck` passes.
+  - `pnpm -C apps/web -s typecheck` passes.
+  - `pnpm -C modules/budget -s typecheck` passes.
+  - `pnpm -s typecheck` passes.
+- Implemented the next two Budget milestones across web + mobile:
+  - Added transaction data flow on web (`apps/web/app/budget/page.tsx` + `apps/web/app/budget/actions.ts`):
+    - transaction list, create form (direction/date/account/envelope/merchant/note), and delete action.
+  - Added account management on web:
+    - account list, create form, edit flow, archive/restore, and delete actions.
+  - Expanded mobile budget navigation and routes in `apps/mobile/app/(budget)/_layout.tsx` and `apps/mobile/app/(budget)/index.tsx`.
+  - Added mobile account management screens:
+    - `apps/mobile/app/(budget)/accounts.tsx`
+    - `apps/mobile/app/(budget)/account/create.tsx`
+    - `apps/mobile/app/(budget)/account/[id].tsx`
+  - Added mobile transaction screens:
+    - `apps/mobile/app/(budget)/transactions.tsx`
+    - `apps/mobile/app/(budget)/transaction/create.tsx`
+- Verification:
+  - `pnpm -C apps/mobile -s typecheck` passes.
+  - `pnpm -C modules/budget -s typecheck` passes.
+  - `pnpm -C apps/web -s typecheck` currently fails due unrelated pre-existing `apps/web/app/recipes/page.tsx` type mismatch (`is_favorite` number vs boolean); no Budget file type errors were surfaced.
+  - Root `pnpm -s typecheck` fails for the same unrelated web recipes typecheck error.
+- Built next budget steps focused on transaction management parity:
+  - Web transactions now support inline edit/save/cancel and client-side filters (direction/account/envelope) in `apps/web/app/budget/page.tsx`.
+  - Added mobile transaction detail/edit/delete route at `apps/mobile/app/(budget)/transaction/[id].tsx`.
+  - Wired mobile transactions list rows to open transaction detail from `apps/mobile/app/(budget)/transactions.tsx`.
+  - Registered transaction detail route in `apps/mobile/app/(budget)/_layout.tsx`.
+- Verification:
+  - `pnpm -C apps/mobile -s typecheck`, `pnpm -C apps/web -s typecheck`, and `pnpm -C modules/budget -s typecheck` are currently blocked by unrelated `packages/db/src/index.ts` export errors (missing friend query exports from `hub-queries`).
+- Resolved the `@mylife/db` export mismatch that was blocking all downstream typechecks:
+  - Removed stale friend-message re-exports from `packages/db/src/index.ts` that were not implemented in `hub-queries.ts`.
+  - Re-ran budget/mobile/web + root typechecks to confirm workspace health.
+- Verification (after unblock):
+  - `pnpm -C packages/db -s typecheck` passes.
+  - `pnpm -C apps/mobile -s typecheck` passes.
+  - `pnpm -C modules/budget -s typecheck` passes.
+  - `pnpm -C apps/web -s typecheck` passes.
+  - `pnpm -s typecheck` passes.
+- Continued Milestone 4 implementation (`DM-027`, `DM-028`, `DM-029`) and integrated with billing webhook flow.
+- Added GitHub access automation + retry queue:
+  - `apps/web/lib/access/github.ts`
+  - `apps/web/lib/access/jobs.ts`
+  - `apps/web/lib/access/provisioning.ts`
+  - Retry endpoint: `apps/web/app/api/access/github/retry/route.ts`
+- Added signed bundle delivery flow for self-host purchases:
+  - `apps/web/lib/access/bundle.ts`
+  - Issue endpoint: `apps/web/app/api/access/bundle/issue/route.ts`
+  - Download endpoint: `apps/web/app/api/access/bundle/download/route.ts`
+  - Bundle storage docs: `deploy/self-host/releases/README.md`
+- Added entitlement revocation policy support:
+  - New DB table and queries for revoked signatures (`hub_revoked_entitlements`) in `@mylife/db`.
+  - New revocation API endpoint: `apps/web/app/api/entitlements/revoke/route.ts`.
+  - Signature verification now supports revocation checks (`packages/entitlements/src/verify.ts`).
+  - Billing webhook now revokes self-host signatures on refund/dispute events before issuing downgraded entitlements.
+- Extended billing payload parsing for access provisioning context (`customerEmail`, `githubUsername`, metadata fallbacks).
+- Updated docs:
+  - `docs/billing-sku-matrix.md` (added `purchase.disputed` event)
+  - `docs/self-host/README.md` and `docs/self-host/troubleshooting.md` for bundle/access automation operations.
+- Validation:
+  - `pnpm --filter @mylife/entitlements test` passes (9 tests).
+  - `pnpm --filter @mylife/db test` passes (35 tests).
+  - `pnpm --filter @mylife/billing-config typecheck` passes.
+  - `pnpm --filter @mylife/web typecheck` passes.
+  - `pnpm --filter @mylife/mobile typecheck` passes.
+  - `scripts/dev/run-regression-suite.sh` passes.
+- Stabilized web testing/typecheck environment after access automation changes:
+  - Added Vitest JSX automatic runtime setting in `apps/web/vitest.config.ts`.
+  - Added/confirmed web testing deps and fixed `apps/web/test/setup.tsx` typing.
+  - Updated `apps/web/tsconfig.json` excludes to keep app typecheck focused (excluding test-only files).
+  - Added missing workspace module deps to `apps/web/package.json` (`@mylife/recipes`, `@mylife/car`, `@mylife/habits`, `@mylife/meds`) and removed duplicate keys.
+- Additional validation:
+  - `pnpm --filter @mylife/web test` passes (21 tests).
+  - `scripts/dev/run-regression-suite.sh` re-run passes.
+- Ran targeted hub/MyBooks quality pass focused on interface actions and page-level data loading.
+- Added/updated web use-case test coverage for hub + MyBooks interaction flows:
+  - `apps/web/app/__tests__/hub-dashboard.test.tsx`
+  - `apps/web/app/__tests__/discover-page.test.tsx`
+  - `apps/web/app/__tests__/settings-page.test.tsx`
+  - `apps/web/app/__tests__/self-host-page.test.tsx`
+  - `apps/web/app/__tests__/onboarding-mode-page.test.tsx`
+  - `apps/web/app/books/__tests__/library-page.test.tsx`
+  - `apps/web/app/books/__tests__/search-page.test.tsx`
+  - `apps/web/app/books/__tests__/import-page.test.tsx`
+  - `apps/web/app/books/__tests__/stats-page.test.tsx`
+  - `apps/web/app/books/__tests__/book-detail-page.test.tsx`
+- Validation:
+  - `pnpm --filter @mylife/web test` passes (21 tests / 10 files).
+  - `pnpm --filter @mylife/web typecheck` passes.
+- Fixed reviewed hub/MyBooks findings across web + mobile:
+  - gated web module discovery/navigation to web-supported module IDs only
+  - hardened entitlement refresh action with explicit network failure handling
+  - fixed MyBooks web shelf filtering race by resolving shelves before filtered fetch
+  - replaced hardcoded MyBooks stats counts with latest per-book session status counts
+  - wired settings upgrade CTA to an actionable route (`/discover`)
+  - fixed MyBooks import style shorthand warning (`border` vs `borderColor`)
+  - implemented mobile MyBooks list sorting behavior and refresh await semantics
+- Added React Native executable UI test harness and coverage:
+  - `apps/mobile/vitest.config.ts`
+  - `apps/mobile/test/setup.tsx`
+  - `apps/mobile/app/(books)/__tests__/library.test.tsx`
+  - `apps/mobile/app/(hub)/__tests__/settings.test.tsx`
+- Added web supported-module helper:
+  - `apps/web/lib/modules.ts`
+- Validation:
+  - `pnpm --filter @mylife/web test` passes (21 tests).
+  - `pnpm --filter @mylife/web typecheck` passes.
+  - `pnpm --filter @mylife/mobile test` passes (4 tests).
+  - `pnpm --filter @mylife/mobile typecheck` passes.
+- Continued expanding executable hub/MyBooks interaction coverage after fix pass:
+  - Added mobile hub tests:
+    - `apps/mobile/app/(hub)/__tests__/dashboard.test.tsx`
+    - `apps/mobile/app/(hub)/__tests__/discover.test.tsx`
+    - expanded `apps/mobile/app/(hub)/__tests__/settings.test.tsx` (failure path)
+  - Added mobile MyBooks search flow test:
+    - `apps/mobile/app/(books)/__tests__/search.test.tsx`
+  - Expanded web tests:
+    - `apps/web/app/__tests__/hub-dashboard.test.tsx` (unsupported module filtering)
+    - `apps/web/app/__tests__/settings-page.test.tsx` (refresh failure path)
+  - Hardened RN test shim behavior for nested press handling + DOM-prop cleanup:
+    - `apps/mobile/test/setup.tsx`
+- Validation rerun:
+  - `pnpm --filter @mylife/web test` passes (23 tests).
+  - `pnpm --filter @mylife/web typecheck` passes.
+  - `pnpm --filter @mylife/mobile test` passes (11 tests).
+  - `pnpm --filter @mylife/mobile typecheck` passes.
+- Added self-host direct messaging foundation for local-first/decentralized operation:
+  - Extended self-host DB migrations with `friend_messages` table and indexes in `deploy/self-host/scripts/migrate.sh`.
+  - Seeded demo direct messages between `demo-alice` and `demo-bob` in `deploy/self-host/scripts/seed.sh`.
+  - Extended self-host API (`deploy/self-host/api/src/server.js`) with:
+    - `POST /api/messages`
+    - `GET /api/messages`
+    - `GET /api/messages/inbox`
+    - `POST /api/messages/{messageId}/read`
+  - Enforced accepted-friend checks before send/list operations and added idempotent creation via `clientMessageId`.
+- Updated product/ops docs to support rollout:
+  - Expanded `docs/self-host/api-contract.yaml` to version `0.2.0` with direct messaging schemas and endpoints.
+  - Expanded `docs/self-host/README.md` with direct messaging smoke-test commands.
+  - Expanded `docs/self-host/troubleshooting.md` with messaging-specific 403 guidance.
+  - Added `docs/self-host/decentralized-messaging.md` describing current self-host messaging and next-step federation architecture.
+  - Updated dual-model planning docs (`docs/dual-model-product-design.md`, `docs/dual-model-implementation-tickets.md`) to include direct messaging/federation scope.
+- Validation:
+  - `node --check deploy/self-host/api/src/server.js` passes.
+  - `sh -n deploy/self-host/scripts/migrate.sh` and `sh -n deploy/self-host/scripts/seed.sh` pass.
+  - `ruby -e "require 'yaml'; YAML.load_file('docs/self-host/api-contract.yaml')"` passes.
+- Implemented DM-035 and DM-036 domain primitives for MyBooks sharing + friend graph:
+  - Added hub friend tables and indexes in `@mylife/db` schema (`hub_friend_profiles`, `hub_friend_invites`, `hub_friendships`).
+  - Added friend/profile query APIs in `packages/db/src/hub-queries.ts` (invite create/list/accept/decline/revoke, friend list/remove, profile upsert/load).
+  - Added revocation+friend type exports in `packages/db/src/index.ts`.
+  - Added DB coverage for friend/invite flows in `packages/db/src/__tests__/db.test.ts`.
+  - Added MyBooks share-event model/schema support (`ShareVisibility`, `ShareObjectType`, `ShareEvent*`) and table/index migration (`bk_share_events`, v2 migration).
+  - Added MyBooks sharing CRUD/visibility queries in `modules/books/src/db/sharing.ts`.
+  - Added sharing tests in `modules/books/src/db/__tests__/sharing.test.ts`.
+- Implemented next practical layer after DM-035/036:
+  - Added hosted API routes for friend and share primitives:
+    - `POST/GET /api/friends/invites`
+    - `POST /api/friends/invites/:inviteId/{accept|decline|revoke}`
+    - `GET/DELETE /api/friends`
+    - `POST/GET /api/share/events`
+  - Added server actions in `apps/web/app/books/actions.ts` for share events and invite/friend flows.
+  - Normalized new route responses to camelCase contract fields.
+- Implemented operator docs step (requested next step #2):
+  - Added `docs/billing/access-automation-operations.md` with required env vars, endpoints, workflows, and security notes.
+  - Linked operator runbook from `docs/self-host/README.md`.
+  - Updated `docs/self-host/api-contract.yaml` to reflect invite listing + decline/revoke + friends list/delete endpoints and `FriendConnection` schema.
+- Stability/validation updates:
+  - Excluded test files from app TypeScript builds where appropriate (`apps/mobile/tsconfig.json`, `modules/books/tsconfig.json`).
+- Validation:
+  - `pnpm --filter @mylife/db test` passes (40 tests).
+  - `pnpm --filter @mylife/books test` passes (2 tests).
+  - `pnpm --filter @mylife/books typecheck` passes.
+  - `pnpm --filter @mylife/web typecheck` passes.
+  - `pnpm --filter @mylife/mobile typecheck` passes.
+  - `pnpm --filter @mylife/web test` passes (21 tests).
+  - `scripts/dev/run-regression-suite.sh` passes.
+- Implemented the next dual-model execution steps after DM-035/036 by shipping MyBooks share/friend UX on web and mobile:
+  - Web (`apps/web/app/books/[id]/page.tsx`):
+    - Added in-screen share controls for visibility (`private|friends|public`), optional target user, and share note.
+    - Added friend invite management (send, accept, decline, revoke) and accepted-friends view.
+    - Added visible-share feed rendering for the current book with payload note parsing.
+  - Mobile (`apps/mobile/app/(books)/book/[id].tsx`):
+    - Added parity share controls (visibility chips, share note/target) backed by local-first DB writes.
+    - Added local invite/friend management and visible-share feed cards.
+- Added test updates for new web social-data behavior:
+  - Updated `apps/web/app/books/__tests__/book-detail-page.test.tsx` to mock and assert new share/friend action calls.
+- Validation:
+  - `pnpm --filter @mylife/web test` passes (21 tests).
+  - `pnpm --filter @mylife/web typecheck` passes.
+  - `pnpm --filter @mylife/mobile typecheck` passes.
+  - `pnpm --filter @mylife/mobile test` passes (4 tests).
+- Continued MyBudget next step by implementing full Goals management parity across web + mobile:
+  - Added web goals server actions (`fetchGoals`, `doCreateGoal`, `doUpdateGoal`, `doDeleteGoal`) in `apps/web/app/budget/actions.ts`.
+  - Extended the web Budget dashboard (`apps/web/app/budget/page.tsx`) with goals metrics, create form, goals list, progress UI, inline edit, completion toggle, and delete flow.
+  - Added mobile goals list and detail/create flows:
+    - `apps/mobile/app/(budget)/goals.tsx`
+    - `apps/mobile/app/(budget)/goal/create.tsx`
+    - `apps/mobile/app/(budget)/goal/[id].tsx`
+  - Wired goals navigation from budget home and route registration in `apps/mobile/app/(budget)/index.tsx` and `apps/mobile/app/(budget)/_layout.tsx`.
+- Exported missing goal APIs/types from `@mylife/budget` so app layers can consume them:
+  - Updated `modules/budget/src/index.ts` to export goal CRUD functions and `BudgetGoalUpdate` schema/type.
+- Verification:
+  - `pnpm -C modules/budget -s typecheck` passes.
+  - `pnpm -C apps/web -s typecheck` passes.
+  - `pnpm -C apps/mobile -s typecheck` passes.
+  - `pnpm -s typecheck` passes.
+- Re-review (2026-02-25 earlier export-mismatch blocker): package API export gaps can look like app regressions; keeping `modules/budget/src/index.ts` aligned with implemented CRUD APIs prevented repeated downstream typecheck failures.
+- Skill opportunity: create a reusable “module parity slice” skill for web+mobile rollout steps (actions, routes/screens, validation, timeline logging) to reduce repeated setup work.
+- Continued dual-model execution for DM-039/DM-040 and identity hardening across web/mobile/self-host:
+  - Added mode-aware sync adapters and proxy pathing:
+    - web: `apps/web/lib/sync-adapter.ts`, `apps/web/app/api/sync/[...segments]/route.ts`
+    - mobile: `apps/mobile/lib/sync-adapter.ts`
+    - Updated MyBooks social flows to keep one contract while switching hosted/self-host transport.
+  - Added telemetry-free aggregate operational counters:
+    - new `hub_aggregate_event_counters` schema + query APIs in `packages/db/src/hub-schema.ts`, `packages/db/src/hub-queries.ts`, `packages/db/src/index.ts`
+    - wired mode-selection and self-host setup completion events in web/mobile actions and screens
+    - added ops read endpoint `apps/web/app/api/ops/counters/route.ts`.
+  - Implemented signed actor identity primitives for social actions:
+    - `apps/web/lib/actor-identity.ts`, `apps/web/app/api/_shared/actor-identity.ts`, `apps/web/app/api/identity/actor/issue/route.ts`
+    - updated friends/share APIs and web books actions/UI to prefer token-based identity with compatible fallback behavior.
+  - Brought self-host API behavior to contract parity for invite/friend/share flows:
+    - updated `deploy/self-host/api/src/server.js`, `deploy/self-host/scripts/migrate.sh`, and `docs/self-host/api-contract.yaml` (version `0.3.0`).
+- Verification:
+  - `pnpm --filter @mylife/db test` passes (48 tests).
+  - `pnpm --filter @mylife/mobile typecheck` and `pnpm --filter @mylife/mobile test` pass (24 tests).
+  - `pnpm --filter @mylife/web typecheck` and `pnpm --filter @mylife/web test` pass (24 tests).
+  - `node --check deploy/self-host/api/src/server.js` passes.
+  - `sh -n deploy/self-host/scripts/migrate.sh` passes.
+  - `ruby -e "require 'yaml'; YAML.load_file('docs/self-host/api-contract.yaml')"` passes.
+- Follow-up hardening:
+  - Added explicit try/catch handling for mobile invite accept/decline/revoke sync actions in `apps/mobile/app/(books)/book/[id].tsx` to prevent unhandled promise rejections on network or server errors.
+- Re-verification:
+  - `pnpm --filter @mylife/mobile typecheck` passes.
+  - `pnpm --filter @mylife/mobile test` passes (24 tests).
+- Added next follow-on tickets in `docs/dual-model-implementation-tickets.md`:
+  - `DM-051` actor identity hardening rollout (token-first + fallback deprecation plan).
+  - `DM-052` privacy-safe operational counters dashboard/export.
+  - `DM-053` hosted vs self-host parity integration suite for sync/social contracts.
+- Continued decentralized local-first messaging work by completing both requested tracks:
+  - Mobile message UX and local sync wiring in `apps/mobile/app/(books)/book/[id].tsx`:
+    - added direct-message composer, inbox, conversation view, and mark-read actions
+    - integrated queue/send/sync/read flows with `apps/mobile/lib/friend-messages.ts`
+    - refreshed social + message state together for local-first + network-assisted behavior
+  - Self-host federation transport in `deploy/self-host/api/src/server.js`:
+    - extended `POST /api/messages` to queue remote deliveries for `<user>@<server>` recipients
+    - added signed inbound endpoint `POST /api/federation/inbox/messages`
+    - added retry worker endpoint `POST /api/federation/dispatch`
+    - added HMAC signature validation, timestamp skew checks, and replay-safe receipt handling
+  - Added federation schema support in `deploy/self-host/scripts/migrate.sh`:
+    - `federation_message_outbox`
+    - `federation_inbox_receipts`
+  - Added federation env documentation in `deploy/self-host/.env.example`.
+  - Updated operational docs:
+    - `docs/self-host/api-contract.yaml` (v`0.4.0`, federation paths + schemas)
+    - `docs/self-host/README.md` (federation setup + dispatch usage)
+    - `docs/self-host/troubleshooting.md` (signature/dispatch failure triage)
+    - `docs/self-host/decentralized-messaging.md` (status advanced to implemented transport layer)
+- Validation:
+  - `node --check deploy/self-host/api/src/server.js` passes.
+  - `sh -n deploy/self-host/scripts/migrate.sh` and `sh -n deploy/self-host/scripts/seed.sh` pass.
+  - `pnpm --filter @mylife/db test` passes (48 tests).
+  - `pnpm --filter @mylife/mobile typecheck` passes.
+  - `pnpm --filter @mylife/web typecheck` passes.
+- Executed DM-051 / DM-052 / DM-053 next-step implementation:
+  - DM-051 actor identity hardening:
+    - Added strict/fallback-window policy handling in `apps/web/app/api/_shared/actor-identity.ts`.
+    - Required resolved actor identity on web invite mutation routes:
+      - `apps/web/app/api/friends/invites/[inviteId]/accept/route.ts`
+      - `apps/web/app/api/friends/invites/[inviteId]/decline/route.ts`
+      - `apps/web/app/api/friends/invites/[inviteId]/revoke/route.ts`
+    - Added mobile actor-token issuance + persistence and token-aware social/message calls:
+      - `apps/mobile/app/(books)/book/[id].tsx`
+      - `apps/mobile/lib/friend-messages.ts`
+    - Added self-host actor token issuance + verification + strict-mode enforcement:
+      - `deploy/self-host/api/src/server.js`
+      - new endpoint: `POST /api/identity/actor/issue`
+      - social/message routes now resolve identity from token first with controlled legacy fallback.
+    - Added rollout and incident runbook:
+      - `docs/self-host/actor-identity-operations.md`
+      - updated `deploy/self-host/.env.example`, `docs/self-host/README.md`, and `docs/self-host/troubleshooting.md`.
+  - DM-052 operational counters dashboard/export:
+    - Added shared ops read-key helper `apps/web/lib/ops-read-key.ts`.
+    - Added guarded CSV export endpoint `apps/web/app/api/ops/counters/export/route.ts`.
+    - Updated JSON counters endpoint guard logic `apps/web/app/api/ops/counters/route.ts`.
+    - Added minimal operator UI page `apps/web/app/ops/counters/page.tsx`.
+  - DM-053 parity test coverage + regression hook:
+    - Added social contract parity tests `apps/web/app/books/__tests__/social-contract-parity.test.ts`.
+    - Added actor identity policy tests `apps/web/app/api/_shared/__tests__/actor-identity.test.ts`.
+    - Added ops read-key helper tests `apps/web/lib/__tests__/ops-read-key.test.ts`.
+    - Updated regression runner to execute parity suite:
+      - `scripts/dev/run-regression-suite.sh`.
+  - Updated self-host OpenAPI contract to `0.5.0` with actor identity endpoint and token-aware message route parameters:
+    - `docs/self-host/api-contract.yaml`.
+- Validation (targeted and regression-path):
+  - `pnpm --filter @mylife/web typecheck` passes.
+  - `pnpm --filter @mylife/web test -- app/api/_shared/__tests__/actor-identity.test.ts lib/__tests__/ops-read-key.test.ts app/books/__tests__/social-contract-parity.test.ts` passes (12 tests).
+  - `pnpm --filter @mylife/mobile typecheck` passes.
+  - `pnpm --filter @mylife/mobile test -- app/(books)/__tests__/settings.test.tsx` passes (2 tests).
+  - `scripts/dev/run-regression-suite.sh` passes.
+  - `node --check deploy/self-host/api/src/server.js` passes.
+  - `sh -n deploy/self-host/scripts/migrate.sh` passes.
+  - `ruby -e "require 'yaml'; YAML.load_file('docs/self-host/api-contract.yaml')"` passes.
+  - Note: full `pnpm --filter @mylife/web test` currently includes unrelated pre-existing failures in sidebar/subs/recipes suites; new DM-051/052/053 tests pass.
+- Added full self-host connection-method onboarding UX for decentralized reachability across web + mobile:
+  - Implemented selectable setup methods with explicit user-facing tradeoffs in both UIs:
+    - `Port Forwarding + Domain + TLS`
+    - `Dynamic DNS + Port Forwarding`
+    - `Outbound Tunnel (no inbound port)`
+  - Added per-method overview, `Best for`, `Pros`, and `Cons` plus guided step-by-step setup flows and suggested URL autofill.
+  - Persisted selected method through preferences:
+    - web actions in `apps/web/app/actions.ts`
+    - mobile direct preference storage in `apps/mobile/app/(hub)/self-host.tsx`.
+  - Added detailed user/operator docs and implementation plan:
+    - `docs/self-host/connection-method-guides.md`
+    - `docs/self-host/connection-method-ui-plan.md`
+    - linked from `docs/self-host/README.md`.
+- Stabilized and validated connection-method tests:
+  - Fixed ambiguous RN test assertion in `apps/mobile/app/(hub)/__tests__/self-host.test.tsx` (`getByText` to `getAllByText` for repeated labels).
+  - Verification:
+    - `pnpm --filter @mylife/mobile test -- --run "app/(hub)/__tests__/self-host.test.tsx"` passes (4 tests).
+    - `pnpm --filter @mylife/web test -- --run app/__tests__/self-host-page.test.tsx` passes (4 tests).
+    - `pnpm --filter @mylife/web typecheck` passes.
+    - `pnpm --filter @mylife/mobile typecheck` passes.
+- Expanded self-host wizard test coverage to full user-flow expectations across web + mobile:
+  - Added web self-host flow cases in `apps/web/app/__tests__/self-host-page.test.tsx`:
+    - persisted method restore visibility,
+    - step reset on method switch,
+    - method-specific suggested URL behavior,
+    - step navigation boundary clamping (first/last step).
+  - Added mobile self-host flow cases in `apps/mobile/app/(hub)/__tests__/self-host.test.tsx`:
+    - persisted method initialization,
+    - method-specific suggested URL behavior,
+    - step boundary and switch-reset behavior,
+    - failed connection path assertion (no setup completion event on fail).
+- Verification (full suites):
+  - `pnpm --filter @mylife/web test` passes (133 tests).
+  - `pnpm --filter @mylife/mobile test` passes (36 tests).
+  - `pnpm --filter @mylife/web typecheck` passes.
+  - `pnpm --filter @mylife/mobile typecheck` passes.
+- Completed full behavior-first test sweep hardening for hub + MyBooks + local module pages, then resolved all discovered e2e/test-harness issues:
+  - Stabilized Playwright behavior tests with user-visible, section-scoped selectors and deterministic flow assertions:
+    - `apps/web/e2e/books-user-flows.spec.ts`
+    - `apps/web/e2e/budget-user-flows.spec.ts`
+    - `apps/web/e2e/hub-and-settings.spec.ts`
+    - `apps/web/e2e/local-module-crud.spec.ts`
+  - Updated self-host e2e coverage to current wizard UX and made connection testing deterministic by waiting for loaded URL state before mutation.
+  - Ensured monorepo root `pnpm test` no longer fails in no-test packages by enabling `--passWithNoTests` where appropriate:
+    - `modules/surf/package.json`
+    - `modules/workouts/package.json`
+    - `modules/homes/package.json`
+    - `packages/migration/package.json`
+- Validation:
+  - `pnpm test` (turbo workspace suite) passes.
+  - `pnpm --filter @mylife/mobile test` passes (36 tests).
+  - `pnpm --filter @mylife/web test` passes (133 tests).
+  - Playwright e2e specs pass when run per-spec:
+    - `e2e/api-auth-and-pipeline.spec.ts`
+    - `e2e/books-user-flows.spec.ts`
+    - `e2e/budget-user-flows.spec.ts`
+    - `e2e/hub-and-settings.spec.ts`
+    - `e2e/local-module-crud.spec.ts`
+  - Note: in this shell environment, long aggregated Playwright invocations were intermittently terminated (SIGTERM) by the runner; per-spec execution consistently passes and exercises the same full e2e coverage.
+
+### Entry 2026-02-25.1 — Behavior-First Budget Test Suite Expansion
+**Phase:** Testing and QA hardening
+**What happened:** Added full behavior-first Budget coverage across web and mobile (buttons, routes, create/edit/delete flows, goal filter/sort UX, transaction filters, and e2e pipeline assertions). Stabilized flaky e2e selectors in budget and local module suites, and added a full-suite runner script that executes DB/module/app tests plus per-spec Playwright runs with deterministic process cleanup.
+**Decision:** Kept Playwright validation split by spec and hardened selector strategy (exact/section-scoped) to reduce false failures from ambiguous text matches and dev-server reuse drift; this prioritizes user-behavior verification reliability over one-shot monolithic e2e execution in this shell.
+**Files created/modified:** 9+ files, including:
+- `apps/web/app/budget/page.tsx`
+- `apps/mobile/app/(budget)/goals.tsx`
+- `apps/web/app/budget/__tests__/budget-page.test.tsx`
+- `apps/mobile/app/(budget)/__tests__/index.test.tsx`
+- `apps/mobile/app/(budget)/__tests__/goals.test.tsx`
+- `apps/mobile/app/(budget)/__tests__/goal-forms.test.tsx`
+- `apps/web/e2e/budget-user-flows.spec.ts`
+- `apps/web/e2e/local-module-crud.spec.ts`
+- `apps/web/playwright.config.ts`
+- `scripts/dev/run-full-behavior-suite.sh`
+
+#### Confusion Point 1 (re-review of 2026-02-25 Playwright runner instability): aggregated e2e reliability
+**Updated finding:** The original conclusion still holds for single monolithic Playwright runs, but the mitigation now proved effective: per-spec execution with explicit cleanup (`run-full-behavior-suite.sh`) completed successfully end-to-end and is now the preferred operational path.
+
+**Skill opportunity:** Add a dedicated `playwright-suite-orchestrator` skill that enforces pre/post process cleanup, per-spec retries with crash diagnostics, and standardized e2e run summaries.
+
+### Entry 2026-02-25.2 — Turbopack Import Resolution + Full Coverage Gates
+**Phase:** Build reliability + test hardening
+**What happened:** Fixed Turbopack module-resolution regressions caused by local `*.js` import suffixes in TS source, then added hard 100% coverage enforcement for the affected shared packages.
+- Updated internal imports in `@mylife/module-registry` and `@mylife/entitlements` to extensionless relative paths (`./foo`), including barrel exports and tests.
+- Added/expanded tests for module-registry runtime surfaces:
+  - hooks behavior (`useModuleRegistry`, `useEnabledModules`, `useModule`)
+  - schema validation branches in `types.ts`
+  - barrel re-export integrity in `index.ts`
+  - invalid registration rejection path in registry tests
+- Added strict coverage configs and scripts in both packages (100% lines/statements/functions/branches).
+- Expanded entitlements branch tests (invalid payload verification, invalid expiry timestamp, missing update-pack year, expired update-pack denial, non-matching revoke list, missing WebCrypto, single-byte signature buffer path).
+**Decision:** Enforce full coverage directly in package `test` scripts so regressions fail immediately in normal package test runs rather than relying on optional coverage passes.
+**Verification:**
+- `pnpm --filter @mylife/module-registry test` -> 100% coverage across all tracked files.
+- `pnpm --filter @mylife/module-registry typecheck` -> pass.
+- `pnpm --filter @mylife/entitlements test` -> 100% coverage across tracked runtime files (`types.ts` excluded as type-only).
+- `pnpm --filter @mylife/entitlements typecheck` -> pass.
+- `pnpm dev` restarted successfully; web route on `http://localhost:3000` responds `200` after compile.
+
+### Entry 2026-02-25.3 — Web Module Bootstrap Wiring (MyBooks -> Full Web Suite)
+**Phase:** Hub module activation + onboarding defaults
+**What happened:** Wired the web app to auto-enable all currently supported migrated modules for fresh and legacy DB states that only had MyBooks enabled.
+- Added one-time bootstrap logic in `apps/web/app/actions.ts#getEnabledModuleIds`:
+  - if `hub_enabled_modules` is empty, or legacy state is `['books']`, enable all `WEB_SUPPORTED_MODULE_IDS`,
+  - run module migrations for each enabled module,
+  - persist bootstrap completion in `hub_preferences` key `web.bootstrap.enabled_modules.v1`.
+- Added focused test coverage for bootstrap behavior:
+  - `apps/web/app/__tests__/actions-enabled-modules.test.ts`.
+**Decision:** Use a one-time guarded bootstrap (preference-flagged) instead of forcing all modules every request, preserving user-controlled enable/disable state after initial migration.
+**Verification:**
+- `pnpm --filter @mylife/web test -- --run app/__tests__/actions-enabled-modules.test.ts` -> pass (4 tests).
+- `pnpm --filter @mylife/web test -- --run app/__tests__/hub-dashboard.test.tsx app/__tests__/discover-page.test.tsx` -> pass (5 tests).
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- Runtime DB check after hitting `/`:
+  - `hub_enabled_modules` now contains `books,budget,car,fast,habits,meds,recipes,subs`.

@@ -1,0 +1,47 @@
+{
+  "name": "@mylife/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@mylife/budget": "workspace:*",
+    "@mylife/books": "workspace:*",
+    "@mylife/car": "workspace:*",
+    "@mylife/fast": "workspace:*",
+    "@mylife/habits": "workspace:*",
+    "@mylife/meds": "workspace:*",
+    "@mylife/recipes": "workspace:*",
+    "@mylife/subs": "workspace:*",
+    "@mylife/ui": "workspace:*",
+    "@mylife/module-registry": "workspace:*",
+    "@mylife/db": "workspace:*",
+    "better-sqlite3": "^11.0.0",
+    "@mylife/entitlements": "workspace:*",
+    "@mylife/billing-config": "workspace:*",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@mylife/typescript-config": "workspace:*",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/better-sqlite3": "^7.6.0",
+    "@playwright/test": "^1.51.1",
+    "jsdom": "^26.0.0",
+    "vitest": "^3.2.4",
+    "typescript": "^5.7.0"
+  }
+}
