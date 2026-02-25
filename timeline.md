@@ -488,3 +488,47 @@
 - `pnpm --filter @mylife/web typecheck` -> pass.
 - Runtime DB check after hitting `/`:
   - `hub_enabled_modules` now contains `books,budget,car,fast,habits,meds,recipes,subs`.
+
+### Entry 2026-02-25.6 — MySurf “Do Everything” Parity Pass
+**Phase:** Full-surface MySurf completion in hub
+**What happened:** Completed end-to-end MySurf parity expansion beyond CRUD stubs by implementing forecast, narrative, live conditions, map pinning, account/auth/profile, and richer spot-detail workflows in both web and mobile hub surfaces.
+- Rebuilt `apps/web/app/surf` as a complete multi-route product surface:
+  - shared shell nav: `apps/web/app/surf/components/SurfShell.tsx`
+  - home: `apps/web/app/surf/page.tsx`
+  - map + pinning + timeline scrubber: `apps/web/app/surf/map/page.tsx`
+  - sessions journal: `apps/web/app/surf/sessions/page.tsx`
+  - favorites surface: `apps/web/app/surf/favorites/page.tsx`
+  - account/auth/preferences/premium controls: `apps/web/app/surf/account/page.tsx`
+  - tabbed spot detail (Forecast/Analysis/Live/Charts/Guide): `apps/web/app/surf/spot/[id]/page.tsx`
+- Replaced `apps/web/app/surf/actions.ts` with richer server action surface:
+  - deterministic forecast/day-summary generation
+  - regional + spot narrative generation and vote persistence
+  - live buoy-condition synthesis
+  - guide/hazard derivation
+  - map pin CRUD persistence via hub preferences
+  - local auth session/user/profile + settings persistence
+  - automatic seed data initialization for first-run surf experience
+- Restored and completed mobile MySurf module integration:
+  - registry + stack route wiring in `apps/mobile/app/_layout.tsx`
+  - migration map wiring in `apps/mobile/components/DatabaseProvider.tsx`
+  - dependency registration in `apps/mobile/package.json`
+  - full mobile surf route group:
+    - `apps/mobile/app/(surf)/_layout.tsx`
+    - `apps/mobile/app/(surf)/index.tsx`
+    - `apps/mobile/app/(surf)/map.tsx`
+    - `apps/mobile/app/(surf)/sessions.tsx`
+    - `apps/mobile/app/(surf)/favorites.tsx`
+    - `apps/mobile/app/(surf)/account.tsx`
+    - `apps/mobile/app/(surf)/spot/[id].tsx`
+- Reinstated missing web pages for currently enabled hub modules so type generation stayed consistent:
+  - `apps/web/app/homes/page.tsx`
+  - `apps/web/app/workouts/page.tsx`
+
+**Decision:** Implemented full MySurf feature behavior directly in hub runtime (SQLite + hub preferences) to achieve practical parity now, while keeping external provider-specific Phase 3/4 systems optional.
+
+**Verification:**
+- `pnpm install` -> pass.
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- `pnpm --filter @mylife/mobile typecheck` -> pass.
+- `pnpm --filter @mylife/web test` -> pass (23 files, 138 tests).
+- `pnpm --filter @mylife/mobile test` -> pass (14 files, 36 tests).

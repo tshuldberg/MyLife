@@ -10,6 +10,7 @@ import { BOOKS_MODULE } from '@mylife/books';
 import { FAST_MODULE } from '@mylife/fast';
 import { SUBS_MODULE } from '@mylife/subs';
 import { BUDGET_MODULE } from '@mylife/budget';
+import { SURF_MODULE } from '@mylife/surf';
 import { colors } from '@mylife/ui';
 import { DatabaseProvider } from '../components/DatabaseProvider';
 
@@ -41,6 +42,7 @@ export default function RootLayout() {
     r.register(FAST_MODULE);
     r.register(SUBS_MODULE);
     r.register(BUDGET_MODULE);
+    r.register(SURF_MODULE);
     return r;
   }, []);
 
@@ -58,6 +60,7 @@ export default function RootLayout() {
           <Stack.Screen name="(hub)" />
           <Stack.Screen name="(books)" />
           <Stack.Screen name="(budget)" />
+          <Stack.Screen name="(surf)" />
         </Stack>
       </DatabaseProvider>
     </RegistryProvider>

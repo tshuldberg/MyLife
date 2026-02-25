@@ -17,6 +17,7 @@ import { BOOKS_MODULE } from '@mylife/books';
 import { FAST_MODULE } from '@mylife/fast';
 import { SUBS_MODULE } from '@mylife/subs';
 import { BUDGET_MODULE } from '@mylife/budget';
+import { SURF_MODULE } from '@mylife/surf';
 import type { ModuleRegistry, ModuleId } from '@mylife/module-registry';
 import { colors } from '@mylife/ui';
 
@@ -44,6 +45,7 @@ const MODULE_DEFINITIONS_WITH_MIGRATIONS = {
   fast: FAST_MODULE,
   subs: SUBS_MODULE,
   budget: BUDGET_MODULE,
+  surf: SURF_MODULE,
 } as const;
 
 const DatabaseContext = createContext<DatabaseAdapter | null>(null);

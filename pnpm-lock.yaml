@@ -53,6 +53,9 @@ importers:
       '@mylife/subs':
         specifier: workspace:*
         version: link:../../modules/subs
+      '@mylife/surf':
+        specifier: workspace:*
+        version: link:../../modules/surf
       '@mylife/ui':
         specifier: workspace:*
         version: link:../../packages/ui

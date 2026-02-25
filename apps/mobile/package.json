@@ -16,6 +16,7 @@
     "@mylife/books": "workspace:*",
     "@mylife/fast": "workspace:*",
     "@mylife/subs": "workspace:*",
+    "@mylife/surf": "workspace:*",
     "@mylife/db": "workspace:*",
     "@mylife/module-registry": "workspace:*",
     "@mylife/ui": "workspace:*",
