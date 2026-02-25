@@ -22,7 +22,7 @@ import {
   setPreference,
 } from '@mylife/db';
 import type { Entitlements, PlanMode } from '@mylife/entitlements';
-import { isWebSupportedModuleId } from '@/lib/modules';
+import { isWebSupportedModuleId, WEB_SUPPORTED_MODULE_IDS } from '@/lib/modules';
 
 export type SelfHostConnectionMethod =
   | 'port_forward_tls'
@@ -31,12 +31,33 @@ export type SelfHostConnectionMethod =
 
 const SELF_HOST_CONNECTION_METHOD_KEY = 'self_host.connection_method';
 const DEFAULT_SELF_HOST_CONNECTION_METHOD: SelfHostConnectionMethod = 'port_forward_tls';
+const WEB_MODULE_BOOTSTRAP_PREF_KEY = 'web.bootstrap.enabled_modules.v1';
 
 /** Get all enabled module IDs from SQLite. */
 export async function getEnabledModuleIds(): Promise<string[]> {
   const db = getAdapter();
-  const rows = getEnabledModules(db);
-  return rows.map((r) => r.module_id).filter(isWebSupportedModuleId);
+  const enabledIds = getEnabledModules(db)
+    .map((row) => row.module_id)
+    .filter(isWebSupportedModuleId);
+
+  // One-time bootstrap for fresh/legacy DBs that only had MyBooks enabled.
+  const bootstrapState = getPreference(db, WEB_MODULE_BOOTSTRAP_PREF_KEY);
+  const hasOnlyLegacyBooks = enabledIds.length === 1 && enabledIds[0] === 'books';
+  const shouldBootstrap =
+    bootstrapState !== '1'
+    && (enabledIds.length === 0 || hasOnlyLegacyBooks);
+
+  if (!shouldBootstrap) {
+    return enabledIds;
+  }
+
+  for (const moduleId of WEB_SUPPORTED_MODULE_IDS) {
+    enableModule(db, moduleId);
+    ensureModuleMigrations(moduleId);
+  }
+  setPreference(db, WEB_MODULE_BOOTSTRAP_PREF_KEY, '1');
+
+  return [...WEB_SUPPORTED_MODULE_IDS];
 }
 
 /** Enable a module: persist to SQLite, run migrations. */

@@ -452,3 +452,39 @@
 **Updated finding:** The original conclusion still holds for single monolithic Playwright runs, but the mitigation now proved effective: per-spec execution with explicit cleanup (`run-full-behavior-suite.sh`) completed successfully end-to-end and is now the preferred operational path.
 
 **Skill opportunity:** Add a dedicated `playwright-suite-orchestrator` skill that enforces pre/post process cleanup, per-spec retries with crash diagnostics, and standardized e2e run summaries.
+
+### Entry 2026-02-25.2 — Turbopack Import Resolution + Full Coverage Gates
+**Phase:** Build reliability + test hardening
+**What happened:** Fixed Turbopack module-resolution regressions caused by local `*.js` import suffixes in TS source, then added hard 100% coverage enforcement for the affected shared packages.
+- Updated internal imports in `@mylife/module-registry` and `@mylife/entitlements` to extensionless relative paths (`./foo`), including barrel exports and tests.
+- Added/expanded tests for module-registry runtime surfaces:
+  - hooks behavior (`useModuleRegistry`, `useEnabledModules`, `useModule`)
+  - schema validation branches in `types.ts`
+  - barrel re-export integrity in `index.ts`
+  - invalid registration rejection path in registry tests
+- Added strict coverage configs and scripts in both packages (100% lines/statements/functions/branches).
+- Expanded entitlements branch tests (invalid payload verification, invalid expiry timestamp, missing update-pack year, expired update-pack denial, non-matching revoke list, missing WebCrypto, single-byte signature buffer path).
+**Decision:** Enforce full coverage directly in package `test` scripts so regressions fail immediately in normal package test runs rather than relying on optional coverage passes.
+**Verification:**
+- `pnpm --filter @mylife/module-registry test` -> 100% coverage across all tracked files.
+- `pnpm --filter @mylife/module-registry typecheck` -> pass.
+- `pnpm --filter @mylife/entitlements test` -> 100% coverage across tracked runtime files (`types.ts` excluded as type-only).
+- `pnpm --filter @mylife/entitlements typecheck` -> pass.
+- `pnpm dev` restarted successfully; web route on `http://localhost:3000` responds `200` after compile.
+
+### Entry 2026-02-25.3 — Web Module Bootstrap Wiring (MyBooks -> Full Web Suite)
+**Phase:** Hub module activation + onboarding defaults
+**What happened:** Wired the web app to auto-enable all currently supported migrated modules for fresh and legacy DB states that only had MyBooks enabled.
+- Added one-time bootstrap logic in `apps/web/app/actions.ts#getEnabledModuleIds`:
+  - if `hub_enabled_modules` is empty, or legacy state is `['books']`, enable all `WEB_SUPPORTED_MODULE_IDS`,
+  - run module migrations for each enabled module,
+  - persist bootstrap completion in `hub_preferences` key `web.bootstrap.enabled_modules.v1`.
+- Added focused test coverage for bootstrap behavior:
+  - `apps/web/app/__tests__/actions-enabled-modules.test.ts`.
+**Decision:** Use a one-time guarded bootstrap (preference-flagged) instead of forcing all modules every request, preserving user-controlled enable/disable state after initial migration.
+**Verification:**
+- `pnpm --filter @mylife/web test -- --run app/__tests__/actions-enabled-modules.test.ts` -> pass (4 tests).
+- `pnpm --filter @mylife/web test -- --run app/__tests__/hub-dashboard.test.tsx app/__tests__/discover-page.test.tsx` -> pass (5 tests).
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- Runtime DB check after hitting `/`:
+  - `hub_enabled_modules` now contains `books,budget,car,fast,habits,meds,recipes,subs`.
