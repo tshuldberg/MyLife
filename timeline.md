@@ -723,3 +723,77 @@
 - `pnpm --dir MyWords typecheck` -> pass.
 - `pnpm --dir MyWords --filter @mywords/web build` -> pass.
 - `pnpm --dir MyWords --filter @mywords/mobile dev -- --help` -> pass.
+
+### Entry 2026-02-25.14 — E-Reader Foundation in MyLife + MyBooks
+**Phase:** Books reader expansion
+**What happened:** Implemented a new local-first e-reader system for both the MyLife books module and standalone MyBooks app with upload parsing, reading progress, highlights, bookmarks, notes, and per-document reader preferences.
+
+- Added reader data layer in `@mylife/books`:
+  - New schema/models for reader documents, notes, and preferences.
+  - New DB CRUD modules and migration `v3` (schemaVersion `3`) in `modules/books`.
+  - New upload parser with EPUB + text/markdown/html/json/rtf support in `modules/books/src/reader/`.
+  - Added tests: `modules/books/src/db/__tests__/reader.test.ts` and `modules/books/src/reader/__tests__/parse-upload.test.ts`.
+- Added MyLife app integration:
+  - Mobile: reader tab and screens for upload + reading + note/highlight/bookmark workflows (`apps/mobile/app/(books)/reader/*`).
+  - Web: new `/books/reader` and `/books/reader/[id]` pages plus server actions for reader CRUD in `apps/web/app/books/actions.ts`.
+  - Updated books web subnav with a Reader entry.
+- Added standalone MyBooks integration:
+  - Shared package: reader schema migration `v2`, CRUD modules, parser exports, and DB tests.
+  - Mobile: new Reader tab (`app/(tabs)/reader.tsx`) and document reader detail route (`app/reader/[id].tsx`).
+  - Web: replaced placeholder home with a local-first reader interface (upload, read, notes/highlights/bookmarks, preferences).
+
+**Verification:**
+- `pnpm --filter @mylife/books test` -> pass.
+- `pnpm --filter @mylife/mobile typecheck` -> pass.
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- app/books/__tests__/` -> pass.
+- `pnpm --filter @mybooks/shared test` -> pass.
+- `pnpm --filter @mybooks/mobile typecheck` -> pass.
+- `pnpm --filter @mybooks/web typecheck` -> pass.
+
+### Entry 2026-02-25.15 — Added PDF/MOBI/AZW Reader Upload Support
+**Phase:** Reader format expansion
+**What happened:** Expanded the reader parser and upload pipelines to support additional Kindle-style formats beyond EPUB/text.
+
+- Reader parser updates in both `@mylife/books` and `@mybooks/shared`:
+  - Added support flags for `pdf`, `mobi`, `azw`, and `azw3`.
+  - Added binary-file detection (extension + MIME) and base64 decode path.
+  - Implemented PDF text extraction for common text operators (`Tj`/`TJ`) with fallback printable-text extraction.
+  - Implemented MOBI/AZW/AZW3 fallback extraction that prefers embedded HTML payloads and then printable UTF-8/Latin text.
+- Uploader flow updates:
+  - MyLife mobile/web and MyBooks mobile/web reader upload UIs now accept/select PDF/MOBI/AZW/AZW3 and pass base64 payloads for binary parsing.
+- Test coverage updates:
+  - Extended `modules/books/src/reader/__tests__/parse-upload.test.ts` with PDF + MOBI/AZW cases.
+  - Added mirrored parser tests in standalone MyBooks at `MyBooks/packages/shared/src/reader/__tests__/parse-upload.test.ts`.
+
+**Verification:**
+- `pnpm --filter @mylife/books test` -> pass (includes new parser tests).
+- `pnpm --filter @mylife/mobile typecheck` -> pass.
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- `pnpm --filter @mybooks/shared test` -> pass (includes new parser tests).
+- `pnpm --filter @mybooks/mobile typecheck` -> pass.
+- `pnpm --filter @mybooks/web typecheck` -> pass.
+
+### Entry 2026-02-25.16 — MyWords Word Helper (Contextual Replacements)
+**Phase:** Words UX expansion
+**What happened:** Added a new `Word Helper` capability that lets users provide a sentence, select a target word, and receive replacement options grounded in known dictionary/thesaurus data with context-aware ranking.
+
+- Added shared words-domain API and types:
+  - New `suggestWordReplacements` service in `modules/words/src/service.ts`.
+  - New helper result/input contracts in `modules/words/src/types.ts` and exports in `modules/words/src/index.ts`.
+  - Datamuse contextual meaning integration (`ml` + `lc` + `rc`) for English ranking in `modules/words/src/api/datamuse.ts`.
+- Added web integration:
+  - New server action `suggestWordReplacementsAction` in `apps/web/app/words/actions.ts`.
+  - Added a new `Word Helper` tab in `apps/web/app/words/page.tsx` with sentence input, selectable sentence words, replacement suggestions, and in-context preview sentences.
+- Added module metadata updates so Word Helper is part of MyWords tab definitions in both runtime module definition and registry metadata:
+  - `modules/words/src/definition.ts`
+  - `packages/module-registry/src/constants.ts`
+- Added unit tests for helper behavior in `modules/words/src/__tests__/words.test.ts`.
+
+**Verification:**
+- `pnpm --filter @mylife/words typecheck` -> pass.
+- `pnpm --filter @mylife/words test` -> pass.
+- `pnpm --filter @mylife/module-registry typecheck` -> pass.
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- --run app/__tests__/actions-enabled-modules.test.ts app/__tests__/discover-page.test.tsx components/__tests__/sidebar.test.tsx` -> pass.
+- `pnpm --filter @mylife/mobile typecheck` -> pass.
