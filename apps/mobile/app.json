@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "MyLife",
+    "slug": "mylife",
+    "scheme": "mylife",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "bundleIdentifier": "com.mylife.app",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.mylife.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0E0C09"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite"
+    ]
+  }
+}

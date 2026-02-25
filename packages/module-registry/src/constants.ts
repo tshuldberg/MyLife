@@ -1,0 +1,317 @@
+import type { ModuleId, ModuleDefinition } from './types';
+
+/** All known module IDs as a readonly array, useful for iteration. */
+export const MODULE_IDS: readonly ModuleId[] = [
+  'books',
+  'budget',
+  'fast',
+  'recipes',
+  'surf',
+  'workouts',
+  'homes',
+  'car',
+  'habits',
+  'meds',
+  'subs',
+] as const;
+
+/** Modules included in the free tier (no purchase required). */
+export const FREE_MODULES: readonly ModuleId[] = ['fast', 'subs'] as const;
+
+/**
+ * Complete metadata for every module in the MyLife suite.
+ *
+ * Each entry provides enough information for the hub app to render
+ * module cards, navigation tabs, and onboarding flows without
+ * loading the module's actual code.
+ */
+export const MODULE_METADATA: Record<ModuleId, ModuleDefinition> = {
+  books: {
+    id: 'books',
+    name: 'MyBooks',
+    tagline: 'Track your reading life',
+    icon: '\u{1F4DA}',
+    accentColor: '#C9894D',
+    tier: 'premium',
+    storageType: 'sqlite',
+    tablePrefix: 'bk_',
+    navigation: {
+      tabs: [
+        { key: 'home', label: 'Home', icon: 'home' },
+        { key: 'library', label: 'Library', icon: 'book' },
+        { key: 'search', label: 'Search', icon: 'search' },
+        { key: 'stats', label: 'Stats', icon: 'bar-chart' },
+        { key: 'settings', label: 'Settings', icon: 'settings' },
+      ],
+      screens: [
+        { name: 'book-detail', title: 'Book Details' },
+        { name: 'add-book', title: 'Add Book' },
+        { name: 'edit-review', title: 'Edit Review' },
+      ],
+    },
+    requiresAuth: false,
+    requiresNetwork: false,
+    version: '0.1.0',
+  },
+  budget: {
+    id: 'budget',
+    name: 'MyBudget',
+    tagline: 'Envelope budgeting made simple',
+    icon: '\u{1F4B0}',
+    accentColor: '#22C55E',
+    tier: 'premium',
+    storageType: 'sqlite',
+    tablePrefix: 'bg_',
+    navigation: {
+      tabs: [
+        { key: 'budget', label: 'Budget', icon: 'wallet' },
+        { key: 'transactions', label: 'Transactions', icon: 'list' },
+        { key: 'subscriptions', label: 'Subscriptions', icon: 'repeat' },
+        { key: 'reports', label: 'Reports', icon: 'pie-chart' },
+        { key: 'accounts', label: 'Accounts', icon: 'credit-card' },
+      ],
+      screens: [
+        { name: 'envelope-detail', title: 'Envelope' },
+        { name: 'add-transaction', title: 'Add Transaction' },
+        { name: 'subscription-detail', title: 'Subscription' },
+      ],
+    },
+    requiresAuth: false,
+    requiresNetwork: false,
+    version: '0.1.0',
+  },
+  fast: {
+    id: 'fast',
+    name: 'MyFast',
+    tagline: 'Intermittent fasting timer',
+    icon: '\u{23F1}\u{FE0F}',
+    accentColor: '#14B8A6',
+    tier: 'free',
+    storageType: 'sqlite',
+    tablePrefix: 'ft_',
+    navigation: {
+      tabs: [
+        { key: 'timer', label: 'Timer', icon: 'clock' },
+        { key: 'history', label: 'History', icon: 'calendar' },
+        { key: 'stats', label: 'Stats', icon: 'bar-chart' },
+        { key: 'settings', label: 'Settings', icon: 'settings' },
+      ],
+      screens: [
+        { name: 'fast-detail', title: 'Fast Details' },
+        { name: 'choose-plan', title: 'Choose Plan' },
+      ],
+    },
+    requiresAuth: false,
+    requiresNetwork: false,
+    version: '0.1.0',
+  },
+  recipes: {
+    id: 'recipes',
+    name: 'MyRecipes',
+    tagline: 'Your personal cookbook',
+    icon: '\u{1F468}\u{200D}\u{1F373}',
+    accentColor: '#F97316',
+    tier: 'premium',
+    storageType: 'sqlite',
+    tablePrefix: 'rc_',
+    navigation: {
+      tabs: [
+        { key: 'home', label: 'Home', icon: 'home' },
+        { key: 'recipes', label: 'Recipes', icon: 'book-open' },
+        { key: 'grocery', label: 'Grocery', icon: 'shopping-cart' },
+        { key: 'meal-plan', label: 'Meal Plan', icon: 'calendar' },
+        { key: 'settings', label: 'Settings', icon: 'settings' },
+      ],
+      screens: [
+        { name: 'recipe-detail', title: 'Recipe' },
+        { name: 'add-recipe', title: 'Add Recipe' },
+        { name: 'import-url', title: 'Import from URL' },
+      ],
+    },
+    requiresAuth: false,
+    requiresNetwork: false,
+    version: '0.1.0',
+  },
+  surf: {
+    id: 'surf',
+    name: 'MySurf',
+    tagline: 'Surf forecasts and spot intel',
+    icon: '\u{1F3C4}',
+    accentColor: '#3B82F6',
+    tier: 'premium',
+    storageType: 'supabase',
+    navigation: {
+      tabs: [
+        { key: 'forecast', label: 'Forecast', icon: 'cloud' },
+        { key: 'map', label: 'Map', icon: 'map' },
+        { key: 'spots', label: 'Spots', icon: 'map-pin' },
+        { key: 'alerts', label: 'Alerts', icon: 'bell' },
+        { key: 'profile', label: 'Profile', icon: 'user' },
+      ],
+      screens: [
+        { name: 'spot-detail', title: 'Spot Details' },
+        { name: 'buoy-detail', title: 'Buoy Data' },
+        { name: 'session-log', title: 'Session Log' },
+      ],
+    },
+    requiresAuth: true,
+    requiresNetwork: true,
+    version: '0.1.0',
+  },
+  workouts: {
+    id: 'workouts',
+    name: 'MyWorkouts',
+    tagline: 'Your AI workout companion',
+    icon: '\u{1F4AA}',
+    accentColor: '#EF4444',
+    tier: 'premium',
+    storageType: 'supabase',
+    navigation: {
+      tabs: [
+        { key: 'today', label: 'Today', icon: 'zap' },
+        { key: 'programs', label: 'Programs', icon: 'layers' },
+        { key: 'history', label: 'History', icon: 'clock' },
+        { key: 'stats', label: 'Stats', icon: 'trending-up' },
+        { key: 'profile', label: 'Profile', icon: 'user' },
+      ],
+      screens: [
+        { name: 'workout-detail', title: 'Workout' },
+        { name: 'exercise-detail', title: 'Exercise' },
+        { name: 'active-workout', title: 'In Progress' },
+      ],
+    },
+    requiresAuth: true,
+    requiresNetwork: true,
+    version: '0.1.0',
+  },
+  homes: {
+    id: 'homes',
+    name: 'MyHomes',
+    tagline: 'Real estate, reimagined',
+    icon: '\u{1F3E0}',
+    accentColor: '#D97706',
+    tier: 'premium',
+    storageType: 'drizzle',
+    navigation: {
+      tabs: [
+        { key: 'search', label: 'Search', icon: 'search' },
+        { key: 'map', label: 'Map', icon: 'map' },
+        { key: 'saved', label: 'Saved', icon: 'heart' },
+        { key: 'alerts', label: 'Alerts', icon: 'bell' },
+        { key: 'profile', label: 'Profile', icon: 'user' },
+      ],
+      screens: [
+        { name: 'listing-detail', title: 'Listing' },
+        { name: 'agent-profile', title: 'Agent' },
+        { name: 'mortgage-calc', title: 'Mortgage Calculator' },
+      ],
+    },
+    requiresAuth: true,
+    requiresNetwork: true,
+    version: '0.1.0',
+  },
+  car: {
+    id: 'car',
+    name: 'MyCar',
+    tagline: 'Vehicle maintenance tracker',
+    icon: '\u{1F697}',
+    accentColor: '#6366F1',
+    tier: 'premium',
+    storageType: 'sqlite',
+    tablePrefix: 'cr_',
+    navigation: {
+      tabs: [
+        { key: 'dashboard', label: 'Dashboard', icon: 'gauge' },
+        { key: 'maintenance', label: 'Maintenance', icon: 'wrench' },
+        { key: 'fuel', label: 'Fuel', icon: 'droplet' },
+        { key: 'settings', label: 'Settings', icon: 'settings' },
+      ],
+      screens: [
+        { name: 'vehicle-detail', title: 'Vehicle' },
+        { name: 'add-record', title: 'Add Record' },
+        { name: 'service-history', title: 'Service History' },
+      ],
+    },
+    requiresAuth: false,
+    requiresNetwork: false,
+    version: '0.1.0',
+  },
+  habits: {
+    id: 'habits',
+    name: 'MyHabits',
+    tagline: 'Build habits that stick',
+    icon: '\u{2705}',
+    accentColor: '#8B5CF6',
+    tier: 'premium',
+    storageType: 'sqlite',
+    tablePrefix: 'hb_',
+    navigation: {
+      tabs: [
+        { key: 'today', label: 'Today', icon: 'check-circle' },
+        { key: 'habits', label: 'Habits', icon: 'list' },
+        { key: 'stats', label: 'Stats', icon: 'bar-chart' },
+        { key: 'settings', label: 'Settings', icon: 'settings' },
+      ],
+      screens: [
+        { name: 'habit-detail', title: 'Habit' },
+        { name: 'add-habit', title: 'New Habit' },
+        { name: 'streak-detail', title: 'Streak' },
+      ],
+    },
+    requiresAuth: false,
+    requiresNetwork: false,
+    version: '0.1.0',
+  },
+  meds: {
+    id: 'meds',
+    name: 'MyMeds',
+    tagline: 'Never miss a dose',
+    icon: '\u{1F48A}',
+    accentColor: '#06B6D4',
+    tier: 'premium',
+    storageType: 'sqlite',
+    tablePrefix: 'md_',
+    navigation: {
+      tabs: [
+        { key: 'today', label: 'Today', icon: 'clock' },
+        { key: 'medications', label: 'Medications', icon: 'pill' },
+        { key: 'history', label: 'History', icon: 'calendar' },
+        { key: 'settings', label: 'Settings', icon: 'settings' },
+      ],
+      screens: [
+        { name: 'med-detail', title: 'Medication' },
+        { name: 'add-med', title: 'Add Medication' },
+        { name: 'schedule', title: 'Schedule' },
+      ],
+    },
+    requiresAuth: false,
+    requiresNetwork: false,
+    version: '0.1.0',
+  },
+  subs: {
+    id: 'subs',
+    name: 'MySubs',
+    tagline: 'Track every subscription',
+    icon: '\u{1F4B3}',
+    accentColor: '#EC4899',
+    tier: 'free',
+    storageType: 'sqlite',
+    tablePrefix: 'sb_',
+    navigation: {
+      tabs: [
+        { key: 'dashboard', label: 'Dashboard', icon: 'credit-card' },
+        { key: 'subscriptions', label: 'Subscriptions', icon: 'repeat' },
+        { key: 'calendar', label: 'Calendar', icon: 'calendar' },
+        { key: 'settings', label: 'Settings', icon: 'settings' },
+      ],
+      screens: [
+        { name: 'sub-detail', title: 'Subscription' },
+        { name: 'add-sub', title: 'Add Subscription' },
+        { name: 'spending-report', title: 'Spending Report' },
+      ],
+    },
+    requiresAuth: false,
+    requiresNetwork: false,
+    version: '0.1.0',
+  },
+};
