@@ -1001,3 +1001,24 @@
 1. Expand standalone MyBooks web so each `apps/web/app/books/**` route owns unique UI/behavior instead of temporary route-level re-exports.
 2. Add route-specific MyBooks standalone tests for books web screens (`library`, `search`, `import`, `stats`, `reader`, `book detail`) and assert parity from hub wrappers.
 3. Plan mobile passthrough conversion for MyBooks (`apps/mobile/app/(books)/**`) to move from `adapter` to `passthrough` mode.
+
+### Entry 2026-02-26.06 - MyBooks Passthrough Commit + PR Handoff
+**Phase:** Standalone parity hardening (handoff)
+**What happened:** Landed an individual MyBooks passthrough commit on `feature/mysurf-full-parity` and published corresponding PR references.
+
+- Committed MyBooks web passthrough wrappers in MyLife under `apps/web/app/books/**`.
+- Updated host wiring in `apps/web/tsconfig.json` and `apps/web/next.config.ts` for standalone MyBooks imports.
+- Added strict passthrough inventory/wrapper checks in `scripts/check-passthrough-parity.mjs`.
+- Updated submodule pointer `MyBooks` to commit `98c8586`.
+- Published branch commit in MyLife: `7caf22b`.
+- Linked MyBooks submodule PR: `https://github.com/tshuldberg/MyBooks/pull/2`.
+
+**Verification:**
+- `pnpm test:parity-matrix` -> pass.
+- `pnpm check:passthrough-parity` -> pass.
+- `pnpm check:parity` -> pass.
+
+**Next steps:**
+1. Merge `MyBooks` PR #2, then sync the submodule pointer if rebased.
+2. Finish standalone-owned implementations for each `MyBooks/apps/web/app/books/**` route.
+3. Implement and gate MyBooks mobile passthrough parity.
