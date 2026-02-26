@@ -10,7 +10,59 @@
     "baseUrl": ".",
     "paths": {
       "@/*": [
-        "./*"
+        "./*",
+        "../../MyWorkouts/apps/web/*"
+      ],
+      "@mybooks-web/*": [
+        "../../MyBooks/apps/web/*"
+      ],
+      "@mybooks/shared": [
+        "../../MyBooks/packages/shared/src/index.ts"
+      ],
+      "@mybooks/shared/*": [
+        "../../MyBooks/packages/shared/src/*"
+      ],
+      "@mybudget-web/*": [
+        "../../MyBudget/apps/web/*"
+      ],
+      "@mybudget/shared": [
+        "../../MyBudget/packages/shared/src/index.ts"
+      ],
+      "@mybudget/shared/*": [
+        "../../MyBudget/packages/shared/src/*"
+      ],
+      "@mybudget/ui": [
+        "../../MyBudget/packages/ui/src/index.ts"
+      ],
+      "@mybudget/ui/*": [
+        "../../MyBudget/packages/ui/src/*"
+      ],
+      "@myworkouts-web/*": [
+        "../../MyWorkouts/apps/web/*"
+      ],
+      "@myhabits-web/*": [
+        "../../MyHabits/apps/web/*"
+      ],
+      "@myworkouts/shared": [
+        "../../MyWorkouts/packages/shared/src/index.ts"
+      ],
+      "@myworkouts/shared/*": [
+        "../../MyWorkouts/packages/shared/src/*"
+      ],
+      "@myworkouts/supabase": [
+        "../../MyWorkouts/packages/supabase/src/index.ts"
+      ],
+      "@myworkouts/supabase/*": [
+        "../../MyWorkouts/packages/supabase/src/*"
+      ],
+      "@mywords-web/*": [
+        "../../MyWords/apps/web/*"
+      ],
+      "@mywords/shared": [
+        "../../MyWords/packages/shared/src/index.ts"
+      ],
+      "@mywords/shared/*": [
+        "../../MyWords/packages/shared/src/*"
       ]
     }
   },
