@@ -23,8 +23,6 @@ const SLIDES = [
   'export',
 ] as const;
 
-type Slide = (typeof SLIDES)[number];
-
 export default function YearReviewScreen() {
   const router = useRouter();
   const [slideIndex, setSlideIndex] = useState(0);

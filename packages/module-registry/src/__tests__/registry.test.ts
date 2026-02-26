@@ -5,7 +5,6 @@ import type { ModuleDefinition } from '../types';
 
 const BOOKS_DEF: ModuleDefinition = MODULE_METADATA.books;
 const FAST_DEF: ModuleDefinition = MODULE_METADATA.fast;
-const SUBS_DEF: ModuleDefinition = MODULE_METADATA.subs;
 
 describe('ModuleRegistry', () => {
   // ─────────────────────────────────────────────────────────────────────────

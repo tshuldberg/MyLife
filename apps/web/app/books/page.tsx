@@ -27,7 +27,6 @@ export default function BooksLibraryPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [books, setBooks] = useState<BookEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [shelves, setShelves] = useState<{ id: string; slug: string }[]>([]);
 
   const loadBooks = useCallback(async () => {
     setLoading(true);
@@ -37,7 +36,6 @@ export default function BooksLibraryPage() {
         id: s.id,
         slug: s.slug,
       }));
-      setShelves(mappedShelves);
 
       const activeShelfId =
         activeShelf === 'all'
@@ -107,7 +105,11 @@ export default function BooksLibraryPage() {
       </div>
 
       {/* Book grid/list */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div style={styles.empty}>
+          <p style={styles.emptyText}>Loading books...</p>
+        </div>
+      ) : filtered.length === 0 ? (
         <div style={styles.empty}>
           <p style={styles.emptyIcon}>📚</p>
           <p style={styles.emptyTitle}>No books yet</p>

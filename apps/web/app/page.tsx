@@ -1,12 +1,11 @@
 'use client';
 
-import { useEnabledModules, useModuleRegistry } from '@mylife/module-registry';
+import { useEnabledModules } from '@mylife/module-registry';
 import { ModuleCard } from '@/components/ModuleCard';
 import Link from 'next/link';
 import { isWebSupportedModuleId } from '@/lib/modules';
 
 export default function HubDashboard() {
-  const registry = useModuleRegistry();
   const enabled = useEnabledModules().filter((mod) => isWebSupportedModuleId(mod.id));
 
   return (

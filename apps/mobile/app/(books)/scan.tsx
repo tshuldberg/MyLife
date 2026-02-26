@@ -53,7 +53,6 @@ export default function ScanScreen() {
       try {
         const edition = await getBookByISBN(isbn);
         const bookInsert = olEditionToBook(edition);
-        const authors = (edition.authors ?? []).map((a) => a.key).join(', ');
 
         let coverUrl: string | null = null;
         if (edition.isbn_13?.[0]) {
