@@ -23,9 +23,22 @@ import {
   createShareEvent,
   getShareEvent,
   listShareEventsVisibleToUser,
+  createReaderDocument,
+  getReaderDocument,
+  getReaderDocuments,
+  updateReaderDocumentProgress,
+  createReaderNote,
+  getReaderNotes,
+  deleteReaderNote,
+  getReaderPreferences,
+  upsertReaderPreferences,
   type ShareObjectType,
   type ShareVisibility,
   type BookInsert,
+  type ReaderDocumentInsert,
+  type ReaderDocumentFilters,
+  type ReaderDocumentNoteInsert,
+  type ReaderDocumentPreferenceInsert,
   type Shelf,
   type BookFilters,
 } from '@mylife/books';
@@ -182,6 +195,51 @@ export async function importFromCSV(source: 'goodreads' | 'storygraph', csvText:
   }
 
   return { imported, skipped, errors };
+}
+
+export async function fetchReaderDocumentsAction(filters?: ReaderDocumentFilters) {
+  return getReaderDocuments(db(), filters);
+}
+
+export async function fetchReaderDocumentAction(id: string) {
+  return getReaderDocument(db(), id);
+}
+
+export async function createReaderDocumentAction(input: ReaderDocumentInsert) {
+  return createReaderDocument(db(), crypto.randomUUID(), input);
+}
+
+export async function updateReaderDocumentProgressAction(input: {
+  id: string;
+  current_position: number;
+  progress_percent: number;
+}) {
+  updateReaderDocumentProgress(db(), input.id, {
+    current_position: input.current_position,
+    progress_percent: input.progress_percent,
+  });
+  return { ok: true };
+}
+
+export async function fetchReaderNotesAction(documentId: string) {
+  return getReaderNotes(db(), documentId);
+}
+
+export async function createReaderNoteAction(input: ReaderDocumentNoteInsert) {
+  return createReaderNote(db(), crypto.randomUUID(), input);
+}
+
+export async function deleteReaderNoteAction(noteId: string) {
+  deleteReaderNote(db(), noteId);
+  return { ok: true };
+}
+
+export async function fetchReaderPreferencesAction(documentId: string) {
+  return getReaderPreferences(db(), documentId);
+}
+
+export async function saveReaderPreferencesAction(input: ReaderDocumentPreferenceInsert) {
+  return upsertReaderPreferences(db(), input);
 }
 
 const SOCIAL_ACTOR_ID_KEY = 'social.actor_user_id';

@@ -172,8 +172,8 @@ describe('ModuleRegistry', () => {
   // ─────────────────────────────────────────────────────────────────────────
 
   describe('constants', () => {
-    it('MODULE_IDS has 12 entries', () => {
-      expect(MODULE_IDS).toHaveLength(12);
+    it('MODULE_IDS matches metadata entries', () => {
+      expect(MODULE_IDS).toHaveLength(Object.keys(MODULE_METADATA).length);
     });
 
     it('FREE_MODULES includes fast and subs', () => {

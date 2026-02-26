@@ -31,6 +31,15 @@ export {
 // Migration runner
 export { runModuleMigrations, initializeHubDatabase } from './migration-runner';
 
+// Test helpers/factories
+export {
+  createInMemoryTestDatabase,
+  createHubTestDatabase,
+  createModuleTestDatabase,
+} from './test-utils';
+export type { InMemoryTestDatabase } from './test-utils';
+export { createIdFactory, utcDateWithOffset, isoNoonUtc } from './test-factories';
+
 // Hub CRUD queries
 export {
   getEnabledModules,

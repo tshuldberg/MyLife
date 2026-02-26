@@ -58,6 +58,13 @@ export default function BooksLayout() {
         }}
       />
       <Tabs.Screen
+        name="reader/index"
+        options={{
+          title: 'Reader',
+          tabBarIcon: ({ focused }) => <TabIcon icon={'\ud83d\udcd4'} focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="stats"
         options={{
           title: 'Stats',
@@ -74,6 +81,7 @@ export default function BooksLayout() {
       {/* Hide non-tab screens from the tab bar */}
       <Tabs.Screen name="book/[id]" options={{ href: null }} />
       <Tabs.Screen name="book/add" options={{ href: null }} />
+      <Tabs.Screen name="reader/[id]" options={{ href: null }} />
       <Tabs.Screen name="shelf/[id]" options={{ href: null }} />
       <Tabs.Screen name="scan" options={{ href: null }} />
       <Tabs.Screen name="year-review" options={{ href: null }} />

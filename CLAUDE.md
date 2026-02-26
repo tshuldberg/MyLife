@@ -27,6 +27,30 @@ MyLife is a unified hub app consolidating 11+ privacy-first personal app modules
 - New runtime code should be .ts/.tsx with strict typing and no implicit any.
 - Use .js/.cjs only where required by tooling or platform constraints.
 
+## App Isolation + Hub Inclusion (Critical)
+
+- Any app added to the `/Users/trey/Desktop/Apps` workspace must be either:
+  - a fully isolated standalone app directory (for example `MyWords/`), or
+  - a module integrated into the MyLife hub (`modules/<name>/` with routes wired in `apps/mobile` and/or `apps/web`).
+- If an app exists in both forms, keep the standalone app fully isolated in its own directory and keep hub integration inside MyLife module/app boundaries.
+- Do not scatter standalone app files directly in the MyLife root.
+
+## Standalone/Module Parity (Critical)
+
+- Standalone app repositories are the canonical product sources of truth.
+- If an app exists as both a standalone repo and a MyLife module, both must remain identical products (features, behavior, data model intent, and UX intent).
+- Do not ship module-only or standalone-only capabilities.
+- Any parity-impacting change must be applied in both codebases in the same session and reflected in both instruction pairs (`AGENTS.md` + `CLAUDE.md`).
+- Optional networked capabilities (for example bank sync) are allowed, but option availability and behavior must match between standalone and module versions.
+- Hub implementations must be parity adapters, not independent rewrites.
+- For any standalone + module pair, route/screen structure, user-visible labels, controls, and settings must match exactly; only hub shell chrome (sidebar/top-level hub navigation) may differ.
+- Hub shell theming may differ, but module screen theming must match the standalone app for that module.
+- Avoid duplicate UI logic across standalone and hub. Prefer shared components/packages or thin adapter layers that keep one canonical source.
+- Web passthrough parity is enforced by direct route reuse for passthrough-enabled modules (`books`, `habits`, `words`, `workouts`): hub files under `apps/web/app/<module>/**` must stay thin wrappers that import standalone pages from the corresponding `@my<module>-web/app/**` alias.
+- Any parity validation failure is a release blocker. Run `pnpm check:parity` before merging parity-impacting work.
+- Use `pnpm check:module-parity` for cross-module parity inventory checks, `pnpm check:passthrough-parity` for standalone↔hub parity matrix plus strict passthrough wrapper enforcement, and `pnpm check:workouts-parity` for strict MyWorkouts UI/data parity checks.
+- Modules with standalone repos that only contain design docs are parity-deferred until standalone runtime code exists.
+
 ## Agent Instructions and Tooling
 
 - Persistent agent instructions are stored in both `AGENTS.md` and `CLAUDE.md`. Keep them in sync when rules change.
@@ -45,6 +69,11 @@ pnpm dev:web             # Next.js web only
 pnpm build               # Build all packages and apps
 pnpm test                # Run all tests (Vitest)
 pnpm typecheck           # Type check all
+pnpm check:module-parity # Validate standalone↔hub module parity inventory
+pnpm check:passthrough-parity # Validate all standalone apps + module passthrough matrix
+pnpm check:workouts-parity # Strict MyWorkouts UI/data parity validation
+pnpm check:parity        # Full parity gate (standalone integrity + module parity + workouts strict parity)
+pnpm test:parity-matrix  # Run standalone↔MyLife parity matrix tests only
 pnpm clean               # Clean build artifacts
 ```
 
@@ -96,7 +125,7 @@ MyLife/
 
 - **Module system:** Every module exports a `ModuleDefinition` contract. The hub registers, enables/disables, and renders modules dynamically via `@mylife/module-registry`.
 - **Single SQLite file:** All local modules share one `.sqlite` with table name prefixes (`bk_` for books, `bg_` for budget, etc.). Hub tables use `hub_` prefix.
-- **Dark theme only:** Background `#0E0C09`, per-module accent colors via `ModuleThemeProvider`.
+- **Theme boundary:** Hub shell may use the MyLife dark theme, but module screens must match standalone module theming to preserve parity.
 - **Privacy-first:** Zero analytics, zero telemetry, offline-first where possible.
 
 ### Module Table Prefixes
@@ -144,7 +173,7 @@ interface ModuleDefinition {
 |-------|-------------|--------|
 | **Phase 0** | Hub Foundation — monorepo, module registry, db, ui, app shells | **Done** |
 | **Phase 1** | First Module — MyBooks migration, table prefix, data importer | **Done** |
-| **Phase 2** | Local-Only Modules — MyBudget, MyFast, MyRecipes + new scaffolds | Pending |
+| **Phase 2** | Core Module Migration + Standalone Parity — MyBudget, MyFast, MyRecipes + new scaffolds | Pending |
 | **Phase 3** | Auth + Subscription — Supabase Auth, RevenueCat, Stripe, paywall | Pending |
 | **Phase 4** | Cloud Modules — MySurf, MyWorkouts, MyHomes migration | Pending |
 | **Phase 5** | macOS App — SwiftUI, Zod→Swift codegen, GRDB SQLite | Pending |
@@ -189,4 +218,8 @@ Skip `resolve-library-id` and go directly to `query-docs` with these:
 
 ## Legacy Submodules
 
-The old submodule directories (`MyBooks/`, `MyBudget/`, etc.) still exist alongside the new monorepo structure. Module code is being migrated from these standalone repos into `modules/` during Phases 1-4. Do not modify the submodule copies — work in the new `modules/` and `apps/` directories instead.
+Standalone submodule directories (`MyBooks/`, `MyBudget/`, etc.) remain the canonical sources for product parity. If a module exists in both standalone and MyLife hub form, update both sides in the same session and verify with `pnpm check:parity`.
+
+
+## Writing Style
+- Do not use em dashes in documents or writing.

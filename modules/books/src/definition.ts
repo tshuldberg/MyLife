@@ -6,6 +6,10 @@ import {
   CREATE_INDEXES,
   CREATE_SHARE_EVENTS,
   CREATE_SHARE_INDEXES,
+  CREATE_READER_DOCUMENTS,
+  CREATE_READER_NOTES,
+  CREATE_READER_PREFERENCES,
+  CREATE_READER_INDEXES,
   SEED_SYSTEM_SHELVES,
 } from './db/schema';
 
@@ -47,6 +51,22 @@ const BOOKS_MIGRATION_V2: Migration = {
   ],
 };
 
+const BOOKS_MIGRATION_V3: Migration = {
+  version: 3,
+  description: 'Add local e-reader documents, highlights, and reader preferences',
+  up: [
+    CREATE_READER_DOCUMENTS,
+    CREATE_READER_NOTES,
+    CREATE_READER_PREFERENCES,
+    ...CREATE_READER_INDEXES,
+  ],
+  down: [
+    'DROP TABLE IF EXISTS bk_reader_preferences',
+    'DROP TABLE IF EXISTS bk_reader_notes',
+    'DROP TABLE IF EXISTS bk_reader_documents',
+  ],
+};
+
 export const BOOKS_MODULE: ModuleDefinition = {
   id: 'books',
   name: 'MyBooks',
@@ -55,14 +75,15 @@ export const BOOKS_MODULE: ModuleDefinition = {
   accentColor: '#C9894D',
   tier: 'premium',
   storageType: 'sqlite',
-  migrations: [BOOKS_MIGRATION_V1, BOOKS_MIGRATION_V2],
-  schemaVersion: 2,
+  migrations: [BOOKS_MIGRATION_V1, BOOKS_MIGRATION_V2, BOOKS_MIGRATION_V3],
+  schemaVersion: 3,
   tablePrefix: 'bk_',
   navigation: {
     tabs: [
       { key: 'home', label: 'Home', icon: 'home' },
       { key: 'library', label: 'Library', icon: 'book' },
       { key: 'search', label: 'Search', icon: 'search' },
+      { key: 'reader', label: 'Reader', icon: 'book-open' },
       { key: 'stats', label: 'Stats', icon: 'bar-chart' },
       { key: 'settings', label: 'Settings', icon: 'settings' },
     ],

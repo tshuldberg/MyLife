@@ -177,6 +177,24 @@
 - Validation:
   - `pnpm --filter @mylife/web test` passes (21 tests).
   - `pnpm --filter @mylife/web typecheck` passes.
+
+## 2026-02-26
+
+- Added MyBudget bank-sync parity surfaces into MyLife on the shared branch:
+  - new `@mylife/budget` bank-sync runtime + provider contract package under `modules/budget/src/bank-sync/`
+  - new MyLife web bank API routes under `apps/web/app/api/bank/` (`link-token`, `exchange`, `webhook`)
+  - wired module exports in `modules/budget/src/index.ts` so `@mylife/budget` exposes bank-sync runtime + types
+- Hardened Build 1 provider handling to fail fast for non-implemented providers with explicit 400s.
+- Verification:
+  - `pnpm --filter @mylife/budget test` passes.
+  - `pnpm --filter @mylife/budget typecheck` passes.
+  - `pnpm --filter @mylife/web typecheck` passes.
+  - `pnpm check:module-parity` passes (existing deferred-module warnings unchanged).
+- Next steps:
+  - implement Plaid-native webhook JWT verification flow (replace placeholder shared-secret assumption for direct Plaid webhooks)
+  - add auth/authorization guardrails for all bank API endpoints
+  - move in-memory bank connector/token state to persistent encrypted storage and add webhook idempotency keys
+  - add route-level tests for bank API handlers and error/auth paths in standalone + hub
   - `pnpm --filter @mylife/mobile test` passes (4 tests).
   - `pnpm --filter @mylife/mobile typecheck` passes.
 - Continued expanding executable hub/MyBooks interaction coverage after fix pass:
@@ -488,3 +506,519 @@
 - `pnpm --filter @mylife/web typecheck` -> pass.
 - Runtime DB check after hitting `/`:
   - `hub_enabled_modules` now contains `books,budget,car,fast,habits,meds,recipes,subs`.
+
+### Entry 2026-02-25.6 — MySurf “Do Everything” Parity Pass
+**Phase:** Full-surface MySurf completion in hub
+**What happened:** Completed end-to-end MySurf parity expansion beyond CRUD stubs by implementing forecast, narrative, live conditions, map pinning, account/auth/profile, and richer spot-detail workflows in both web and mobile hub surfaces.
+- Rebuilt `apps/web/app/surf` as a complete multi-route product surface:
+  - shared shell nav: `apps/web/app/surf/components/SurfShell.tsx`
+  - home: `apps/web/app/surf/page.tsx`
+  - map + pinning + timeline scrubber: `apps/web/app/surf/map/page.tsx`
+  - sessions journal: `apps/web/app/surf/sessions/page.tsx`
+  - favorites surface: `apps/web/app/surf/favorites/page.tsx`
+  - account/auth/preferences/premium controls: `apps/web/app/surf/account/page.tsx`
+  - tabbed spot detail (Forecast/Analysis/Live/Charts/Guide): `apps/web/app/surf/spot/[id]/page.tsx`
+- Replaced `apps/web/app/surf/actions.ts` with richer server action surface:
+  - deterministic forecast/day-summary generation
+  - regional + spot narrative generation and vote persistence
+  - live buoy-condition synthesis
+  - guide/hazard derivation
+  - map pin CRUD persistence via hub preferences
+  - local auth session/user/profile + settings persistence
+  - automatic seed data initialization for first-run surf experience
+- Restored and completed mobile MySurf module integration:
+  - registry + stack route wiring in `apps/mobile/app/_layout.tsx`
+  - migration map wiring in `apps/mobile/components/DatabaseProvider.tsx`
+  - dependency registration in `apps/mobile/package.json`
+  - full mobile surf route group:
+    - `apps/mobile/app/(surf)/_layout.tsx`
+    - `apps/mobile/app/(surf)/index.tsx`
+    - `apps/mobile/app/(surf)/map.tsx`
+    - `apps/mobile/app/(surf)/sessions.tsx`
+    - `apps/mobile/app/(surf)/favorites.tsx`
+    - `apps/mobile/app/(surf)/account.tsx`
+    - `apps/mobile/app/(surf)/spot/[id].tsx`
+- Reinstated missing web pages for currently enabled hub modules so type generation stayed consistent:
+  - `apps/web/app/homes/page.tsx`
+  - `apps/web/app/workouts/page.tsx`
+
+**Decision:** Implemented full MySurf feature behavior directly in hub runtime (SQLite + hub preferences) to achieve practical parity now, while keeping external provider-specific Phase 3/4 systems optional.
+
+**Verification:**
+- `pnpm install` -> pass.
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- `pnpm --filter @mylife/mobile typecheck` -> pass.
+- `pnpm --filter @mylife/web test` -> pass (23 files, 138 tests).
+- `pnpm --filter @mylife/mobile test` -> pass (14 files, 36 tests).
+
+### Entry 2026-02-25.7 — Web Default-Enable Bootstrap Bump for New Modules
+**Phase:** Module rollout reliability
+**What happened:** Updated web bootstrap preference key version from `web.bootstrap.enabled_modules.v2` to `web.bootstrap.enabled_modules.v3` so existing installs perform a one-time re-bootstrap and auto-enable newly added modules (including `MyWords`) by default.
+- Updated `apps/web/app/actions.ts`
+- Updated bootstrap preference assertions in `apps/web/app/__tests__/actions-enabled-modules.test.ts`
+
+**Verification:**
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- --run app/__tests__/actions-enabled-modules.test.ts` -> pass.
+
+### Entry 2026-02-25.8 — Web Bootstrap Key Bump to v4 (Force Existing Installs to Include MyWords)
+**Phase:** Existing-install bootstrap correction
+**What happened:** Existing DBs had `web.bootstrap.enabled_modules.v3=1` with only 11 enabled modules, so `MyWords` remained excluded. Bumped bootstrap preference key to `v4` so current installs re-run one-time default enable pass and include all supported modules.
+- Updated `apps/web/app/actions.ts` bootstrap key to `web.bootstrap.enabled_modules.v4`.
+- Updated assertions in `apps/web/app/__tests__/actions-enabled-modules.test.ts`.
+
+**Verification:**
+- `pnpm --filter @mylife/web test -- --run app/__tests__/actions-enabled-modules.test.ts` -> pass.
+- `pnpm --filter @mylife/web typecheck` -> pass.
+
+### Entry 2026-02-25.9 — Option 2 Balanced Testing Platform Completed
+**Phase:** Universal testing best-practices adoption
+**What happened:** Completed the full “Balanced platform” rollout across the monorepo and stabilized coverage gates to pragmatic per-package baselines.
+- Added shared Vitest baseline + deterministic test sequencing and UTC/fetch test guard:
+  - `test/vitest/base.ts`
+  - `test/vitest/setup.global.ts`
+- Added shared DB test helpers/factories and exported them from `@mylife/db`:
+  - `packages/db/src/test-utils.ts`
+  - `packages/db/src/test-factories.ts`
+  - `packages/db/src/index.ts`
+- Refactored integration/unit suites to isolated fixture-style DB setup/teardown (not shared state), including web DB integration tests and module DB tests.
+- Added package-level `test:coverage` scripts, Turbo `test:coverage` task, and package Vitest configs with explicit thresholds.
+- Added CI workflow for lint/typecheck/test/coverage + conditional web e2e:
+  - `.github/workflows/ci.yml`
+- Fixed brittle module-registry constant assertion to prevent hardcoded module-count drift:
+  - `packages/module-registry/src/__tests__/registry.test.ts`
+- Finalized pragmatic coverage floors where needed to match current product surface breadth (`books`, `budget`, `mobile`, `web`) while preserving regression protection.
+
+**Verification:**
+- `pnpm --filter @mylife/module-registry test:coverage` -> pass.
+- `pnpm --filter @mylife/books test:coverage` -> pass.
+- `pnpm --filter @mylife/budget test:coverage` -> pass.
+- `pnpm --filter @mylife/mobile test:coverage` -> pass.
+- `pnpm --filter @mylife/web test:coverage` -> pass.
+- `pnpm test:coverage` -> pass (`27 successful, 27 total`).
+
+### Entry 2026-02-25.9 — MyWords Missing from UI Fixed (Reverted Runtime Files Restored)
+**Phase:** Regression fix
+**What happened:** Investigated persistent `11 modules active` state and found key runtime files had reverted to the 11-module configuration even though DB state included `words`.
+- Restored `words` to runtime lists and routing:
+  - `apps/web/lib/modules.ts` (`WEB_SUPPORTED_MODULE_IDS`)
+  - `apps/web/components/Sidebar.tsx` (`MODULE_ROUTES.words`)
+  - `apps/web/components/Providers.tsx` (register `WORDS_MODULE`)
+  - `apps/web/lib/db.ts` (migrations map includes `words`)
+- Restored registry definitions:
+  - `packages/module-registry/src/types.ts` (`ModuleId` includes `words`)
+  - `packages/module-registry/src/constants.ts` (`MODULE_IDS` + `MODULE_METADATA.words`)
+- Restored visual/token + package wiring:
+  - `packages/ui/src/tokens/colors.ts`
+  - `apps/web/app/globals.css`
+  - `apps/web/next.config.ts`
+  - `apps/web/package.json`
+- Recreated missing app/module files:
+  - `modules/words/*`
+  - `apps/web/app/words/*`
+
+**Verification:**
+- `pnpm --filter @mylife/words typecheck` -> pass.
+- `pnpm --filter @mylife/words test` -> pass.
+- `pnpm --filter @mylife/module-registry typecheck` -> pass.
+- `pnpm --filter @mylife/module-registry test` -> pass.
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- --run app/__tests__/actions-enabled-modules.test.ts app/__tests__/discover-page.test.tsx components/__tests__/sidebar.test.tsx` -> pass.
+- Runtime checks:
+  - `GET /words` returns `200`.
+  - Headless browser text check confirms `MyWords` present and `12 modules active` on `/`.
+
+### Entry 2026-02-25.10 — Mobile Module Parity Expansion (Hub-Wide Route + CRUD Coverage)
+**Phase:** Mobile parity with hub/web module surface
+**What happened:** Expanded the mobile hub from a partial module mount (`books`, `budget`, `surf`) to full module routing + feature coverage across all web-backed modules.
+- Expanded mobile registry/migration wiring:
+  - `apps/mobile/components/DatabaseProvider.tsx`
+  - `apps/mobile/hooks/use-module-toggle.ts`
+  - `apps/mobile/app/_layout.tsx`
+- Added missing module dependencies for mobile workspace package:
+  - `apps/mobile/package.json`
+- Updated hub discover catalog so `words` is discoverable on mobile:
+  - `apps/mobile/app/(hub)/discover.tsx`
+- Added new mobile module route groups and screens:
+  - `apps/mobile/app/(fast)/*` (timer/history/stats/settings)
+  - `apps/mobile/app/(recipes)/*`
+  - `apps/mobile/app/(workouts)/*`
+  - `apps/mobile/app/(homes)/*`
+  - `apps/mobile/app/(car)/*`
+  - `apps/mobile/app/(habits)/*`
+  - `apps/mobile/app/(meds)/*`
+  - `apps/mobile/app/(subs)/*` (dashboard/subscriptions/calendar/settings)
+  - `apps/mobile/app/(words)/*`
+
+**Verification:**
+- `pnpm --filter @mylife/mobile typecheck` -> pass.
+- `pnpm --filter @mylife/mobile test` -> pass (15 files, 40 tests).
+
+### Entry 2026-02-25.11 — Stronger Coverage Depth Ratchet (Books/Web/Mobile)
+**Phase:** Testing depth hardening
+**What happened:** Increased practical coverage depth by adding high-signal mobile module screen tests and then ratcheting package coverage floors upward to stronger, enforceable levels.
+- Added new mobile screen tests for previously zero-coverage routes:
+  - `apps/mobile/app/(car)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(habits)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(homes)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(meds)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(recipes)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(workouts)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(words)/__tests__/index.test.tsx`
+- Improved mobile test primitives to support realistic list rendering paths:
+  - `apps/mobile/test/setup.tsx` (`FlatList` mock now renders `ListHeaderComponent` and `ListEmptyComponent`)
+- Raised package coverage thresholds to stronger baselines with headroom:
+  - `modules/books/vitest.config.ts` -> lines/statements `50`, functions `95`, branches `65`
+  - `apps/web/vitest.config.ts` -> lines/statements `46`, functions `50`, branches `60`
+  - `apps/mobile/vitest.config.ts` -> lines/statements `38`, functions `65`, branches `60`
+
+**Verification:**
+- `pnpm --filter @mylife/mobile test` -> pass (25 files, 65 tests).
+- `pnpm --filter @mylife/mobile test:coverage` -> pass.
+  - Mobile coverage now: lines/statements `39.81%`, functions `72.76%`, branches `73.12%`.
+- `pnpm --filter @mylife/books test:coverage` -> pass.
+  - Books coverage: lines/statements `53.37%`, functions `97.1%`, branches `67.45%`.
+- `pnpm --filter @mylife/web test:coverage` -> pass.
+  - Web coverage: lines/statements `47.39%`, functions `54.81%`, branches `68.46%`.
+
+### Entry 2026-02-25.12 — Option 1+2 Completion: Mobile Fast/Subs/Surf + Web API Route Depth + Per-Folder Gates
+**Phase:** Coverage depth ratchet
+**What happened:** Completed targeted depth expansion for mobile `fast/subs/surf`, added key web API route tests (`identity`, `entitlements`, `access`), then introduced per-folder critical-path coverage thresholds while raising global package floors.
+
+- Added mobile tests for previously untested module surfaces:
+  - `apps/mobile/app/(fast)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(fast)/__tests__/history-stats.test.tsx`
+  - `apps/mobile/app/(fast)/__tests__/settings.test.tsx`
+  - `apps/mobile/app/(subs)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(subs)/__tests__/subscriptions.test.tsx`
+  - `apps/mobile/app/(subs)/__tests__/calendar.test.tsx`
+  - `apps/mobile/app/(subs)/__tests__/settings.test.tsx`
+  - `apps/mobile/app/(surf)/__tests__/index.test.tsx`
+  - `apps/mobile/app/(surf)/__tests__/sessions.test.tsx`
+  - `apps/mobile/app/(surf)/__tests__/favorites.test.tsx`
+  - `apps/mobile/app/(surf)/__tests__/account.test.tsx`
+  - `apps/mobile/app/(surf)/__tests__/map.test.tsx`
+- Added web API route tests:
+  - `apps/web/app/api/identity/actor/issue/__tests__/route.test.ts`
+  - `apps/web/app/api/entitlements/issue/__tests__/route.test.ts`
+  - `apps/web/app/api/entitlements/revoke/__tests__/route.test.ts`
+  - `apps/web/app/api/entitlements/sync/__tests__/route.test.ts`
+  - `apps/web/app/api/access/bundle/issue/__tests__/route.test.ts`
+  - `apps/web/app/api/access/bundle/download/__tests__/route.test.ts`
+- Improved mobile test primitives:
+  - `apps/mobile/test/setup.tsx` (added `Switch` mock, improved `Text` `onPress` handling, expanded module color tokens)
+- Raised global thresholds + added per-folder critical-path thresholds:
+  - `apps/mobile/vitest.config.ts`
+  - `apps/web/vitest.config.ts`
+  - `modules/books/vitest.config.ts`
+
+**Verification:**
+- `pnpm --filter @mylife/mobile test` -> pass (37 files, 79 tests).
+- `pnpm --filter @mylife/web test` -> pass (31 files, 175 tests).
+- `pnpm --filter @mylife/mobile test:coverage` -> pass.
+  - Mobile now: lines/statements `53.26%`, branches `74.07%`, functions `80.06%`.
+- `pnpm --filter @mylife/web test:coverage` -> pass.
+  - Web now: lines/statements `47.69%`, branches `70.30%`, functions `56.72%`.
+- `pnpm --filter @mylife/books test:coverage` -> pass.
+  - Books remains: lines/statements `53.37%`, branches `67.45%`, functions `97.1%`.
+
+### Entry 2026-02-25.13 — MyWords Completeness Pass + Standalone Verification
+**Phase:** Words quality and isolation completion
+**What happened:** Finished the richer MyWords result model rollout by closing the remaining mobile gaps and validating both the standalone `MyWords/` workspace and MyLife hub words module behavior.
+
+- Mobile words screen now mirrors richer hub result sections:
+  - Added `Chronology` and `Word Family` sections in `apps/mobile/app/(words)/index.tsx`.
+  - Replaced static nearby words text with tappable chips that trigger direct lookup for the selected related word.
+- Expanded tests to lock behavior:
+  - Added nearby-word interaction test in `apps/mobile/app/(words)/__tests__/index.test.tsx`.
+  - Extended `modules/words/src/__tests__/words.test.ts` to assert chronology and word-family enrichment.
+- Re-verified standalone runtime (isolation track) and hub track checks.
+
+**Verification:**
+- `pnpm --filter @mylife/words test` -> pass.
+- `pnpm --filter @mylife/mobile test -- "app/(words)/__tests__/index.test.tsx"` -> pass.
+- `pnpm typecheck` -> pass.
+- `pnpm --dir MyWords typecheck` -> pass.
+- `pnpm --dir MyWords --filter @mywords/web build` -> pass.
+- `pnpm --dir MyWords --filter @mywords/mobile dev -- --help` -> pass.
+
+### Entry 2026-02-25.14 — E-Reader Foundation in MyLife + MyBooks
+**Phase:** Books reader expansion
+**What happened:** Implemented a new local-first e-reader system for both the MyLife books module and standalone MyBooks app with upload parsing, reading progress, highlights, bookmarks, notes, and per-document reader preferences.
+
+- Added reader data layer in `@mylife/books`:
+  - New schema/models for reader documents, notes, and preferences.
+  - New DB CRUD modules and migration `v3` (schemaVersion `3`) in `modules/books`.
+  - New upload parser with EPUB + text/markdown/html/json/rtf support in `modules/books/src/reader/`.
+  - Added tests: `modules/books/src/db/__tests__/reader.test.ts` and `modules/books/src/reader/__tests__/parse-upload.test.ts`.
+- Added MyLife app integration:
+  - Mobile: reader tab and screens for upload + reading + note/highlight/bookmark workflows (`apps/mobile/app/(books)/reader/*`).
+  - Web: new `/books/reader` and `/books/reader/[id]` pages plus server actions for reader CRUD in `apps/web/app/books/actions.ts`.
+  - Updated books web subnav with a Reader entry.
+- Added standalone MyBooks integration:
+  - Shared package: reader schema migration `v2`, CRUD modules, parser exports, and DB tests.
+  - Mobile: new Reader tab (`app/(tabs)/reader.tsx`) and document reader detail route (`app/reader/[id].tsx`).
+  - Web: replaced placeholder home with a local-first reader interface (upload, read, notes/highlights/bookmarks, preferences).
+
+**Verification:**
+- `pnpm --filter @mylife/books test` -> pass.
+- `pnpm --filter @mylife/mobile typecheck` -> pass.
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- app/books/__tests__/` -> pass.
+- `pnpm --filter @mybooks/shared test` -> pass.
+- `pnpm --filter @mybooks/mobile typecheck` -> pass.
+- `pnpm --filter @mybooks/web typecheck` -> pass.
+
+### Entry 2026-02-25.15 — Added PDF/MOBI/AZW Reader Upload Support
+**Phase:** Reader format expansion
+**What happened:** Expanded the reader parser and upload pipelines to support additional Kindle-style formats beyond EPUB/text.
+
+- Reader parser updates in both `@mylife/books` and `@mybooks/shared`:
+  - Added support flags for `pdf`, `mobi`, `azw`, and `azw3`.
+  - Added binary-file detection (extension + MIME) and base64 decode path.
+  - Implemented PDF text extraction for common text operators (`Tj`/`TJ`) with fallback printable-text extraction.
+  - Implemented MOBI/AZW/AZW3 fallback extraction that prefers embedded HTML payloads and then printable UTF-8/Latin text.
+- Uploader flow updates:
+  - MyLife mobile/web and MyBooks mobile/web reader upload UIs now accept/select PDF/MOBI/AZW/AZW3 and pass base64 payloads for binary parsing.
+- Test coverage updates:
+  - Extended `modules/books/src/reader/__tests__/parse-upload.test.ts` with PDF + MOBI/AZW cases.
+  - Added mirrored parser tests in standalone MyBooks at `MyBooks/packages/shared/src/reader/__tests__/parse-upload.test.ts`.
+
+**Verification:**
+- `pnpm --filter @mylife/books test` -> pass (includes new parser tests).
+- `pnpm --filter @mylife/mobile typecheck` -> pass.
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- `pnpm --filter @mybooks/shared test` -> pass (includes new parser tests).
+- `pnpm --filter @mybooks/mobile typecheck` -> pass.
+- `pnpm --filter @mybooks/web typecheck` -> pass.
+
+### Entry 2026-02-25.16 — MyWords Word Helper (Contextual Replacements)
+**Phase:** Words UX expansion
+**What happened:** Added a new `Word Helper` capability that lets users provide a sentence, select a target word, and receive replacement options grounded in known dictionary/thesaurus data with context-aware ranking.
+
+- Added shared words-domain API and types:
+  - New `suggestWordReplacements` service in `modules/words/src/service.ts`.
+  - New helper result/input contracts in `modules/words/src/types.ts` and exports in `modules/words/src/index.ts`.
+  - Datamuse contextual meaning integration (`ml` + `lc` + `rc`) for English ranking in `modules/words/src/api/datamuse.ts`.
+- Added web integration:
+  - New server action `suggestWordReplacementsAction` in `apps/web/app/words/actions.ts`.
+  - Added a new `Word Helper` tab in `apps/web/app/words/page.tsx` with sentence input, selectable sentence words, replacement suggestions, and in-context preview sentences.
+- Added module metadata updates so Word Helper is part of MyWords tab definitions in both runtime module definition and registry metadata:
+  - `modules/words/src/definition.ts`
+  - `packages/module-registry/src/constants.ts`
+- Added unit tests for helper behavior in `modules/words/src/__tests__/words.test.ts`.
+
+**Verification:**
+- `pnpm --filter @mylife/words typecheck` -> pass.
+- `pnpm --filter @mylife/words test` -> pass.
+- `pnpm --filter @mylife/module-registry typecheck` -> pass.
+- `pnpm --filter @mylife/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- --run app/__tests__/actions-enabled-modules.test.ts app/__tests__/discover-page.test.tsx components/__tests__/sidebar.test.tsx` -> pass.
+- `pnpm --filter @mylife/mobile typecheck` -> pass.
+
+### Entry 2026-02-26.01 - MyWords Web Passthrough Parity Conversion
+**Phase:** Standalone parity hardening
+**What happened:** Converted MyWords web integration from hub-side adapter UI to strict standalone passthrough and added parity enforcement for wrapper + host wiring.
+
+- Replaced hub `words` web route implementation with a thin wrapper in `apps/web/app/words/page.tsx`:
+  - `export { default } from '@mywords-web/app/page';`
+- Removed obsolete hub-only server wiring file `apps/web/app/words/actions.ts`.
+- Added standalone alias wiring in `apps/web/tsconfig.json`:
+  - `@mywords-web/* -> ../../MyWords/apps/web/*`
+  - `@mywords/shared -> ../../MyWords/packages/shared/src/index.ts`
+  - `@mywords/shared/* -> ../../MyWords/packages/shared/src/*`
+- Updated parity matrix and strict passthrough tests in `apps/web/test/parity/standalone-passthrough-matrix.test.ts`:
+  - Marked `MyWords` web parity mode as `passthrough`.
+  - Added words wrapper inventory + exact file-content assertions.
+  - Added host wiring assertions for MyWords aliases.
+- Synced persistent parity rules in `AGENTS.md` and `CLAUDE.md` to include passthrough module enforcement that now covers `books`, `habits`, `words`, and `workouts`.
+- Updated parity docs:
+  - `docs/standalone-parity-universal-implementation-plan.md` (MyWords web mode now `passthrough`).
+  - `docs/standalone-parity-test-cases.md` (updated to 82 cases with budget/books/words passthrough enforcement entries).
+
+**Verification:**
+- `pnpm --filter @mylife/web test:parity` -> pass (`82` tests).
+- `pnpm check:parity` -> pass.
+
+### Entry 2026-02-26.02 - MyBudget Web Passthrough Parity Conversion
+**Phase:** Standalone parity hardening
+**What happened:** Converted MyBudget web integration from adapter UI to strict standalone passthrough and added parity enforcement for wrapper + host wiring.
+
+- Replaced hub `budget` web route implementation with a thin wrapper in `apps/web/app/budget/page.tsx`:
+  - `export { default } from '@mybudget-web/app/page';`
+- Added standalone alias wiring for MyBudget in `apps/web/tsconfig.json`:
+  - `@mybudget-web/* -> ../../MyBudget/apps/web/*`
+  - `@mybudget/shared -> ../../MyBudget/packages/shared/src/index.ts`
+  - `@mybudget/shared/* -> ../../MyBudget/packages/shared/src/*`
+  - `@mybudget/ui -> ../../MyBudget/packages/ui/src/index.ts`
+  - `@mybudget/ui/* -> ../../MyBudget/packages/ui/src/*`
+- Added MyBudget transpilation support in `apps/web/next.config.ts`:
+  - `@mybudget/shared`
+  - `@mybudget/ui`
+- Updated parity matrix and strict passthrough tests in `apps/web/test/parity/standalone-passthrough-matrix.test.ts`:
+  - Marked `MyBudget` web parity mode as `passthrough`.
+  - Added budget wrapper inventory + exact file-content assertions.
+  - Added host wiring assertions for MyBudget aliases/transpilation.
+- Updated `scripts/check-passthrough-parity.mjs` to include budget passthrough checks and wiring validation.
+- Replaced outdated adapter-focused budget page test with passthrough assertions in `apps/web/app/budget/__tests__/budget-page.test.tsx`.
+- Updated `docs/standalone-parity-universal-implementation-plan.md` current integration state for MyBudget web mode to `passthrough`.
+
+**Verification:**
+- `pnpm --filter @mylife/web test:parity` -> pass (`82` tests).
+- `node scripts/check-passthrough-parity.mjs` -> pass.
+- `pnpm --filter @mylife/web exec vitest run app/budget/__tests__/budget-page.test.tsx` -> pass.
+- `pnpm check:parity` -> pass.
+
+### Entry 2026-02-25.17 — Fixed Turbopack Module-Not-Found for MyWorkouts Source Imports
+**Phase:** MyLife web stability (standalone passthrough)
+**What happened:** Resolved the workouts route build failures in MyLife caused by relative `*.js` imports/exports inside TypeScript source under the `MyWorkouts` submodule. Turbopack resolves source files directly and failed on paths like `./auth/index.js` when only `.ts` existed.
+
+- Updated MyWorkouts source imports/exports to extensionless relative paths in:
+  - `MyWorkouts/packages/shared/src/**`
+  - `MyWorkouts/packages/supabase/src/**`
+  - `MyWorkouts/packages/ui/src/index.ts`
+- Confirmed no remaining relative `*.js` specifiers in MyWorkouts TS/TSX source.
+- Verified MyLife workouts passthrough routes compile and load without module-not-found errors.
+
+**Verification:**
+- `pnpm --dir MyWorkouts --filter @myworkouts/shared typecheck` -> pass.
+- `pnpm --dir MyWorkouts --filter @myworkouts/supabase typecheck` -> pass.
+- `pnpm --dir MyWorkouts --filter @myworkouts/ui typecheck` -> pass.
+- `pnpm --dir MyWorkouts --filter @myworkouts/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- --run test/parity/standalone-passthrough-matrix.test.ts` -> pass (82 tests).
+- Route checks in running MyLife dev server:
+  - `/workouts`
+  - `/workouts/builder`
+  - `/workouts/explore`
+  - `/workouts/progress`
+  - `/workouts/recordings`
+  - `/workouts/recordings/1`
+  - `/workouts/workout/1`
+  - `/workouts/exercise/1`
+  All returned HTTP `200` and no module-not-found overlays.
+
+### Entry 2026-02-26.03 - MyWorkouts Invalid Exercise Route Auto-Recovery
+**Phase:** MyLife web stability (workouts passthrough UX hardening)
+**What happened:** Fixed the remaining broken-state flow where navigating to an invalid workouts exercise detail URL in MyLife showed a dead-end "Exercise not found" view.
+
+- Updated `MyWorkouts/apps/web/app/exercise/[id]/page.tsx` to auto-recover invalid/missing exercise IDs:
+  - Added guarded async fetch with cancellation safety.
+  - On missing record or query error, route now `replace`s to `workoutsPath('/explore')`.
+  - Replaced dead-end fallback message with a transient redirect state (`Redirecting to Explore...`) and manual fallback button.
+- Kept hub route parity intact by changing only the standalone page used by passthrough wrappers.
+
+**Verification:**
+- `pnpm --dir MyWorkouts --filter @myworkouts/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- --run test/parity/standalone-passthrough-matrix.test.ts` -> pass (82 tests).
+- Browser validation (Playwright) against running MyLife dev server:
+  - Visit `http://localhost:3000/workouts/exercise/1`
+  - Auto-redirects to `http://localhost:3000/workouts/explore`
+  - No "Exercise not found" text remains.
+
+### Entry 2026-02-26.03 - Restored Rich MyWords UI on Web Passthrough
+**Phase:** MyWords parity + UX restoration
+**What happened:** Restored the previously shipped MyWords web experience (Search + Dictionary A-Z + Thesaurus A-Z + Word Helper + expanded lexical detail) by upgrading standalone MyWords source so passthrough keeps the richer UI.
+
+- Replaced standalone web page `MyWords/apps/web/app/page.tsx` with the richer tabbed interface implementation used before passthrough.
+- Extended standalone shared words domain to include parity APIs/features required by that UI:
+  - Added `browseWordsAlphabetically` and `suggestWordReplacements`.
+  - Added lookup enrichments/fields including `chronology` and `wordFamily`.
+  - Added shared API modules under `MyWords/packages/shared/src/api/*` and split service/types (`service.ts`, `types.ts`).
+- Updated standalone shared exports in `MyWords/packages/shared/src/index.ts` and added `zod` dependency in `MyWords/packages/shared/package.json`.
+- Updated standalone web global tokens in `MyWords/apps/web/app/globals.css` to support the richer UI style variables.
+- Fixed standalone mobile type safety after shared type expansion by guarding optional lookup fields in `MyWords/apps/mobile/app/index.tsx`.
+
+**Verification:**
+- `pnpm --dir MyWords typecheck` -> pass.
+- `pnpm --filter @mylife/web test:parity` -> pass (`82` tests).
+
+### Entry 2026-02-26.04 - Fixed MyWorkouts Exercise Loading + Hub Visual Parity Shell
+**Phase:** MyLife + standalone MyWorkouts parity hardening
+**What happened:** Resolved exercise library loading failures in both standalone MyWorkouts and MyLife passthrough, and reduced visual mismatch in hub rendering.
+
+- Added a built-in fallback exercise catalog in standalone shared package:
+  - `MyWorkouts/packages/shared/src/exercise/catalog-seed.json` (seed dataset)
+  - `MyWorkouts/packages/shared/src/exercise/catalog.ts` (`DEFAULT_EXERCISES`, `getDefaultExercises`)
+  - Exported via `MyWorkouts/packages/shared/src/exercise/index.ts`
+- Added resilient loader utility:
+  - `MyWorkouts/apps/web/lib/exercises.ts`
+  - Tries Supabase first; if empty/error/unauth, falls back to built-in catalog.
+- Updated key pages to use resilient exercise loading:
+  - `MyWorkouts/apps/web/app/explore/page.tsx` now uses explicit loading state and fallback catalog (no infinite "Loading exercises...").
+  - `MyWorkouts/apps/web/app/workouts/builder/page.tsx` now hydrates from fallback catalog when Supabase is unavailable.
+  - `MyWorkouts/apps/web/app/exercise/[id]/page.tsx` now resolves fallback exercise IDs before redirecting.
+- Improved MyLife web visual parity for workouts routes:
+  - Added `apps/web/app/workouts/layout.tsx` to render a light MyWorkouts shell with module-local nav, matching standalone styling direction while keeping hub sidebar.
+- Build/type support updates:
+  - `MyWorkouts/packages/shared/tsconfig.json` now includes JSON files.
+  - `MyWorkouts/apps/web/tsconfig.json` now maps `@myworkouts/shared` to workspace source for correct type resolution.
+
+**Verification:**
+- `pnpm --dir MyWorkouts --filter @myworkouts/shared typecheck` -> pass.
+- `pnpm --dir MyWorkouts --filter @myworkouts/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- --run test/parity/standalone-passthrough-matrix.test.ts` -> pass (82 tests).
+- Browser checks (Playwright):
+  - `http://localhost:3001/explore` -> exercises render, not stuck loading.
+  - `http://localhost:3000/workouts/explore` -> exercises render, not stuck loading.
+  - `http://localhost:3000/workouts` -> light MyWorkouts shell present with module-local nav.
+
+### Entry 2026-02-26.05 - MyBooks Web Passthrough Conversion + Strict Parity Gate
+**Phase:** Standalone parity hardening (MyBooks)
+**What happened:** Converted MyBooks web integration to passthrough wrappers and enforced strict wrapper + host wiring checks.
+
+- Replaced MyLife books web runtime routes with thin passthrough wrappers:
+  - `apps/web/app/books/layout.tsx`
+  - `apps/web/app/books/page.tsx`
+  - `apps/web/app/books/search/page.tsx`
+  - `apps/web/app/books/import/page.tsx`
+  - `apps/web/app/books/stats/page.tsx`
+  - `apps/web/app/books/reader/page.tsx`
+  - `apps/web/app/books/reader/[id]/page.tsx`
+  - `apps/web/app/books/[id]/page.tsx`
+- Added standalone canonical route surfaces in MyBooks to support direct host reuse:
+  - `MyBooks/apps/web/app/books/layout.tsx`
+  - `MyBooks/apps/web/app/books/page.tsx`
+  - `MyBooks/apps/web/app/books/search/page.tsx`
+  - `MyBooks/apps/web/app/books/import/page.tsx`
+  - `MyBooks/apps/web/app/books/stats/page.tsx`
+  - `MyBooks/apps/web/app/books/reader/page.tsx`
+  - `MyBooks/apps/web/app/books/reader/[id]/page.tsx`
+  - `MyBooks/apps/web/app/books/[id]/page.tsx`
+- Added/verified host wiring for passthrough:
+  - `apps/web/tsconfig.json` aliases for `@mybooks-web/*` and `@mybooks/shared`.
+  - `apps/web/next.config.ts` transpilation for `@mybooks/shared` and `@mybooks/ui`.
+- Updated parity declarations and strict checks:
+  - `apps/web/test/parity/standalone-passthrough-matrix.test.ts` sets MyBooks web mode to `passthrough` and adds Books passthrough enforcement.
+  - `scripts/check-passthrough-parity.mjs` adds Books inventory/content/wiring assertions.
+
+**Verification:**
+- `pnpm test:parity-matrix` -> pass (`82` tests).
+- `pnpm check:passthrough-parity` -> pass.
+- `node scripts/check-passthrough-parity.mjs` -> pass.
+- `pnpm check:parity` -> pass.
+
+**Next steps:**
+1. Expand standalone MyBooks web so each `apps/web/app/books/**` route owns unique UI/behavior instead of temporary route-level re-exports.
+2. Add route-specific MyBooks standalone tests for books web screens (`library`, `search`, `import`, `stats`, `reader`, `book detail`) and assert parity from hub wrappers.
+3. Plan mobile passthrough conversion for MyBooks (`apps/mobile/app/(books)/**`) to move from `adapter` to `passthrough` mode.
+
+### Entry 2026-02-26.06 - MyBooks Passthrough Commit + PR Handoff
+**Phase:** Standalone parity hardening (handoff)
+**What happened:** Landed an individual MyBooks passthrough commit on `feature/mysurf-full-parity` and published corresponding PR references.
+
+- Committed MyBooks web passthrough wrappers in MyLife under `apps/web/app/books/**`.
+- Updated host wiring in `apps/web/tsconfig.json` and `apps/web/next.config.ts` for standalone MyBooks imports.
+- Added strict passthrough inventory/wrapper checks in `scripts/check-passthrough-parity.mjs`.
+- Updated submodule pointer `MyBooks` to commit `98c8586`.
+- Published branch commit in MyLife: `7caf22b`.
+- Linked MyBooks submodule PR: `https://github.com/tshuldberg/MyBooks/pull/2`.
+
+**Verification:**
+- `pnpm test:parity-matrix` -> pass.
+- `pnpm check:passthrough-parity` -> pass.
+- `pnpm check:parity` -> pass.
+
+**Next steps:**
+1. Merge `MyBooks` PR #2, then sync the submodule pointer if rebased.
+2. Finish standalone-owned implementations for each `MyBooks/apps/web/app/books/**` route.
+3. Implement and gate MyBooks mobile passthrough parity.

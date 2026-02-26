@@ -20,3 +20,6 @@ export * from './export/index';
 
 // Stats and year-in-review
 export * from './stats/index';
+
+// E-reader upload parsing helpers
+export * from './reader/index';

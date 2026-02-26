@@ -1,18 +1,17 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  doCreateSurfSession,
-  doCreateSurfSpot,
-  doDeleteSurfSession,
-  doDeleteSurfSpot,
   doToggleSurfFavorite,
-  doUpdateSurfSpotConditions,
+  fetchSurfHomeCards,
   fetchSurfOverview,
-  fetchSurfSessions,
-  fetchSurfSpots,
+  fetchSurfRegionalNarrative,
+  type SurfDaySummary,
+  type SurfNarrative,
+  type SurfSpotHomeCard,
 } from './actions';
-import type { SurfSession, SurfSpot } from '@mylife/surf';
+import { SurfShell } from './components/SurfShell';
 
 export default function SurfPage() {
   const [overview, setOverview] = useState({
@@ -21,321 +20,118 @@ export default function SurfPage() {
     averageWaveHeightFt: 0,
     sessions: 0,
   });
-  const [spots, setSpots] = useState<SurfSpot[]>([]);
-  const [sessions, setSessions] = useState<SurfSession[]>([]);
-
-  const [search, setSearch] = useState('');
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
-
-  const [spotName, setSpotName] = useState('');
-  const [spotRegion, setSpotRegion] = useState('');
-  const [spotBreakType, setSpotBreakType] = useState<SurfSpot['breakType']>('beach');
-  const [spotWaveHeight, setSpotWaveHeight] = useState('3.5');
-  const [spotWindKts, setSpotWindKts] = useState('10');
-  const [spotTide, setSpotTide] = useState<SurfSpot['tide']>('mid');
-  const [spotSwellDirection, setSpotSwellDirection] = useState('W');
-
-  const [sessionSpotId, setSessionSpotId] = useState('');
-  const [sessionDurationMin, setSessionDurationMin] = useState('90');
-  const [sessionRating, setSessionRating] = useState('4');
-  const [sessionNotes, setSessionNotes] = useState('');
-
-  const [updatingSpotId, setUpdatingSpotId] = useState<string | null>(null);
-  const [editingWaveHeight, setEditingWaveHeight] = useState<Record<string, string>>({});
-  const [editingWindKts, setEditingWindKts] = useState<Record<string, string>>({});
+  const [cards, setCards] = useState<SurfSpotHomeCard[]>([]);
+  const [selectedDay, setSelectedDay] = useState(0);
+  const [narrative, setNarrative] = useState<SurfNarrative | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
-    const [nextOverview, nextSpots, nextSessions] = await Promise.all([
+    setLoading(true);
+    const [nextOverview, nextCards] = await Promise.all([
       fetchSurfOverview(),
-      fetchSurfSpots({
-        search: search.trim() || undefined,
-        favoritesOnly,
-      }),
-      fetchSurfSessions({ limit: 12 }),
+      fetchSurfHomeCards(),
     ]);
+
     setOverview(nextOverview);
-    setSpots(nextSpots);
-    setSessions(nextSessions);
-    if (!sessionSpotId && nextSpots[0]) {
-      setSessionSpotId(nextSpots[0].id);
-    }
-  }, [favoritesOnly, search, sessionSpotId]);
+    setCards(nextCards);
+
+    const region = nextCards[0]?.spot.region;
+    const nextNarrative = await fetchSurfRegionalNarrative({ region });
+    setNarrative(nextNarrative);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
 
-  const selectedSpotName = useMemo(
-    () => spots.find((spot) => spot.id === sessionSpotId)?.name ?? '',
-    [spots, sessionSpotId],
-  );
+  const dayOptions = useMemo(() => {
+    const first = cards[0];
+    return first?.days ?? [];
+  }, [cards]);
 
-  const handleCreateSpot = async () => {
-    if (!spotName.trim() || !spotRegion.trim()) return;
-    await doCreateSurfSpot(crypto.randomUUID(), {
-      name: spotName.trim(),
-      region: spotRegion.trim(),
-      breakType: spotBreakType,
-      waveHeightFt: Number(spotWaveHeight) || 0,
-      windKts: Number(spotWindKts) || 0,
-      tide: spotTide,
-      swellDirection: spotSwellDirection.trim() || 'W',
-    });
-    setSpotName('');
-    setSpotRegion('');
-    await loadData();
-  };
-
-  const handleCreateSession = async () => {
-    if (!sessionSpotId) return;
-    await doCreateSurfSession(crypto.randomUUID(), {
-      spotId: sessionSpotId,
-      sessionDate: new Date().toISOString(),
-      durationMin: Math.max(15, Number(sessionDurationMin) || 60),
-      rating: Math.min(5, Math.max(1, Number(sessionRating) || 3)),
-      notes: sessionNotes.trim() || undefined,
-    });
-    setSessionNotes('');
-    await loadData();
-  };
-
-  const handleRefreshConditions = async (spot: SurfSpot) => {
-    const nextWave = Number(editingWaveHeight[spot.id] ?? spot.waveHeightFt);
-    const nextWind = Number(editingWindKts[spot.id] ?? spot.windKts);
-
-    setUpdatingSpotId(spot.id);
-    try {
-      await doUpdateSurfSpotConditions(spot.id, {
-        waveHeightFt: Number.isFinite(nextWave) ? nextWave : spot.waveHeightFt,
-        windKts: Number.isFinite(nextWind) ? nextWind : spot.windKts,
-      });
-      await loadData();
-    } finally {
-      setUpdatingSpotId(null);
-    }
-  };
+  const hasData = cards.length > 0;
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <h1 style={styles.title}>MySurf</h1>
-        <p style={styles.subtitle}>Live spot intel and session logging</p>
-      </div>
-
+    <SurfShell subtitle="Forecast home with regional narrative and spot scoring">
       <div style={styles.summaryGrid}>
         <MetricCard label="Tracked Spots" value={String(overview.spots)} />
         <MetricCard label="Favorites" value={String(overview.favorites)} />
-        <MetricCard
-          label="Avg Wave Height"
-          value={`${overview.averageWaveHeightFt.toFixed(1)} ft`}
-        />
+        <MetricCard label="Avg Wave Height" value={`${overview.averageWaveHeightFt.toFixed(1)} ft`} />
         <MetricCard label="Sessions Logged" value={String(overview.sessions)} />
       </div>
 
+      <div style={styles.quickLinks}>
+        <Link href="/surf/map" style={styles.quickLink}>Open Map + Pin</Link>
+        <Link href="/surf/sessions" style={styles.quickLink}>Log Sessions</Link>
+        <Link href="/surf/favorites" style={styles.quickLink}>Manage Favorites</Link>
+      </div>
+
       <div style={styles.section}>
-        <h2 style={styles.sectionTitle}>Add Spot</h2>
-        <div style={styles.formRow}>
-          <input
-            value={spotName}
-            onChange={(event) => setSpotName(event.target.value)}
-            placeholder="Spot name"
-            style={styles.input}
-          />
-          <input
-            value={spotRegion}
-            onChange={(event) => setSpotRegion(event.target.value)}
-            placeholder="Region"
-            style={styles.input}
-          />
-          <select
-            value={spotBreakType}
-            onChange={(event) => setSpotBreakType(event.target.value as SurfSpot['breakType'])}
-            style={styles.select}
-          >
-            <option value="beach">Beach break</option>
-            <option value="point">Point break</option>
-            <option value="reef">Reef break</option>
-            <option value="river-mouth">River mouth</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div style={styles.formRow}>
-          <input
-            value={spotWaveHeight}
-            onChange={(event) => setSpotWaveHeight(event.target.value)}
-            placeholder="Wave height (ft)"
-            style={styles.input}
-          />
-          <input
-            value={spotWindKts}
-            onChange={(event) => setSpotWindKts(event.target.value)}
-            placeholder="Wind (kts)"
-            style={styles.input}
-          />
-          <select
-            value={spotTide}
-            onChange={(event) => setSpotTide(event.target.value as SurfSpot['tide'])}
-            style={styles.select}
-          >
-            <option value="low">Low tide</option>
-            <option value="mid">Mid tide</option>
-            <option value="high">High tide</option>
-            <option value="all">All tides</option>
-          </select>
-          <input
-            value={spotSwellDirection}
-            onChange={(event) => setSpotSwellDirection(event.target.value)}
-            placeholder="Swell direction"
-            style={styles.input}
-          />
-          <button style={styles.primaryButton} onClick={() => void handleCreateSpot()}>
-            Add Spot
-          </button>
-        </div>
+        <h2 style={styles.sectionTitle}>Regional Narrative</h2>
+        {!narrative ? (
+          <div style={styles.empty}>Generating narrative...</div>
+        ) : (
+          <div style={styles.narrativeCard}>
+            <div style={styles.narrativeSummary}>{narrative.summary}</div>
+            <div style={styles.narrativeBody}>{narrative.body}</div>
+            <div style={styles.narrativeMeta}>
+              {new Date(narrative.generatedAt).toLocaleString()} · Helpful {narrative.helpfulVotes} · Not helpful {narrative.unhelpfulVotes}
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={styles.section}>
         <div style={styles.sectionHeader}>
-          <h2 style={styles.sectionTitle}>Spot Intel</h2>
-          <div style={styles.inlineControls}>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search spots"
-              style={styles.input}
-            />
-            <button
-              style={favoritesOnly ? styles.secondaryButtonActive : styles.secondaryButton}
-              onClick={() => setFavoritesOnly((value) => !value)}
-            >
-              Favorites only
-            </button>
+          <h2 style={styles.sectionTitle}>Daily Spot View</h2>
+          <div style={styles.dayRow}>
+            {dayOptions.map((day, index) => (
+              <button
+                key={day.date}
+                style={selectedDay === index ? styles.dayChipActive : styles.dayChip}
+                onClick={() => setSelectedDay(index)}
+              >
+                {day.label}
+              </button>
+            ))}
           </div>
         </div>
 
         <div style={styles.list}>
-          {spots.map((spot) => (
-            <div key={spot.id} style={styles.listItem}>
-              <div style={styles.listMain}>
-                <button
-                  style={spot.isFavorite ? styles.favoriteActive : styles.favorite}
-                  onClick={() => void doToggleSurfFavorite(spot.id).then(loadData)}
-                >
-                  ★
-                </button>
-                <div>
-                  <div style={styles.spotTitle}>{spot.name}</div>
+          {!hasData && loading && <div style={styles.empty}>Loading spot forecasts...</div>}
+          {!hasData && !loading && <div style={styles.empty}>No spots found. Add one from Map.</div>}
+
+          {cards.map((card) => {
+            const day = card.days[selectedDay] ?? card.days[0];
+            if (!day) return null;
+            return (
+              <div key={card.spot.id} style={styles.listItem}>
+                <div style={styles.itemMain}>
+                  <div style={styles.itemTop}>
+                    <Link href={`/surf/spot/${card.spot.id}`} style={styles.spotLink}>
+                      {card.spot.name}
+                    </Link>
+                    <span style={{ ...styles.ratingBadge, backgroundColor: colorForCondition(day.conditionColor) }}>
+                      {day.rating.toFixed(1)}
+                    </span>
+                  </div>
                   <div style={styles.spotMeta}>
-                    {spot.region} · {spot.breakType} · Best at {spot.tide} tide · Swell{' '}
-                    {spot.swellDirection}
+                    {card.spot.region} · {card.spot.breakType} · {day.waveHeightMin.toFixed(1)}-{day.waveHeightMax.toFixed(1)} ft · {day.windKtsAvg.toFixed(0)} kts
                   </div>
                 </div>
-              </div>
-              <div style={styles.conditions}>
-                <input
-                  value={editingWaveHeight[spot.id] ?? String(spot.waveHeightFt)}
-                  onChange={(event) =>
-                    setEditingWaveHeight((prev) => ({ ...prev, [spot.id]: event.target.value }))
-                  }
-                  style={styles.smallInput}
-                />
-                <span style={styles.smallLabel}>ft</span>
-                <input
-                  value={editingWindKts[spot.id] ?? String(spot.windKts)}
-                  onChange={(event) =>
-                    setEditingWindKts((prev) => ({ ...prev, [spot.id]: event.target.value }))
-                  }
-                  style={styles.smallInput}
-                />
-                <span style={styles.smallLabel}>kts</span>
                 <button
-                  style={styles.secondaryButton}
-                  onClick={() => void handleRefreshConditions(spot)}
-                  disabled={updatingSpotId === spot.id}
+                  style={card.spot.isFavorite ? styles.favoriteActive : styles.favorite}
+                  onClick={() => void doToggleSurfFavorite(card.spot.id).then(loadData)}
                 >
-                  {updatingSpotId === spot.id ? 'Saving…' : 'Update'}
-                </button>
-                <button
-                  style={styles.dangerButton}
-                  onClick={() => void doDeleteSurfSpot(spot.id).then(loadData)}
-                >
-                  Delete
+                  {card.spot.isFavorite ? 'Favorited' : 'Favorite'}
                 </button>
               </div>
-            </div>
-          ))}
-          {spots.length === 0 && <div style={styles.empty}>No spots yet. Add your first break above.</div>}
+            );
+          })}
         </div>
       </div>
-
-      <div style={styles.section}>
-        <h2 style={styles.sectionTitle}>Log Session</h2>
-        <div style={styles.formRow}>
-          <select
-            value={sessionSpotId}
-            onChange={(event) => setSessionSpotId(event.target.value)}
-            style={styles.select}
-          >
-            {spots.map((spot) => (
-              <option key={spot.id} value={spot.id}>
-                {spot.name}
-              </option>
-            ))}
-          </select>
-          <input
-            value={sessionDurationMin}
-            onChange={(event) => setSessionDurationMin(event.target.value)}
-            placeholder="Duration (min)"
-            style={styles.input}
-          />
-          <input
-            value={sessionRating}
-            onChange={(event) => setSessionRating(event.target.value)}
-            placeholder="Rating (1-5)"
-            style={styles.input}
-          />
-          <input
-            value={sessionNotes}
-            onChange={(event) => setSessionNotes(event.target.value)}
-            placeholder="Session notes"
-            style={styles.input}
-          />
-          <button
-            style={styles.primaryButton}
-            disabled={!sessionSpotId}
-            onClick={() => void handleCreateSession()}
-          >
-            Save Session
-          </button>
-        </div>
-
-        <div style={styles.list}>
-          {sessions.map((session) => (
-            <div key={session.id} style={styles.listItem}>
-              <div>
-                <div style={styles.spotTitle}>
-                  {new Date(session.sessionDate).toLocaleDateString()} · {session.durationMin} min ·{' '}
-                  {session.rating}/5
-                </div>
-                <div style={styles.spotMeta}>
-                  {spots.find((spot) => spot.id === session.spotId)?.name ?? selectedSpotName}
-                  {session.notes ? ` · ${session.notes}` : ''}
-                </div>
-              </div>
-              <button
-                style={styles.dangerButton}
-                onClick={() => void doDeleteSurfSession(session.id).then(loadData)}
-              >
-                Delete
-              </button>
-            </div>
-          ))}
-          {sessions.length === 0 && (
-            <div style={styles.empty}>No sessions logged yet. Track your next surf here.</div>
-          )}
-        </div>
-      </div>
-    </div>
+    </SurfShell>
   );
 }
 
@@ -348,28 +144,20 @@ function MetricCard({ label, value }: { label: string; value: string }) {
   );
 }
 
+function colorForCondition(condition: SurfDaySummary['conditionColor']): string {
+  switch (condition) {
+    case 'green':
+      return '#22c55e';
+    case 'yellow':
+      return '#f59e0b';
+    case 'orange':
+      return '#f97316';
+    default:
+      return '#ef4444';
+  }
+}
+
 const styles: Record<string, React.CSSProperties> = {
-  page: {
-    maxWidth: 1080,
-    margin: '0 auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 16,
-  },
-  header: {
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 30,
-    fontWeight: 700,
-    margin: 0,
-    color: 'var(--text)',
-  },
-  subtitle: {
-    marginTop: 4,
-    color: 'var(--text-secondary)',
-    fontSize: 14,
-  },
   summaryGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
@@ -393,6 +181,21 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 700,
     fontSize: 20,
   },
+  quickLinks: {
+    display: 'flex',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  quickLink: {
+    textDecoration: 'none',
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    background: 'var(--surface)',
+    color: 'var(--text-secondary)',
+    fontSize: 13,
+    fontWeight: 600,
+    padding: '8px 10px',
+  },
   section: {
     background: 'var(--surface)',
     border: '1px solid var(--border)',
@@ -404,7 +207,7 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sectionTitle: {
     margin: 0,
@@ -412,66 +215,48 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 16,
     fontWeight: 600,
   },
-  formRow: {
-    display: 'flex',
-    gap: 8,
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  inlineControls: {
-    display: 'flex',
-    gap: 8,
-    alignItems: 'center',
-  },
-  input: {
-    minWidth: 120,
-    flex: 1,
-    padding: '8px 10px',
-    borderRadius: 'var(--radius-sm)',
+  narrativeCard: {
+    borderRadius: 'var(--radius-md)',
     border: '1px solid var(--border)',
     background: 'var(--surface-elevated)',
-    color: 'var(--text)',
+    padding: 12,
   },
-  select: {
-    minWidth: 140,
-    flex: 1,
-    padding: '8px 10px',
-    borderRadius: 'var(--radius-sm)',
-    border: '1px solid var(--border)',
-    background: 'var(--surface-elevated)',
+  narrativeSummary: {
     color: 'var(--text)',
-  },
-  primaryButton: {
-    padding: '8px 12px',
-    borderRadius: 'var(--radius-sm)',
-    border: 'none',
-    background: '#3B82F6',
-    color: '#fff',
     fontWeight: 600,
-    cursor: 'pointer',
   },
-  secondaryButton: {
-    padding: '8px 12px',
-    borderRadius: 'var(--radius-sm)',
+  narrativeBody: {
+    color: 'var(--text-secondary)',
+    marginTop: 6,
+    lineHeight: 1.45,
+    fontSize: 14,
+  },
+  narrativeMeta: {
+    marginTop: 8,
+    color: 'var(--text-tertiary)',
+    fontSize: 12,
+  },
+  dayRow: {
+    display: 'flex',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  dayChip: {
     border: '1px solid var(--border)',
+    borderRadius: '999px',
     background: 'var(--surface-elevated)',
     color: 'var(--text-secondary)',
+    fontSize: 12,
+    padding: '6px 10px',
     cursor: 'pointer',
   },
-  secondaryButtonActive: {
-    padding: '8px 12px',
-    borderRadius: 'var(--radius-sm)',
+  dayChipActive: {
     border: '1px solid #3B82F6',
-    background: 'rgba(59, 130, 246, 0.12)',
+    borderRadius: '999px',
+    background: 'rgba(59, 130, 246, 0.14)',
     color: '#3B82F6',
-    cursor: 'pointer',
-  },
-  dangerButton: {
-    padding: '8px 12px',
-    borderRadius: 'var(--radius-sm)',
-    border: 'none',
-    background: 'var(--danger)',
-    color: '#fff',
+    fontSize: 12,
+    padding: '6px 10px',
     cursor: 'pointer',
   },
   list: {
@@ -481,70 +266,64 @@ const styles: Record<string, React.CSSProperties> = {
   },
   listItem: {
     display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border)',
+    background: 'var(--surface-elevated)',
+    padding: 10,
+  },
+  itemMain: {
+    minWidth: 0,
+    flex: 1,
+  },
+  itemTop: {
+    display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
-    background: 'var(--surface-elevated)',
-    border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-md)',
-    padding: 10,
   },
-  listMain: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    minWidth: 0,
-  },
-  favorite: {
-    border: '1px solid var(--border)',
-    borderRadius: '50%',
-    width: 28,
-    height: 28,
-    background: 'transparent',
-    color: 'var(--text-tertiary)',
-    cursor: 'pointer',
-  },
-  favoriteActive: {
-    border: '1px solid #f59e0b',
-    borderRadius: '50%',
-    width: 28,
-    height: 28,
-    background: 'rgba(245, 158, 11, 0.16)',
-    color: '#f59e0b',
-    cursor: 'pointer',
-  },
-  spotTitle: {
-    fontWeight: 600,
+  spotLink: {
     color: 'var(--text)',
+    fontWeight: 600,
+    textDecoration: 'none',
   },
   spotMeta: {
     marginTop: 2,
     color: 'var(--text-tertiary)',
     fontSize: 12,
   },
-  conditions: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-  },
-  smallInput: {
-    width: 58,
-    padding: '6px 8px',
-    borderRadius: 'var(--radius-sm)',
-    border: '1px solid var(--border)',
-    background: 'var(--surface)',
-    color: 'var(--text)',
-  },
-  smallLabel: {
-    color: 'var(--text-tertiary)',
+  ratingBadge: {
+    color: '#fff',
+    borderRadius: '999px',
+    minWidth: 42,
+    textAlign: 'center',
+    fontWeight: 700,
     fontSize: 12,
+    padding: '4px 8px',
+  },
+  favorite: {
+    border: '1px solid var(--border)',
+    borderRadius: 'var(--radius-sm)',
+    background: 'var(--surface)',
+    color: 'var(--text-secondary)',
+    padding: '7px 10px',
+    cursor: 'pointer',
+  },
+  favoriteActive: {
+    border: '1px solid #f59e0b',
+    borderRadius: 'var(--radius-sm)',
+    background: 'rgba(245, 158, 11, 0.16)',
+    color: '#f59e0b',
+    padding: '7px 10px',
+    cursor: 'pointer',
   },
   empty: {
     padding: 14,
-    color: 'var(--text-tertiary)',
     textAlign: 'center',
+    color: 'var(--text-tertiary)',
     border: '1px dashed var(--border)',
     borderRadius: 'var(--radius-md)',
-    background: 'var(--surface-elevated)',
   },
 };

@@ -9,7 +9,9 @@
     "lint": "eslint app components lib test --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:parity": "vitest run test/parity/standalone-passthrough-matrix.test.ts",
+    "test:e2e": "playwright test",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "next": "^15.0.0",
@@ -25,14 +27,19 @@
     "@mylife/recipes": "workspace:*",
     "@mylife/subs": "workspace:*",
     "@mylife/surf": "workspace:*",
+    "@mylife/words": "workspace:*",
     "@mylife/ui": "workspace:*",
     "@mylife/module-registry": "workspace:*",
     "@mylife/db": "workspace:*",
     "@mylife/workouts": "workspace:*",
     "better-sqlite3": "^11.0.0",
+    "react-body-highlighter": "^2.0.5",
     "@mylife/entitlements": "workspace:*",
     "@mylife/billing-config": "workspace:*",
-    "zod": "^3.24.0"
+    "zod": "^3.24.0",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.49.1",
+    "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@mylife/typescript-config": "workspace:*",
@@ -45,6 +52,9 @@
     "@playwright/test": "^1.51.1",
     "jsdom": "^26.0.0",
     "vitest": "^3.2.4",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "tailwindcss": "^3.4.17",
+    "postcss": "^8.4.49",
+    "autoprefixer": "^10.4.20"
   }
 }

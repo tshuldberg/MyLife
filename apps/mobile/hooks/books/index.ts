@@ -5,3 +5,6 @@ export { useReviews, useReviewForBook } from './use-reviews';
 export { useTags, useBookTags } from './use-tags';
 export { useGoal } from './use-goals';
 export { useOpenLibrarySearch } from './use-search';
+export { useReaderDocuments, useReaderDocument } from './use-reader-documents';
+export { useReaderNotes } from './use-reader-notes';
+export { useReaderPreferences } from './use-reader-preferences';

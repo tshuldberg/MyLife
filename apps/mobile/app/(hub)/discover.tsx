@@ -14,7 +14,7 @@ import { useModuleToggle } from '../../hooks/use-module-toggle';
 const MODULE_CATEGORIES: { title: string; moduleIds: ModuleId[] }[] = [
   {
     title: 'Lifestyle',
-    moduleIds: ['books', 'recipes', 'habits'],
+    moduleIds: ['books', 'recipes', 'habits', 'words'],
   },
   {
     title: 'Finance',
@@ -31,7 +31,7 @@ const MODULE_CATEGORIES: { title: string; moduleIds: ModuleId[] }[] = [
 ];
 
 /**
- * Discover screen — browse all 11 modules grouped by category.
+ * Discover screen — browse all suite modules grouped by category.
  * Shows a lock icon overlay on premium modules.
  * Tapping a module toggles it on/off (persisted to SQLite).
  */

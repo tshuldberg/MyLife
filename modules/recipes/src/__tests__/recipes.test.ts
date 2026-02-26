@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import Database from 'better-sqlite3';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { DatabaseAdapter } from '@mylife/db';
-import { initializeHubDatabase, runModuleMigrations } from '@mylife/db';
+import { createModuleTestDatabase } from '@mylife/db';
 import { RECIPES_MODULE } from '../definition';
 import {
   createRecipe,
@@ -21,30 +20,18 @@ import {
   setSetting,
 } from '../db/crud';
 
-function createTestAdapter(): DatabaseAdapter {
-  const db = new Database(':memory:');
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  return {
-    execute(sql: string, params?: unknown[]): void {
-      db.prepare(sql).run(...(params ?? []));
-    },
-    query<T>(sql: string, params?: unknown[]): T[] {
-      return db.prepare(sql).all(...(params ?? [])) as T[];
-    },
-    transaction(fn: () => void): void {
-      db.transaction(fn)();
-    },
-  };
-}
-
 describe('@mylife/recipes', () => {
   let adapter: DatabaseAdapter;
+  let closeDb: () => void;
 
   beforeEach(() => {
-    adapter = createTestAdapter();
-    initializeHubDatabase(adapter);
-    runModuleMigrations(adapter, 'recipes', RECIPES_MODULE.migrations!);
+    const testDb = createModuleTestDatabase('recipes', RECIPES_MODULE.migrations!);
+    adapter = testDb.adapter;
+    closeDb = testDb.close;
+  });
+
+  afterEach(() => {
+    closeDb();
   });
 
   describe('RECIPES_MODULE definition', () => {

@@ -2,9 +2,10 @@
 
 MyLife is the consolidated workspace for the family of personal apps.
 
-Each app remains an independent Git repository with its own history and remote.
-This repository tracks app directories as submodules so the hub can evolve
-without collapsing independent app ownership.
+Each app is intended to remain an independent Git repository with its own history and remote.
+This repository primarily tracks app directories as submodules so the hub can evolve
+without collapsing independent app ownership. Some new app directories may be local scaffolds
+until their standalone repositories are initialized and linked.
 
 ## Included Apps
 
@@ -30,3 +31,4 @@ without collapsing independent app ownership.
 - MyTrails
 - MyVoice
 - MyWorkouts
+- MyWords

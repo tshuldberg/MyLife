@@ -10,6 +10,14 @@ import { BOOKS_MODULE } from '@mylife/books';
 import { FAST_MODULE } from '@mylife/fast';
 import { SUBS_MODULE } from '@mylife/subs';
 import { BUDGET_MODULE } from '@mylife/budget';
+import { SURF_MODULE } from '@mylife/surf';
+import { RECIPES_MODULE } from '@mylife/recipes';
+import { WORKOUTS_MODULE } from '@mylife/workouts';
+import { HOMES_MODULE } from '@mylife/homes';
+import { CAR_MODULE } from '@mylife/car';
+import { HABITS_MODULE } from '@mylife/habits';
+import { MEDS_MODULE } from '@mylife/meds';
+import { WORDS_MODULE } from '@mylife/words';
 import { colors } from '@mylife/ui';
 import { DatabaseProvider } from '../components/DatabaseProvider';
 
@@ -41,6 +49,14 @@ export default function RootLayout() {
     r.register(FAST_MODULE);
     r.register(SUBS_MODULE);
     r.register(BUDGET_MODULE);
+    r.register(SURF_MODULE);
+    r.register(RECIPES_MODULE);
+    r.register(WORKOUTS_MODULE);
+    r.register(HOMES_MODULE);
+    r.register(CAR_MODULE);
+    r.register(HABITS_MODULE);
+    r.register(MEDS_MODULE);
+    r.register(WORDS_MODULE);
     return r;
   }, []);
 
@@ -58,6 +74,16 @@ export default function RootLayout() {
           <Stack.Screen name="(hub)" />
           <Stack.Screen name="(books)" />
           <Stack.Screen name="(budget)" />
+          <Stack.Screen name="(surf)" />
+          <Stack.Screen name="(fast)" />
+          <Stack.Screen name="(recipes)" />
+          <Stack.Screen name="(workouts)" />
+          <Stack.Screen name="(homes)" />
+          <Stack.Screen name="(car)" />
+          <Stack.Screen name="(habits)" />
+          <Stack.Screen name="(meds)" />
+          <Stack.Screen name="(subs)" />
+          <Stack.Screen name="(words)" />
         </Stack>
       </DatabaseProvider>
     </RegistryProvider>

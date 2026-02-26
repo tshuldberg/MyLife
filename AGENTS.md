@@ -20,6 +20,30 @@ Project-specific agent instructions for `/Users/trey/Desktop/Apps/MyLife`.
 - For new product/runtime code, prefer .ts/.tsx over .js/.jsx.
 - Use JavaScript only when a toolchain file requires it (for example Babel or Metro config).
 
+## App Isolation + Hub Inclusion (Critical)
+
+- Any app added to the `/Users/trey/Desktop/Apps` workspace must be either:
+  - a fully isolated standalone app directory (for example `MyWords/`), or
+  - a module integrated into the MyLife hub (`modules/<name>/` with routes wired in `apps/mobile` and/or `apps/web`).
+- If an app exists in both forms, keep the standalone app fully isolated in its own directory and keep hub integration inside MyLife module/app boundaries.
+- Do not scatter standalone app files directly in the MyLife root.
+
+## Standalone/Module Parity (Critical)
+
+- Standalone app repositories are the canonical product sources of truth.
+- If an app exists as both a standalone repo and a MyLife module, both must remain identical products (features, behavior, data model intent, and UX intent).
+- Do not ship module-only or standalone-only capabilities.
+- Any parity-impacting change must be applied in both codebases and documented in both instruction pairs (`AGENTS.md` + `CLAUDE.md`) in the same session.
+- Optional networked capabilities (for example bank sync) are allowed, but option availability and behavior must match between standalone and module versions.
+- Hub implementations must be parity adapters, not independent rewrites.
+- For any standalone + module pair, route/screen structure, user-visible labels, controls, and settings must match exactly; only hub shell chrome (sidebar/top-level hub navigation) may differ.
+- Hub shell theming may differ, but module screen theming must match the standalone app for that module.
+- Avoid duplicate UI logic across standalone and hub. Prefer shared components/packages or thin adapter layers that keep one canonical source.
+- Web passthrough parity is enforced by direct route reuse for passthrough-enabled modules (`books`, `habits`, `words`, `workouts`): hub files under `apps/web/app/<module>/**` must stay thin wrappers that import standalone pages from the corresponding `@my<module>-web/app/**` alias.
+- Any parity validation failure is a release blocker. Run `pnpm check:parity` before merging parity-impacting work.
+- Use `pnpm check:module-parity` for cross-module parity inventory checks, `pnpm check:passthrough-parity` for standalone↔hub parity matrix plus strict passthrough wrapper enforcement, and `pnpm check:workouts-parity` for strict MyWorkouts UI/data parity checks.
+- Modules with standalone repos that only contain design docs are treated as parity-deferred until standalone runtime code exists.
+
 ## Skills Availability
 
 - Skills are sourced from the global Codex skills directory: `/Users/trey/.codex/skills`.
@@ -35,3 +59,7 @@ Project-specific agent instructions for `/Users/trey/Desktop/Apps/MyLife`.
   - `figma` MCP server (authenticated user: `trey.shuldberg@gmail.com`)
   - `openaiDeveloperDocs` MCP server tools
 - Canonical inventory lives in `.claude/plugins.md`.
+
+
+## Writing Style
+- Do not use em dashes in documents or writing.

@@ -19,6 +19,7 @@ import { MEDS_MODULE } from '@mylife/meds';
 import { SURF_MODULE } from '@mylife/surf';
 import { WORKOUTS_MODULE } from '@mylife/workouts';
 import { HOMES_MODULE } from '@mylife/homes';
+import { WORDS_MODULE } from '@mylife/words';
 
 let adapter: DatabaseAdapter | null = null;
 
@@ -80,6 +81,7 @@ const MODULE_DEFINITIONS_WITH_MIGRATIONS = {
   surf: SURF_MODULE,
   workouts: WORKOUTS_MODULE,
   homes: HOMES_MODULE,
+  words: WORDS_MODULE,
 } as const;
 
 /**

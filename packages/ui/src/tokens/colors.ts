@@ -30,6 +30,7 @@ export const colors = {
     car: '#6366F1',
     habits: '#8B5CF6',
     meds: '#06B6D4',
+    words: '#0EA5E9',
     subs: '#EC4899',
   },
 } as const;

@@ -8,6 +8,9 @@ export {
   CREATE_READING_SESSIONS,
   CREATE_REVIEWS,
   CREATE_SHARE_EVENTS,
+  CREATE_READER_DOCUMENTS,
+  CREATE_READER_NOTES,
+  CREATE_READER_PREFERENCES,
   CREATE_TAGS,
   CREATE_BOOK_TAGS,
   CREATE_READING_GOALS,
@@ -18,6 +21,7 @@ export {
   CREATE_FTS_TRIGGERS,
   CREATE_INDEXES,
   CREATE_SHARE_INDEXES,
+  CREATE_READER_INDEXES,
   SEED_SYSTEM_SHELVES,
   ALL_TABLES,
 } from './schema';
@@ -91,6 +95,30 @@ export {
   deleteShareEvent,
 } from './sharing';
 export type { ShareEventFilters } from './sharing';
+
+// Reader documents and notes
+export {
+  createReaderDocument,
+  getReaderDocument,
+  getReaderDocuments,
+  updateReaderDocument,
+  updateReaderDocumentProgress,
+  deleteReaderDocument,
+} from './reader-documents';
+export type { ReaderDocumentFilters } from './reader-documents';
+
+export {
+  createReaderNote,
+  getReaderNote,
+  getReaderNotes,
+  updateReaderNote,
+  deleteReaderNote,
+} from './reader-notes';
+
+export {
+  getReaderPreferences,
+  upsertReaderPreferences,
+} from './reader-preferences';
 
 // Tag CRUD
 export {
