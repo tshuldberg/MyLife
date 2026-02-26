@@ -177,6 +177,24 @@
 - Validation:
   - `pnpm --filter @mylife/web test` passes (21 tests).
   - `pnpm --filter @mylife/web typecheck` passes.
+
+## 2026-02-26
+
+- Added MyBudget bank-sync parity surfaces into MyLife on the shared branch:
+  - new `@mylife/budget` bank-sync runtime + provider contract package under `modules/budget/src/bank-sync/`
+  - new MyLife web bank API routes under `apps/web/app/api/bank/` (`link-token`, `exchange`, `webhook`)
+  - wired module exports in `modules/budget/src/index.ts` so `@mylife/budget` exposes bank-sync runtime + types
+- Hardened Build 1 provider handling to fail fast for non-implemented providers with explicit 400s.
+- Verification:
+  - `pnpm --filter @mylife/budget test` passes.
+  - `pnpm --filter @mylife/budget typecheck` passes.
+  - `pnpm --filter @mylife/web typecheck` passes.
+  - `pnpm check:module-parity` passes (existing deferred-module warnings unchanged).
+- Next steps:
+  - implement Plaid-native webhook JWT verification flow (replace placeholder shared-secret assumption for direct Plaid webhooks)
+  - add auth/authorization guardrails for all bank API endpoints
+  - move in-memory bank connector/token state to persistent encrypted storage and add webhook idempotency keys
+  - add route-level tests for bank API handlers and error/auth paths in standalone + hub
   - `pnpm --filter @mylife/mobile test` passes (4 tests).
   - `pnpm --filter @mylife/mobile typecheck` passes.
 - Continued expanding executable hub/MyBooks interaction coverage after fix pass:
@@ -797,3 +815,189 @@
 - `pnpm --filter @mylife/web typecheck` -> pass.
 - `pnpm --filter @mylife/web test -- --run app/__tests__/actions-enabled-modules.test.ts app/__tests__/discover-page.test.tsx components/__tests__/sidebar.test.tsx` -> pass.
 - `pnpm --filter @mylife/mobile typecheck` -> pass.
+
+### Entry 2026-02-26.01 - MyWords Web Passthrough Parity Conversion
+**Phase:** Standalone parity hardening
+**What happened:** Converted MyWords web integration from hub-side adapter UI to strict standalone passthrough and added parity enforcement for wrapper + host wiring.
+
+- Replaced hub `words` web route implementation with a thin wrapper in `apps/web/app/words/page.tsx`:
+  - `export { default } from '@mywords-web/app/page';`
+- Removed obsolete hub-only server wiring file `apps/web/app/words/actions.ts`.
+- Added standalone alias wiring in `apps/web/tsconfig.json`:
+  - `@mywords-web/* -> ../../MyWords/apps/web/*`
+  - `@mywords/shared -> ../../MyWords/packages/shared/src/index.ts`
+  - `@mywords/shared/* -> ../../MyWords/packages/shared/src/*`
+- Updated parity matrix and strict passthrough tests in `apps/web/test/parity/standalone-passthrough-matrix.test.ts`:
+  - Marked `MyWords` web parity mode as `passthrough`.
+  - Added words wrapper inventory + exact file-content assertions.
+  - Added host wiring assertions for MyWords aliases.
+- Synced persistent parity rules in `AGENTS.md` and `CLAUDE.md` to include passthrough module enforcement that now covers `books`, `habits`, `words`, and `workouts`.
+- Updated parity docs:
+  - `docs/standalone-parity-universal-implementation-plan.md` (MyWords web mode now `passthrough`).
+  - `docs/standalone-parity-test-cases.md` (updated to 82 cases with budget/books/words passthrough enforcement entries).
+
+**Verification:**
+- `pnpm --filter @mylife/web test:parity` -> pass (`82` tests).
+- `pnpm check:parity` -> pass.
+
+### Entry 2026-02-26.02 - MyBudget Web Passthrough Parity Conversion
+**Phase:** Standalone parity hardening
+**What happened:** Converted MyBudget web integration from adapter UI to strict standalone passthrough and added parity enforcement for wrapper + host wiring.
+
+- Replaced hub `budget` web route implementation with a thin wrapper in `apps/web/app/budget/page.tsx`:
+  - `export { default } from '@mybudget-web/app/page';`
+- Added standalone alias wiring for MyBudget in `apps/web/tsconfig.json`:
+  - `@mybudget-web/* -> ../../MyBudget/apps/web/*`
+  - `@mybudget/shared -> ../../MyBudget/packages/shared/src/index.ts`
+  - `@mybudget/shared/* -> ../../MyBudget/packages/shared/src/*`
+  - `@mybudget/ui -> ../../MyBudget/packages/ui/src/index.ts`
+  - `@mybudget/ui/* -> ../../MyBudget/packages/ui/src/*`
+- Added MyBudget transpilation support in `apps/web/next.config.ts`:
+  - `@mybudget/shared`
+  - `@mybudget/ui`
+- Updated parity matrix and strict passthrough tests in `apps/web/test/parity/standalone-passthrough-matrix.test.ts`:
+  - Marked `MyBudget` web parity mode as `passthrough`.
+  - Added budget wrapper inventory + exact file-content assertions.
+  - Added host wiring assertions for MyBudget aliases/transpilation.
+- Updated `scripts/check-passthrough-parity.mjs` to include budget passthrough checks and wiring validation.
+- Replaced outdated adapter-focused budget page test with passthrough assertions in `apps/web/app/budget/__tests__/budget-page.test.tsx`.
+- Updated `docs/standalone-parity-universal-implementation-plan.md` current integration state for MyBudget web mode to `passthrough`.
+
+**Verification:**
+- `pnpm --filter @mylife/web test:parity` -> pass (`82` tests).
+- `node scripts/check-passthrough-parity.mjs` -> pass.
+- `pnpm --filter @mylife/web exec vitest run app/budget/__tests__/budget-page.test.tsx` -> pass.
+- `pnpm check:parity` -> pass.
+
+### Entry 2026-02-25.17 — Fixed Turbopack Module-Not-Found for MyWorkouts Source Imports
+**Phase:** MyLife web stability (standalone passthrough)
+**What happened:** Resolved the workouts route build failures in MyLife caused by relative `*.js` imports/exports inside TypeScript source under the `MyWorkouts` submodule. Turbopack resolves source files directly and failed on paths like `./auth/index.js` when only `.ts` existed.
+
+- Updated MyWorkouts source imports/exports to extensionless relative paths in:
+  - `MyWorkouts/packages/shared/src/**`
+  - `MyWorkouts/packages/supabase/src/**`
+  - `MyWorkouts/packages/ui/src/index.ts`
+- Confirmed no remaining relative `*.js` specifiers in MyWorkouts TS/TSX source.
+- Verified MyLife workouts passthrough routes compile and load without module-not-found errors.
+
+**Verification:**
+- `pnpm --dir MyWorkouts --filter @myworkouts/shared typecheck` -> pass.
+- `pnpm --dir MyWorkouts --filter @myworkouts/supabase typecheck` -> pass.
+- `pnpm --dir MyWorkouts --filter @myworkouts/ui typecheck` -> pass.
+- `pnpm --dir MyWorkouts --filter @myworkouts/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- --run test/parity/standalone-passthrough-matrix.test.ts` -> pass (82 tests).
+- Route checks in running MyLife dev server:
+  - `/workouts`
+  - `/workouts/builder`
+  - `/workouts/explore`
+  - `/workouts/progress`
+  - `/workouts/recordings`
+  - `/workouts/recordings/1`
+  - `/workouts/workout/1`
+  - `/workouts/exercise/1`
+  All returned HTTP `200` and no module-not-found overlays.
+
+### Entry 2026-02-26.03 - MyWorkouts Invalid Exercise Route Auto-Recovery
+**Phase:** MyLife web stability (workouts passthrough UX hardening)
+**What happened:** Fixed the remaining broken-state flow where navigating to an invalid workouts exercise detail URL in MyLife showed a dead-end "Exercise not found" view.
+
+- Updated `MyWorkouts/apps/web/app/exercise/[id]/page.tsx` to auto-recover invalid/missing exercise IDs:
+  - Added guarded async fetch with cancellation safety.
+  - On missing record or query error, route now `replace`s to `workoutsPath('/explore')`.
+  - Replaced dead-end fallback message with a transient redirect state (`Redirecting to Explore...`) and manual fallback button.
+- Kept hub route parity intact by changing only the standalone page used by passthrough wrappers.
+
+**Verification:**
+- `pnpm --dir MyWorkouts --filter @myworkouts/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- --run test/parity/standalone-passthrough-matrix.test.ts` -> pass (82 tests).
+- Browser validation (Playwright) against running MyLife dev server:
+  - Visit `http://localhost:3000/workouts/exercise/1`
+  - Auto-redirects to `http://localhost:3000/workouts/explore`
+  - No "Exercise not found" text remains.
+
+### Entry 2026-02-26.03 - Restored Rich MyWords UI on Web Passthrough
+**Phase:** MyWords parity + UX restoration
+**What happened:** Restored the previously shipped MyWords web experience (Search + Dictionary A-Z + Thesaurus A-Z + Word Helper + expanded lexical detail) by upgrading standalone MyWords source so passthrough keeps the richer UI.
+
+- Replaced standalone web page `MyWords/apps/web/app/page.tsx` with the richer tabbed interface implementation used before passthrough.
+- Extended standalone shared words domain to include parity APIs/features required by that UI:
+  - Added `browseWordsAlphabetically` and `suggestWordReplacements`.
+  - Added lookup enrichments/fields including `chronology` and `wordFamily`.
+  - Added shared API modules under `MyWords/packages/shared/src/api/*` and split service/types (`service.ts`, `types.ts`).
+- Updated standalone shared exports in `MyWords/packages/shared/src/index.ts` and added `zod` dependency in `MyWords/packages/shared/package.json`.
+- Updated standalone web global tokens in `MyWords/apps/web/app/globals.css` to support the richer UI style variables.
+- Fixed standalone mobile type safety after shared type expansion by guarding optional lookup fields in `MyWords/apps/mobile/app/index.tsx`.
+
+**Verification:**
+- `pnpm --dir MyWords typecheck` -> pass.
+- `pnpm --filter @mylife/web test:parity` -> pass (`82` tests).
+
+### Entry 2026-02-26.04 - Fixed MyWorkouts Exercise Loading + Hub Visual Parity Shell
+**Phase:** MyLife + standalone MyWorkouts parity hardening
+**What happened:** Resolved exercise library loading failures in both standalone MyWorkouts and MyLife passthrough, and reduced visual mismatch in hub rendering.
+
+- Added a built-in fallback exercise catalog in standalone shared package:
+  - `MyWorkouts/packages/shared/src/exercise/catalog-seed.json` (seed dataset)
+  - `MyWorkouts/packages/shared/src/exercise/catalog.ts` (`DEFAULT_EXERCISES`, `getDefaultExercises`)
+  - Exported via `MyWorkouts/packages/shared/src/exercise/index.ts`
+- Added resilient loader utility:
+  - `MyWorkouts/apps/web/lib/exercises.ts`
+  - Tries Supabase first; if empty/error/unauth, falls back to built-in catalog.
+- Updated key pages to use resilient exercise loading:
+  - `MyWorkouts/apps/web/app/explore/page.tsx` now uses explicit loading state and fallback catalog (no infinite "Loading exercises...").
+  - `MyWorkouts/apps/web/app/workouts/builder/page.tsx` now hydrates from fallback catalog when Supabase is unavailable.
+  - `MyWorkouts/apps/web/app/exercise/[id]/page.tsx` now resolves fallback exercise IDs before redirecting.
+- Improved MyLife web visual parity for workouts routes:
+  - Added `apps/web/app/workouts/layout.tsx` to render a light MyWorkouts shell with module-local nav, matching standalone styling direction while keeping hub sidebar.
+- Build/type support updates:
+  - `MyWorkouts/packages/shared/tsconfig.json` now includes JSON files.
+  - `MyWorkouts/apps/web/tsconfig.json` now maps `@myworkouts/shared` to workspace source for correct type resolution.
+
+**Verification:**
+- `pnpm --dir MyWorkouts --filter @myworkouts/shared typecheck` -> pass.
+- `pnpm --dir MyWorkouts --filter @myworkouts/web typecheck` -> pass.
+- `pnpm --filter @mylife/web test -- --run test/parity/standalone-passthrough-matrix.test.ts` -> pass (82 tests).
+- Browser checks (Playwright):
+  - `http://localhost:3001/explore` -> exercises render, not stuck loading.
+  - `http://localhost:3000/workouts/explore` -> exercises render, not stuck loading.
+  - `http://localhost:3000/workouts` -> light MyWorkouts shell present with module-local nav.
+
+### Entry 2026-02-26.05 - MyBooks Web Passthrough Conversion + Strict Parity Gate
+**Phase:** Standalone parity hardening (MyBooks)
+**What happened:** Converted MyBooks web integration to passthrough wrappers and enforced strict wrapper + host wiring checks.
+
+- Replaced MyLife books web runtime routes with thin passthrough wrappers:
+  - `apps/web/app/books/layout.tsx`
+  - `apps/web/app/books/page.tsx`
+  - `apps/web/app/books/search/page.tsx`
+  - `apps/web/app/books/import/page.tsx`
+  - `apps/web/app/books/stats/page.tsx`
+  - `apps/web/app/books/reader/page.tsx`
+  - `apps/web/app/books/reader/[id]/page.tsx`
+  - `apps/web/app/books/[id]/page.tsx`
+- Added standalone canonical route surfaces in MyBooks to support direct host reuse:
+  - `MyBooks/apps/web/app/books/layout.tsx`
+  - `MyBooks/apps/web/app/books/page.tsx`
+  - `MyBooks/apps/web/app/books/search/page.tsx`
+  - `MyBooks/apps/web/app/books/import/page.tsx`
+  - `MyBooks/apps/web/app/books/stats/page.tsx`
+  - `MyBooks/apps/web/app/books/reader/page.tsx`
+  - `MyBooks/apps/web/app/books/reader/[id]/page.tsx`
+  - `MyBooks/apps/web/app/books/[id]/page.tsx`
+- Added/verified host wiring for passthrough:
+  - `apps/web/tsconfig.json` aliases for `@mybooks-web/*` and `@mybooks/shared`.
+  - `apps/web/next.config.ts` transpilation for `@mybooks/shared` and `@mybooks/ui`.
+- Updated parity declarations and strict checks:
+  - `apps/web/test/parity/standalone-passthrough-matrix.test.ts` sets MyBooks web mode to `passthrough` and adds Books passthrough enforcement.
+  - `scripts/check-passthrough-parity.mjs` adds Books inventory/content/wiring assertions.
+
+**Verification:**
+- `pnpm test:parity-matrix` -> pass (`82` tests).
+- `pnpm check:passthrough-parity` -> pass.
+- `node scripts/check-passthrough-parity.mjs` -> pass.
+- `pnpm check:parity` -> pass.
+
+**Next steps:**
+1. Expand standalone MyBooks web so each `apps/web/app/books/**` route owns unique UI/behavior instead of temporary route-level re-exports.
+2. Add route-specific MyBooks standalone tests for books web screens (`library`, `search`, `import`, `stats`, `reader`, `book detail`) and assert parity from hub wrappers.
+3. Plan mobile passthrough conversion for MyBooks (`apps/mobile/app/(books)/**`) to move from `adapter` to `passthrough` mode.
