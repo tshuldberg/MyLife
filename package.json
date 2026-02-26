@@ -9,8 +9,14 @@
     "test": "turbo test",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
+    "check:standalone": "node scripts/check-standalone-repos.mjs",
+    "check:module-parity": "node scripts/check-module-parity.mjs",
+    "check:passthrough-parity": "pnpm --filter @mylife/web test:parity",
+    "check:workouts-parity": "node scripts/check-workouts-parity.mjs",
+    "check:parity": "pnpm check:standalone && pnpm check:module-parity && pnpm check:passthrough-parity && pnpm check:workouts-parity",
     "clean": "turbo clean",
-    "test:coverage": "turbo test:coverage"
+    "test:coverage": "turbo test:coverage",
+    "test:parity-matrix": "pnpm --filter @mylife/web test:parity"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.46.0",

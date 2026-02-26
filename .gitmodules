@@ -64,3 +64,6 @@
 [submodule "MyHomes"]
 	path = MyHomes
 	url = https://github.com/tshuldberg/MyHomes.git
+[submodule "MyWords"]
+	path = MyWords
+	url = https://github.com/tshuldberg/MyWords.git
