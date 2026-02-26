@@ -10,7 +10,6 @@ import {
   countRecipes,
   addIngredient,
   getIngredients,
-  updateIngredient,
   deleteIngredient,
   addTag,
   getTags,

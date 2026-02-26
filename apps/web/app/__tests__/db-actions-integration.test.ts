@@ -43,7 +43,6 @@ import {
 import { CAR_MODULE } from '@mylife/car';
 import {
   createVehicle,
-  getVehicles,
   getVehicleById,
   updateVehicle,
   deleteVehicle,
@@ -81,12 +80,9 @@ import {
 import { BUDGET_MODULE } from '@mylife/budget';
 import {
   createEnvelope,
-  getEnvelope,
   listEnvelopes,
   updateEnvelope,
-  deleteEnvelope,
   createAccount,
-  getAccount,
   listAccounts,
   createTransaction,
   listTransactions,

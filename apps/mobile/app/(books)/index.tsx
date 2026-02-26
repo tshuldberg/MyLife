@@ -5,7 +5,7 @@ import { Text, ReadingGoalRing, BookCover, StarRating, colors, spacing } from '@
 import { CurrentlyReading } from '../../components/books/CurrentlyReading';
 import { useGoal } from '../../hooks/books/use-goals';
 import { useSessions } from '../../hooks/books/use-sessions';
-import { useReviews, useReviewForBook } from '../../hooks/books/use-reviews';
+import { useReviews } from '../../hooks/books/use-reviews';
 import { useBooks } from '../../hooks/books/use-books';
 
 const BOOKS_ACCENT = colors.modules.books;

@@ -5,7 +5,6 @@ import {
   fetchVehicles,
   fetchVehicleCount,
   doCreateVehicle,
-  doUpdateVehicle,
   doDeleteVehicle,
   fetchMaintenance,
   doCreateMaintenance,

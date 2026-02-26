@@ -95,7 +95,7 @@ export default function FastStatsPage() {
         <h3 style={styles.sectionTitle}>This Week</h3>
         {weekly.length > 0 ? (
           <div style={styles.chartContainer}>
-            {weekly.map((day, i) => (
+            {weekly.map((day) => (
               <div key={day.date} style={styles.chartRow}>
                 <span style={styles.chartLabel}>{DAY_LABELS[new Date(day.date).getDay() === 0 ? 6 : new Date(day.date).getDay() - 1] ?? day.date.slice(5)}</span>
                 <div style={styles.chartBarBg}>
