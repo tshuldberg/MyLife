@@ -154,6 +154,15 @@ const standaloneMatrix: StandaloneParitySpec[] = [
     standaloneMobileRoots: ['MyRecipes/apps/mobile/app'],
   },
   {
+    standalone: 'MyRSVP',
+    moduleId: 'rsvp',
+    moduleStatus: 'implemented',
+    webParityMode: 'adapter',
+    mobileParityMode: 'adapter',
+    standaloneWebRoots: ['MyRSVP/apps/web/app'],
+    standaloneMobileRoots: ['MyRSVP/apps/mobile/app'],
+  },
+  {
     standalone: 'MyStars',
     moduleId: null,
     moduleStatus: 'standalone_only',

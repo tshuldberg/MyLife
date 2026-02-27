@@ -18,6 +18,7 @@ import { CAR_MODULE } from '@mylife/car';
 import { HABITS_MODULE } from '@mylife/habits';
 import { MEDS_MODULE } from '@mylife/meds';
 import { WORDS_MODULE } from '@mylife/words';
+import { RSVP_MODULE } from '@mylife/rsvp';
 import { colors } from '@mylife/ui';
 import { DatabaseProvider } from '../components/DatabaseProvider';
 
@@ -57,6 +58,7 @@ export default function RootLayout() {
     r.register(HABITS_MODULE);
     r.register(MEDS_MODULE);
     r.register(WORDS_MODULE);
+    r.register(RSVP_MODULE);
     return r;
   }, []);
 
@@ -84,6 +86,7 @@ export default function RootLayout() {
           <Stack.Screen name="(meds)" />
           <Stack.Screen name="(subs)" />
           <Stack.Screen name="(words)" />
+          <Stack.Screen name="(rsvp)" />
         </Stack>
       </DatabaseProvider>
     </RegistryProvider>

@@ -24,6 +24,7 @@ export const colors = {
     budget: '#22C55E',
     fast: '#14B8A6',
     recipes: '#F97316',
+    rsvp: '#FB7185',
     surf: '#3B82F6',
     workouts: '#EF4444',
     homes: '#D97706',

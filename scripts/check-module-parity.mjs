@@ -102,6 +102,13 @@ const moduleSpecs = [
     standaloneMobileRoots: ['MyRecipes/apps/mobile/app'],
   },
   {
+    id: 'rsvp',
+    standalone: 'MyRSVP',
+    status: 'implemented',
+    standaloneWebRoots: ['MyRSVP/apps/web/app'],
+    standaloneMobileRoots: ['MyRSVP/apps/mobile/app'],
+  },
+  {
     id: 'surf',
     standalone: 'MySurf',
     status: 'implemented',

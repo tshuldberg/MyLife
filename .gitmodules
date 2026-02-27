@@ -43,6 +43,9 @@
 [submodule "MyRecipes"]
 	path = MyRecipes
 	url = https://github.com/tshuldberg/MyRecipes.git
+[submodule "MyRSVP"]
+	path = MyRSVP
+	url = https://github.com/tshuldberg/MyRSVP.git
 [submodule "MyStars"]
 	path = MyStars
 	url = https://github.com/tshuldberg/MyStars.git
