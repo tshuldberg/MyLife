@@ -53,6 +53,17 @@ Standalone submodule directories (`MyBooks/`, `MyBudget/`, etc.) inside the MyLi
 - After editing a standalone submodule, apply the corresponding hub-side change in `modules/<name>/` and/or `apps/` within the same session.
 - Verify with `pnpm check:parity` before merging parity-impacting work.
 
+## Agent Teams
+
+- Agent team support is enabled via `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `.claude/settings.json`.
+- MyLife-specific agent definitions live in `.claude/agents/` (module-dev, hub-shell-dev, parity-checker).
+- Workspace-level agent definitions (plan-executor, test-writer, docs-agent, reviewer) are also available from `/Users/trey/Desktop/Apps/.claude/agents/`.
+- When spawning teams, assign file ownership zones from CLAUDE.md to prevent edit conflicts.
+- Parity-impacting work requires a `parity-checker` teammate to validate before marking tasks complete.
+- All teammates automatically load CLAUDE.md and AGENTS.md, so critical rules here are enforced team-wide.
+- Start with 3-5 teammates. Size tasks at 5-6 per teammate.
+- See CLAUDE.md for typical team compositions and full agent table.
+
 ## Skills Availability
 
 - Skills are sourced from the global Codex skills directory: `/Users/trey/.codex/skills`.

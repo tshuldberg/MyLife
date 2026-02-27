@@ -201,6 +201,57 @@ interface ModuleDefinition {
 | Tests | tester | `**/__tests__/` |
 | Docs | docs-dev | `CLAUDE.md`, `README.md`, `timeline.md` |
 
+## Agent Teams Strategy
+
+Agent team support is enabled via `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `.claude/settings.json`. When 2+ tasks target MyLife with overlapping scope, create an Agent Team instead of parallel subagents.
+
+### Available Agent Definitions
+
+**MyLife-specific agents** (`.claude/agents/`):
+
+| Agent | Role | Edits Code? |
+|-------|------|-------------|
+| `module-dev` | Migrate standalone apps into hub modules, edit module code | Yes |
+| `hub-shell-dev` | Edit hub shell (apps/, packages/), dashboard, sidebar, registry | Yes |
+| `parity-checker` | Run parity checks, report drift (read-only, Sonnet) | No |
+
+**Workspace-level agents** (inherited from `/Users/trey/Desktop/Apps/.claude/agents/`):
+
+| Agent | Role | Edits Code? |
+|-------|------|-------------|
+| `plan-executor` | Execute plan phases with testing and verification | Yes |
+| `test-writer` | Write tests without modifying source code | Tests only |
+| `docs-agent` | Update CLAUDE.md, timeline, README | Docs only |
+| `reviewer` | Code review, quality gates (Sonnet) | No |
+
+### Typical Team Compositions
+
+**Module migration sprint (Phase 2 work):**
+- Lead: coordinator, task creation
+- 2-3x `module-dev`: each owns a different module (e.g., budget, fast, recipes)
+- 1x `parity-checker`: validates after each module completes
+- 1x `test-writer`: adds test coverage in parallel
+
+**Hub shell feature work:**
+- Lead: coordinator
+- 1x `hub-shell-dev` (mobile): Expo app changes
+- 1x `hub-shell-dev` (web): Next.js app changes
+- 1x `module-dev`: module-registry changes if needed
+
+**Cross-module parity fix:**
+- Lead: coordinator
+- 1x `module-dev` per affected standalone submodule
+- 1x `parity-checker`: runs checks continuously
+- 1x `docs-agent`: updates CLAUDE.md/AGENTS.md pairs
+
+### Team Guidance
+
+- Start with 3-5 teammates. Size tasks at 5-6 per teammate.
+- Assign file ownership zones from the table above to prevent edit conflicts.
+- Parity-impacting work requires a `parity-checker` teammate to validate before marking tasks complete.
+- All teammates automatically load this CLAUDE.md, so critical rules here are enforced team-wide.
+- Use `--teammate-mode in-process` for single-terminal sessions or `--teammate-mode tmux` for split panes.
+
 ## Context7 Library IDs
 
 Skip `resolve-library-id` and go directly to `query-docs` with these:

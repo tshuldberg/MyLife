@@ -1,0 +1,29 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "hooks": {
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd /Users/trey/Desktop/Apps/MyLife && pnpm check:parity --quiet 2>/dev/null; exit_code=$?; if [ $exit_code -ne 0 ]; then echo 'Parity check failed. Fix parity issues before marking task complete.'; exit 2; fi",
+            "timeout": 120,
+            "statusMessage": "Running parity checks..."
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "playwright@claude-plugins-official": true,
+    "slack@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "swift-lsp@claude-plugins-official": true,
+    "playground@claude-plugins-official": true,
+    "explanatory-output-style@claude-plugins-official": true,
+    "firecrawl@claude-plugins-official": true,
+    "coderabbit@claude-plugins-official": true
+  }
+}
