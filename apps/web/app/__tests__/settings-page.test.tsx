@@ -36,10 +36,9 @@ describe('SettingsPage', () => {
     ]);
     registry.getAll.mockReturnValue([
       { id: 'fast', tier: 'free' },
-      { id: 'subs', tier: 'free' },
       { id: 'books', tier: 'premium' },
     ]);
-    registry.size = 3;
+    registry.size = 2;
   });
 
   it('loads mode and entitlement data on mount', async () => {

@@ -10,7 +10,6 @@ import {
 } from '@mylife/module-registry';
 import { BOOKS_MODULE } from '@mylife/books';
 import { FAST_MODULE } from '@mylife/fast';
-import { SUBS_MODULE } from '@mylife/subs';
 import { BUDGET_MODULE } from '@mylife/budget';
 import { RECIPES_MODULE } from '@mylife/recipes';
 import { CAR_MODULE } from '@mylife/car';
@@ -42,7 +41,6 @@ export function Providers({ children, initialEnabledIds }: ProvidersProps) {
     // Override with full module definitions (includes migrations)
     reg.register(BOOKS_MODULE);
     reg.register(FAST_MODULE);
-    reg.register(SUBS_MODULE);
     reg.register(BUDGET_MODULE);
     reg.register(RECIPES_MODULE);
     reg.register(CAR_MODULE);

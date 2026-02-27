@@ -17,7 +17,6 @@ vi.mock('@mylife/module-registry', () => ({
     words: { id: 'words', name: 'MyWords', tagline: 'Words', icon: '📝', accentColor: '#8B5CF6', tier: 'premium' },
     rsvp: { id: 'rsvp', name: 'MyRSVP', tagline: 'RSVP', icon: '💌', accentColor: '#FB7185', tier: 'premium' },
     budget: { id: 'budget', name: 'MyBudget', tagline: 'Budget', icon: '💰', accentColor: '#22C55E', tier: 'premium' },
-    subs: { id: 'subs', name: 'MySubs', tagline: 'Subs', icon: '💳', accentColor: '#EC4899', tier: 'free' },
     fast: { id: 'fast', name: 'MyFast', tagline: 'Fast', icon: '⏱️', accentColor: '#14B8A6', tier: 'free' },
     workouts: { id: 'workouts', name: 'MyWorkouts', tagline: 'Workouts', icon: '💪', accentColor: '#EF4444', tier: 'premium' },
     meds: { id: 'meds', name: 'MyMeds', tagline: 'Meds', icon: '💊', accentColor: '#06B6D4', tier: 'premium' },

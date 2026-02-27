@@ -171,10 +171,10 @@ const standaloneMatrix: StandaloneParitySpec[] = [
   },
   {
     standalone: 'MySubs',
-    moduleId: 'subs',
-    moduleStatus: 'design_only',
-    webParityMode: 'design_only',
-    mobileParityMode: 'design_only',
+    moduleId: null,
+    moduleStatus: 'standalone_only',
+    webParityMode: 'standalone_only',
+    mobileParityMode: 'standalone_only',
   },
   {
     standalone: 'MySurf',

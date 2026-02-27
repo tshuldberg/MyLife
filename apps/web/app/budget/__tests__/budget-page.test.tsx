@@ -18,6 +18,6 @@ describe('budget web passthrough route', () => {
     const standalonePath = resolve(repoRoot, 'MyBudget/apps/web/app/page.tsx');
 
     expect(existsSync(standalonePath)).toBe(true);
-    expect(read('MyBudget/apps/web/app/page.tsx')).toContain('BudgetPage');
+    expect(read('MyBudget/apps/web/app/page.tsx')).toContain('DashboardPage');
   });
 });

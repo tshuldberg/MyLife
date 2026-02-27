@@ -8,7 +8,6 @@ import {
 } from '@mylife/module-registry';
 import { BOOKS_MODULE } from '@mylife/books';
 import { FAST_MODULE } from '@mylife/fast';
-import { SUBS_MODULE } from '@mylife/subs';
 import { BUDGET_MODULE } from '@mylife/budget';
 import { SURF_MODULE } from '@mylife/surf';
 import { RECIPES_MODULE } from '@mylife/recipes';
@@ -48,7 +47,6 @@ export default function RootLayout() {
     // Override lightweight entries with full module definitions (includes migrations)
     r.register(BOOKS_MODULE);
     r.register(FAST_MODULE);
-    r.register(SUBS_MODULE);
     r.register(BUDGET_MODULE);
     r.register(SURF_MODULE);
     r.register(RECIPES_MODULE);
@@ -84,7 +82,6 @@ export default function RootLayout() {
           <Stack.Screen name="(car)" />
           <Stack.Screen name="(habits)" />
           <Stack.Screen name="(meds)" />
-          <Stack.Screen name="(subs)" />
           <Stack.Screen name="(words)" />
           <Stack.Screen name="(rsvp)" />
         </Stack>

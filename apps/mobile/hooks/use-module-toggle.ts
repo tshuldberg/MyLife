@@ -3,7 +3,6 @@ import { useModuleRegistry, type ModuleId } from '@mylife/module-registry';
 import { enableModule, disableModule, runModuleMigrations } from '@mylife/db';
 import { BOOKS_MODULE } from '@mylife/books';
 import { FAST_MODULE } from '@mylife/fast';
-import { SUBS_MODULE } from '@mylife/subs';
 import { BUDGET_MODULE } from '@mylife/budget';
 import { SURF_MODULE } from '@mylife/surf';
 import { RECIPES_MODULE } from '@mylife/recipes';
@@ -22,7 +21,6 @@ import { useDatabase } from '../components/DatabaseProvider';
 const MODULE_DEFINITIONS_WITH_MIGRATIONS: Partial<Record<ModuleId, { migrations?: { version: number; description: string; up: string[]; down: string[] }[] }>> = {
   books: BOOKS_MODULE,
   fast: FAST_MODULE,
-  subs: SUBS_MODULE,
   budget: BUDGET_MODULE,
   surf: SURF_MODULE,
   recipes: RECIPES_MODULE,

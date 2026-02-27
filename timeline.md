@@ -1,5 +1,17 @@
 # Timeline
 
+## 2026-02-27
+
+- Consolidated MySubs into MyBudget: retired the standalone MySubs module from the MyLife hub.
+- Enhanced MyBudget's 200+ entry subscription catalog with cancellation URLs, difficulty ratings (easy/medium/hard/impossible), and step-by-step cancellation notes, sourced from JustDeleteMe's open-source database (MIT).
+- Added bank-detected subscription discovery: a pure recurring charge detector that analyzes Plaid transaction data to auto-discover subscriptions. Includes payee normalization, frequency detection (weekly/monthly/annual), catalog fuzzy matching, confidence scoring, and dismissed-payee filtering.
+- Removed `@mylife/subs` module from module-registry types/constants, mobile app (_layout, DatabaseProvider, use-module-toggle, discover), web app (modules, db, Providers, Sidebar, next.config, tests), and deleted `modules/subs/` source and `apps/*/app/(subs)/` + `apps/web/app/subs/` routes.
+- Updated parity matrix: MySubs changed from `design_only` with moduleId `'subs'` to `standalone_only` with moduleId `null` (no hub integration).
+- Free tier updated: only MyFast remains free (MySubs subscription tracking now lives within MyBudget premium module).
+- Updated CLAUDE.md (module count 11 to 10, removed Subs table prefix, updated free tier description, removed subs from architecture diagram) and AGENTS.md (synced).
+- Updated MyBudget CLAUDE.md with new catalog and bank-detection feature documentation.
+- Verification: parity checks pass (`pnpm check:parity`), no orphaned subs references in codebase.
+
 ## 2026-02-24
 
 - Identified and completed the highest-priority start step: restore monorepo typecheck health before new feature work.

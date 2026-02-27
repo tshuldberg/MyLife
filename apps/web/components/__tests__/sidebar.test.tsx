@@ -28,7 +28,6 @@ vi.mock('@/lib/modules', () => ({
       'habits',
       'meds',
       'words',
-      'subs',
     ].includes(id),
 }));
 

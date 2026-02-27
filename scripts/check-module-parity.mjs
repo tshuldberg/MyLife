@@ -155,11 +155,6 @@ const moduleSpecs = [
     standalone: 'MyMeds',
     status: 'design_only',
   },
-  {
-    id: 'subs',
-    standalone: 'MySubs',
-    status: 'design_only',
-  },
 ];
 
 const gitmodules = readFileSync(resolve(root, '.gitmodules'), 'utf8');

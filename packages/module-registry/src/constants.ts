@@ -14,11 +14,10 @@ export const MODULE_IDS: readonly ModuleId[] = [
   'habits',
   'meds',
   'words',
-  'subs',
 ] as const;
 
 /** Modules included in the free tier (no purchase required). */
-export const FREE_MODULES: readonly ModuleId[] = ['fast', 'subs'] as const;
+export const FREE_MODULES: readonly ModuleId[] = ['fast'] as const;
 
 /**
  * Complete metadata for every module in the MyLife suite.
@@ -343,32 +342,6 @@ export const MODULE_METADATA: Record<ModuleId, ModuleDefinition> = {
     },
     requiresAuth: false,
     requiresNetwork: true,
-    version: '0.1.0',
-  },
-  subs: {
-    id: 'subs',
-    name: 'MySubs',
-    tagline: 'Track every subscription',
-    icon: '\u{1F4B3}',
-    accentColor: '#EC4899',
-    tier: 'free',
-    storageType: 'sqlite',
-    tablePrefix: 'sb_',
-    navigation: {
-      tabs: [
-        { key: 'dashboard', label: 'Dashboard', icon: 'credit-card' },
-        { key: 'subscriptions', label: 'Subscriptions', icon: 'repeat' },
-        { key: 'calendar', label: 'Calendar', icon: 'calendar' },
-        { key: 'settings', label: 'Settings', icon: 'settings' },
-      ],
-      screens: [
-        { name: 'sub-detail', title: 'Subscription' },
-        { name: 'add-sub', title: 'Add Subscription' },
-        { name: 'spending-report', title: 'Spending Report' },
-      ],
-    },
-    requiresAuth: false,
-    requiresNetwork: false,
     version: '0.1.0',
   },
 };

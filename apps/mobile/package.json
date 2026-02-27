@@ -22,7 +22,6 @@
     "@mylife/meds": "workspace:*",
     "@mylife/recipes": "workspace:*",
     "@mylife/rsvp": "workspace:*",
-    "@mylife/subs": "workspace:*",
     "@mylife/surf": "workspace:*",
     "@mylife/words": "workspace:*",
     "@mylife/workouts": "workspace:*",

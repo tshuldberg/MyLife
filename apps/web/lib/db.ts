@@ -10,7 +10,6 @@ import {
 } from '@mylife/db';
 import { BOOKS_MODULE } from '@mylife/books';
 import { FAST_MODULE } from '@mylife/fast';
-import { SUBS_MODULE } from '@mylife/subs';
 import { BUDGET_MODULE } from '@mylife/budget';
 import { RECIPES_MODULE } from '@mylife/recipes';
 import { CAR_MODULE } from '@mylife/car';
@@ -73,7 +72,6 @@ export function getAdapter(): DatabaseAdapter {
 const MODULE_DEFINITIONS_WITH_MIGRATIONS = {
   books: BOOKS_MODULE,
   fast: FAST_MODULE,
-  subs: SUBS_MODULE,
   budget: BUDGET_MODULE,
   recipes: RECIPES_MODULE,
   car: CAR_MODULE,

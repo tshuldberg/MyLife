@@ -15,7 +15,6 @@ import {
 } from '@mylife/db';
 import { BOOKS_MODULE } from '@mylife/books';
 import { FAST_MODULE } from '@mylife/fast';
-import { SUBS_MODULE } from '@mylife/subs';
 import { BUDGET_MODULE } from '@mylife/budget';
 import { SURF_MODULE } from '@mylife/surf';
 import { RECIPES_MODULE } from '@mylife/recipes';
@@ -50,7 +49,6 @@ function createExpoAdapter(db: SQLiteDatabase): DatabaseAdapter {
 const MODULE_DEFINITIONS_WITH_MIGRATIONS = {
   books: BOOKS_MODULE,
   fast: FAST_MODULE,
-  subs: SUBS_MODULE,
   budget: BUDGET_MODULE,
   surf: SURF_MODULE,
   recipes: RECIPES_MODULE,

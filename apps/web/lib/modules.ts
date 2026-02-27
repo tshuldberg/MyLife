@@ -13,7 +13,6 @@ export const WEB_SUPPORTED_MODULE_IDS: readonly ModuleId[] = [
   'habits',
   'meds',
   'words',
-  'subs',
 ];
 
 const SUPPORTED_MODULE_ID_SET = new Set<string>(WEB_SUPPORTED_MODULE_IDS);

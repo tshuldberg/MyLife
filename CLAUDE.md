@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-MyLife is a unified hub app consolidating 11+ privacy-first personal app modules into a single cross-platform application. Users enable/disable modules from a hub dashboard, funded by a suite subscription.
+MyLife is a unified hub app consolidating 10+ privacy-first personal app modules into a single cross-platform application. Users enable/disable modules from a hub dashboard, funded by a suite subscription.
 
 **Platforms:** iOS (Expo), Android (Expo), Web (Next.js 15), macOS (SwiftUI — future)
 **Monetization:** Suite subscription via RevenueCat (mobile) + Stripe (web)
@@ -104,8 +104,7 @@ MyLife/
 │   ├── homes/                     # @mylife/homes (MyHomes — Drizzle + tRPC)
 │   ├── car/                       # @mylife/car (MyCar — new)
 │   ├── habits/                    # @mylife/habits (MyHabits — new)
-│   ├── meds/                      # @mylife/meds (MyMeds — new)
-│   └── subs/                      # @mylife/subs (MySubs — new)
+│   └── meds/                      # @mylife/meds (MyMeds — new)
 ├── packages/
 │   ├── ui/                        # @mylife/ui — Unified dark theme + components
 │   ├── db/                        # @mylife/db — SQLite adapter, hub schema, migration orchestrator
@@ -135,13 +134,12 @@ MyLife/
 | Hub | `hub_` | Car | `cr_` |
 | Books | `bk_` | Habits | `hb_` |
 | Budget | `bg_` | Meds | `md_` |
-| Fast | `ft_` | Subs | `sb_` |
-| Recipes | `rc_` | | |
+| Fast | `ft_` | Recipes | `rc_` |
 
 ### Subscription Tiers
 
-- **Free tier:** MyFast + MySubs (always unlocked)
-- **MyLife Pro:** All 11 modules — $4.99/mo, $29.99/yr, $79.99 lifetime
+- **Free tier:** MyFast (always unlocked)
+- **MyLife Pro:** All 10 modules — $4.99/mo, $29.99/yr, $79.99 lifetime
 
 ## Module System
 

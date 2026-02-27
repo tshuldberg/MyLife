@@ -22,7 +22,7 @@ const MODULE_CATEGORIES: { title: string; moduleIds: ModuleId[] }[] = [
   },
   {
     title: 'Finance',
-    moduleIds: ['budget', 'subs'],
+    moduleIds: ['budget'],
   },
   {
     title: 'Health & Fitness',
