@@ -442,8 +442,9 @@ describe('@mylife/db', () => {
       expect(queued.client_message_id).toBe('client-1');
       expect(queued.sync_state).toBe('pending');
 
+      // Use a far-future timestamp so entries queued at real current time are always "due"
       const due = listFriendMessageOutboxDue(adapter, 'alice', {
-        now: '2026-02-25T12:00:01.000Z',
+        now: '2099-01-01T00:00:00.000Z',
       });
       expect(due).toHaveLength(1);
       expect(due[0].client_message_id).toBe('client-1');

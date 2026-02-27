@@ -5,6 +5,7 @@ export const WEB_SUPPORTED_MODULE_IDS: readonly ModuleId[] = [
   'budget',
   'fast',
   'recipes',
+  'rsvp',
   'surf',
   'workouts',
   'homes',

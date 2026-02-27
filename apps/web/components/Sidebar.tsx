@@ -10,6 +10,7 @@ const MODULE_ROUTES: Record<string, string> = {
   budget: '/budget',
   fast: '/fast',
   recipes: '/recipes',
+  rsvp: '/rsvp',
   surf: '/surf',
   workouts: '/workouts',
   homes: '/homes',

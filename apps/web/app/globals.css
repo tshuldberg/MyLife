@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --background: #0E0C09;
   --surface: #1A1814;
@@ -14,6 +18,7 @@
   --accent-budget: #22C55E;
   --accent-fast: #14B8A6;
   --accent-recipes: #F97316;
+  --accent-rsvp: #FB7185;
   --accent-surf: #3B82F6;
   --accent-workouts: #EF4444;
   --accent-homes: #D97706;

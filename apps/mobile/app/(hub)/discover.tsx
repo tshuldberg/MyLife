@@ -17,6 +17,10 @@ const MODULE_CATEGORIES: { title: string; moduleIds: ModuleId[] }[] = [
     moduleIds: ['books', 'recipes', 'habits', 'words'],
   },
   {
+    title: 'Social',
+    moduleIds: ['rsvp'],
+  },
+  {
     title: 'Finance',
     moduleIds: ['budget', 'subs'],
   },

@@ -9,7 +9,7 @@ until their standalone repositories are initialized and linked.
 
 ## Included Apps
 
-- HumanHomes
+- MyHomes
 - MyBooks
 - MyBudget
 - MyCar
@@ -25,6 +25,7 @@ until their standalone repositories are initialized and linked.
 - MyNotes
 - MyPets
 - MyRecipes
+- MyRSVP
 - MyStars
 - MySubs
 - MySurf

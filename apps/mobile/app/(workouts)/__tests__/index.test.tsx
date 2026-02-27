@@ -3,117 +3,75 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WorkoutsScreen from '../index';
 
 const mockDb = { id: 'mock-db' };
+const pushMock = vi.fn();
 
-const createWorkoutLogMock = vi.fn();
-const createWorkoutProgramMock = vi.fn();
-const deleteWorkoutLogMock = vi.fn();
-const deleteWorkoutProgramMock = vi.fn();
-const getWorkoutLogsMock = vi.fn();
+const seedWorkoutExerciseLibraryMock = vi.fn();
+const getWorkoutDashboardMock = vi.fn();
 const getWorkoutMetricsMock = vi.fn();
-const getWorkoutProgramsMock = vi.fn();
-const setActiveWorkoutProgramMock = vi.fn();
+const getWorkoutsMock = vi.fn();
 
 vi.mock('@mylife/workouts', () => ({
-  createWorkoutLog: (...args: unknown[]) => createWorkoutLogMock(...args),
-  createWorkoutProgram: (...args: unknown[]) => createWorkoutProgramMock(...args),
-  deleteWorkoutLog: (...args: unknown[]) => deleteWorkoutLogMock(...args),
-  deleteWorkoutProgram: (...args: unknown[]) => deleteWorkoutProgramMock(...args),
-  getWorkoutLogs: (...args: unknown[]) => getWorkoutLogsMock(...args),
+  seedWorkoutExerciseLibrary: (...args: unknown[]) => seedWorkoutExerciseLibraryMock(...args),
+  getWorkoutDashboard: (...args: unknown[]) => getWorkoutDashboardMock(...args),
   getWorkoutMetrics: (...args: unknown[]) => getWorkoutMetricsMock(...args),
-  getWorkoutPrograms: (...args: unknown[]) => getWorkoutProgramsMock(...args),
-  setActiveWorkoutProgram: (...args: unknown[]) => setActiveWorkoutProgramMock(...args),
+  getWorkouts: (...args: unknown[]) => getWorkoutsMock(...args),
 }));
 
 vi.mock('../../../components/DatabaseProvider', () => ({
   useDatabase: () => mockDb,
 }));
 
-vi.mock('../../../lib/uuid', () => ({
-  uuid: () => 'uuid-123',
+vi.mock('expo-router', () => ({
+  useRouter: () => ({
+    push: pushMock,
+  }),
 }));
 
 describe('WorkoutsScreen (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    getWorkoutMetricsMock.mockReturnValue({
-      workouts: 7,
-      totalMinutes: 315,
-      totalCalories: 2200,
-      averageRpe: 7.2,
+    getWorkoutDashboardMock.mockReturnValue({
+      workouts: 4,
+      exercises: 50,
+      sessions: 12,
+      streakDays: 5,
+      totalMinutes30d: 310,
     });
-    getWorkoutProgramsMock.mockReturnValue([
+
+    getWorkoutMetricsMock.mockReturnValue({
+      workouts: 9,
+      totalMinutes: 420,
+      totalCalories: 2650,
+      averageRpe: 7.4,
+    });
+
+    getWorkoutsMock.mockReturnValue([
       {
-        id: 'prog-1',
-        name: 'Strength Block',
-        goal: 'Build strength',
-        weeks: 8,
-        sessionsPerWeek: 4,
-        isActive: 0,
-      },
-    ]);
-    getWorkoutLogsMock.mockReturnValue([
-      {
-        id: 'log-1',
-        name: 'Upper Push',
-        focus: 'push',
-        durationMin: 50,
-        calories: 350,
-        rpe: 8,
+        id: 'wk-1',
+        title: 'Lower Body Power',
+        description: 'Strength day',
+        difficulty: 'intermediate',
+        exercises: [{ exerciseId: 'ex-1' }],
+        estimatedDuration: 1800,
       },
     ]);
   });
 
-  it('creates program and log, and handles program/log actions', () => {
+  it('shows dashboard metrics and routes to key feature screens', () => {
     render(<WorkoutsScreen />);
 
-    expect(screen.getByText('Strength Block')).toBeInTheDocument();
-    expect(screen.getByText('Upper Push')).toBeInTheDocument();
+    expect(seedWorkoutExerciseLibraryMock).toHaveBeenCalledWith(mockDb);
+    expect(screen.getByText('Lower Body Power')).toBeInTheDocument();
+    expect(screen.getByText('Exercise Library')).toBeInTheDocument();
 
-    fireEvent.change(screen.getByPlaceholderText('Program name'), {
-      target: { value: 'Hypertrophy Cycle' },
-    });
-    fireEvent.change(screen.getByPlaceholderText('Goal'), {
-      target: { value: 'Muscle gain' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Explore' }));
+    expect(pushMock).toHaveBeenCalledWith('/(workouts)/explore');
 
-    expect(createWorkoutProgramMock).toHaveBeenCalledWith(
-      mockDb,
-      'uuid-123',
-      expect.objectContaining({
-        name: 'Hypertrophy Cycle',
-        goal: 'Muscle gain',
-      }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Builder' }));
+    expect(pushMock).toHaveBeenCalledWith('/(workouts)/builder');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Set' }));
-    expect(setActiveWorkoutProgramMock).toHaveBeenCalledWith(mockDb, 'prog-1');
-
-    fireEvent.change(screen.getByPlaceholderText('Workout name'), {
-      target: { value: 'Intervals' },
-    });
-    fireEvent.change(screen.getByPlaceholderText('Duration'), {
-      target: { value: '30' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'cardio' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add Log' }));
-
-    expect(createWorkoutLogMock).toHaveBeenCalledWith(
-      mockDb,
-      'uuid-123',
-      expect.objectContaining({
-        name: 'Intervals',
-        focus: 'cardio',
-        durationMin: 30,
-      }),
-    );
-
-    for (const button of screen.getAllByRole('button', { name: 'Delete' })) {
-      fireEvent.click(button);
-    }
-
-    expect(deleteWorkoutProgramMock).toHaveBeenCalledWith(mockDb, 'prog-1');
-    expect(deleteWorkoutLogMock).toHaveBeenCalledWith(mockDb, 'log-1');
+    fireEvent.click(screen.getByRole('button', { name: 'All Workouts' }));
+    expect(pushMock).toHaveBeenCalledWith('/(workouts)/workouts');
   });
 });

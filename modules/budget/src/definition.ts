@@ -1,7 +1,9 @@
 import type { ModuleDefinition, Migration } from '@mylife/module-registry';
 import {
-  ALL_TABLES,
-  CREATE_INDEXES,
+  BANK_SYNC_INDEXES,
+  BANK_SYNC_TABLES,
+  CORE_INDEXES,
+  CORE_TABLES,
   SEED_DEFAULT_ACCOUNTS,
   SEED_DEFAULT_ENVELOPES,
   SEED_SETTINGS,
@@ -12,8 +14,8 @@ const BUDGET_MIGRATION_V1: Migration = {
   description:
     'Initial budget schema — envelopes, accounts, transactions, goals, settings + indexes + seeds',
   up: [
-    ...ALL_TABLES,
-    ...CREATE_INDEXES,
+    ...CORE_TABLES,
+    ...CORE_INDEXES,
     ...SEED_DEFAULT_ACCOUNTS,
     ...SEED_DEFAULT_ENVELOPES,
     ...SEED_SETTINGS,
@@ -27,6 +29,22 @@ const BUDGET_MIGRATION_V1: Migration = {
   ],
 };
 
+const BUDGET_MIGRATION_V2: Migration = {
+  version: 2,
+  description: 'Add bank sync scaffolding tables and indexes',
+  up: [
+    ...BANK_SYNC_TABLES,
+    ...BANK_SYNC_INDEXES,
+  ],
+  down: [
+    'DROP TABLE IF EXISTS bg_bank_webhook_events',
+    'DROP TABLE IF EXISTS bg_bank_sync_state',
+    'DROP TABLE IF EXISTS bg_bank_transactions_raw',
+    'DROP TABLE IF EXISTS bg_bank_accounts',
+    'DROP TABLE IF EXISTS bg_bank_connections',
+  ],
+};
+
 export const BUDGET_MODULE: ModuleDefinition = {
   id: 'budget',
   name: 'MyBudget',
@@ -35,8 +53,8 @@ export const BUDGET_MODULE: ModuleDefinition = {
   accentColor: '#22C55E',
   tier: 'premium',
   storageType: 'sqlite',
-  migrations: [BUDGET_MIGRATION_V1],
-  schemaVersion: 1,
+  migrations: [BUDGET_MIGRATION_V1, BUDGET_MIGRATION_V2],
+  schemaVersion: 2,
   tablePrefix: 'bg_',
   navigation: {
     tabs: [
@@ -56,4 +74,3 @@ export const BUDGET_MODULE: ModuleDefinition = {
   requiresNetwork: false,
   version: '0.1.0',
 };
-

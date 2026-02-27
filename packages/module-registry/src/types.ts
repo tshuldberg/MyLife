@@ -6,6 +6,7 @@ export type ModuleId =
   | 'budget'
   | 'fast'
   | 'recipes'
+  | 'rsvp'
   | 'surf'
   | 'workouts'
   | 'homes'
@@ -21,6 +22,7 @@ export const ModuleIdSchema = z.enum([
   'budget',
   'fast',
   'recipes',
+  'rsvp',
   'surf',
   'workouts',
   'homes',

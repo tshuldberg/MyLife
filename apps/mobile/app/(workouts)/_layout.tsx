@@ -21,6 +21,12 @@ export default function WorkoutsLayout() {
           headerLeft: () => <BackToHubButton />,
         }}
       />
+      <Stack.Screen name="explore" options={{ title: 'Explore Exercises' }} />
+      <Stack.Screen name="builder" options={{ title: 'Workout Builder' }} />
+      <Stack.Screen name="workouts" options={{ title: 'All Workouts' }} />
+      <Stack.Screen name="progress" options={{ title: 'Progress' }} />
+      <Stack.Screen name="recordings" options={{ title: 'Form Recordings' }} />
+      <Stack.Screen name="exercise/[id]" options={{ title: 'Exercise Detail' }} />
     </Stack>
   );
 }

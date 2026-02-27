@@ -48,6 +48,8 @@ describe('@mylife/budget', () => {
       expect(BUDGET_MODULE.tier).toBe('premium');
       expect(BUDGET_MODULE.storageType).toBe('sqlite');
       expect(BUDGET_MODULE.tablePrefix).toBe('bg_');
+      expect(BUDGET_MODULE.schemaVersion).toBe(2);
+      expect(BUDGET_MODULE.migrations).toHaveLength(2);
     });
 
     it('has 5 navigation tabs', () => {
@@ -58,6 +60,15 @@ describe('@mylife/budget', () => {
   describe('seeded data', () => {
     it('has default settings from seed', () => {
       expect(getSetting(adapter, 'currency')).toBe('USD');
+    });
+
+    it('creates bank sync scaffolding tables', () => {
+      const rows = adapter.query<{ name: string }>(
+        `SELECT name FROM sqlite_master
+         WHERE type = 'table'
+           AND name IN ('bg_bank_connections', 'bg_bank_accounts', 'bg_bank_transactions_raw', 'bg_bank_sync_state', 'bg_bank_webhook_events')`,
+      );
+      expect(rows).toHaveLength(5);
     });
   });
 

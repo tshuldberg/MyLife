@@ -20,6 +20,7 @@ vi.mock('@/lib/modules', () => ({
       'budget',
       'fast',
       'recipes',
+      'rsvp',
       'surf',
       'workouts',
       'homes',

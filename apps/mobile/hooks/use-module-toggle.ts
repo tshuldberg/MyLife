@@ -12,6 +12,7 @@ import { HOMES_MODULE } from '@mylife/homes';
 import { CAR_MODULE } from '@mylife/car';
 import { HABITS_MODULE } from '@mylife/habits';
 import { MEDS_MODULE } from '@mylife/meds';
+import { RSVP_MODULE } from '@mylife/rsvp';
 import { useDatabase } from '../components/DatabaseProvider';
 
 /**
@@ -30,6 +31,7 @@ const MODULE_DEFINITIONS_WITH_MIGRATIONS: Partial<Record<ModuleId, { migrations?
   car: CAR_MODULE,
   habits: HABITS_MODULE,
   meds: MEDS_MODULE,
+  rsvp: RSVP_MODULE,
 };
 
 /**
