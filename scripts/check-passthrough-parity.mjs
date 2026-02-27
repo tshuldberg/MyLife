@@ -58,111 +58,15 @@ function listTsxFiles(dirPath) {
   return out.sort();
 }
 
-function checkWorkoutsWebPassthrough() {
-  const wrappers = [
-    {
-      hub: 'apps/web/app/workouts/page.tsx',
-      expected: "export { default } from '@myworkouts-web/app/workouts/page';",
-      standalone: 'MyWorkouts/apps/web/app/workouts/page.tsx',
-    },
-    {
-      hub: 'apps/web/app/workouts/builder/page.tsx',
-      expected: "export { default } from '@myworkouts-web/app/workouts/builder/page';",
-      standalone: 'MyWorkouts/apps/web/app/workouts/builder/page.tsx',
-    },
-    {
-      hub: 'apps/web/app/workouts/explore/page.tsx',
-      expected: "export { default } from '@myworkouts-web/app/explore/page';",
-      standalone: 'MyWorkouts/apps/web/app/explore/page.tsx',
-    },
-    {
-      hub: 'apps/web/app/workouts/explore/body-map-web.tsx',
-      expected: "export { BodyMapWeb as WorkoutBodyMapWeb } from '@myworkouts-web/app/explore/body-map-web';",
-      standalone: 'MyWorkouts/apps/web/app/explore/body-map-web.tsx',
-    },
-    {
-      hub: 'apps/web/app/workouts/progress/page.tsx',
-      expected: "export { default } from '@myworkouts-web/app/progress/page';",
-      standalone: 'MyWorkouts/apps/web/app/progress/page.tsx',
-    },
-    {
-      hub: 'apps/web/app/workouts/recordings/page.tsx',
-      expected: "export { default } from '@myworkouts-web/app/recordings/page';",
-      standalone: 'MyWorkouts/apps/web/app/recordings/page.tsx',
-    },
-    {
-      hub: 'apps/web/app/workouts/recordings/[id]/page.tsx',
-      expected: "export { default } from '@myworkouts-web/app/recordings/[id]/page';",
-      standalone: 'MyWorkouts/apps/web/app/recordings/[id]/page.tsx',
-    },
-    {
-      hub: 'apps/web/app/workouts/exercise/[id]/page.tsx',
-      expected: "export { default } from '@myworkouts-web/app/exercise/[id]/page';",
-      standalone: 'MyWorkouts/apps/web/app/exercise/[id]/page.tsx',
-    },
-    {
-      hub: 'apps/web/app/workouts/workout/[id]/page.tsx',
-      expected: "export { default } from '@myworkouts-web/app/workout/[id]/page';",
-      standalone: 'MyWorkouts/apps/web/app/workout/[id]/page.tsx',
-    },
-  ];
-
-  const expectedHubFiles = wrappers.map((item) => item.hub).sort();
-  const actualHubFiles = listTsxFiles('apps/web/app/workouts')
-    .filter((path) => !path.endsWith('/actions.tsx'))
-    .sort();
-
-  if (actualHubFiles.join('|') !== expectedHubFiles.join('|')) {
-    fail(
-      `workouts wrapper inventory mismatch:\nexpected=${expectedHubFiles.join(', ')}\nactual=${actualHubFiles.join(', ')}`,
-    );
+function checkWorkoutsWebAdapter() {
+  // Workouts uses hub-native adapter mode (not passthrough).
+  // Hub pages are powered by @mylife/workouts SQLite layer, not standalone re-exports.
+  const hubDir = 'apps/web/app/workouts';
+  const hubFiles = listTsxFiles(hubDir).filter((path) => !path.endsWith('/actions.tsx'));
+  if (hubFiles.length === 0) {
+    fail('workouts hub web adapter has no page files');
   } else {
-    ok('workouts web wrapper inventory matched expected passthrough routes');
-  }
-
-  for (const wrapper of wrappers) {
-    const hubSource = readText(wrapper.hub).trim();
-    if (hubSource !== wrapper.expected) {
-      fail(`${wrapper.hub} must be thin passthrough wrapper`);
-    } else {
-      ok(`${wrapper.hub} is thin passthrough wrapper`);
-    }
-
-    if (!existsSync(resolve(root, wrapper.standalone))) {
-      fail(`${wrapper.standalone} is missing`);
-    } else {
-      ok(`${wrapper.hub} target exists (${wrapper.standalone})`);
-    }
-  }
-
-  const standaloneRouteHelper = 'MyWorkouts/apps/web/lib/routes.ts';
-  const routeHelperSource = readText(standaloneRouteHelper);
-  for (const token of ['function workoutsPath', 'NEXT_PUBLIC_WORKOUTS_BASE_PATH']) {
-    if (!routeHelperSource.includes(token)) {
-      fail(`${standaloneRouteHelper} missing token "${token}"`);
-    } else {
-      ok(`${standaloneRouteHelper} includes "${token}"`);
-    }
-  }
-
-  const requiresHelperInPages = [
-    'MyWorkouts/apps/web/app/explore/page.tsx',
-    'MyWorkouts/apps/web/app/workouts/page.tsx',
-    'MyWorkouts/apps/web/app/workouts/builder/page.tsx',
-    'MyWorkouts/apps/web/app/progress/page.tsx',
-    'MyWorkouts/apps/web/app/recordings/page.tsx',
-    'MyWorkouts/apps/web/app/recordings/[id]/page.tsx',
-    'MyWorkouts/apps/web/app/exercise/[id]/page.tsx',
-    'MyWorkouts/apps/web/app/workout/[id]/page.tsx',
-  ];
-
-  for (const page of requiresHelperInPages) {
-    const source = readText(page);
-    if (!source.includes("from '@/lib/routes'") || !source.includes('workoutsPath(')) {
-      fail(`${page} must use workoutsPath helper for navigation parity`);
-    } else {
-      ok(`${page} uses workoutsPath helper`);
-    }
+    ok(`workouts web adapter mode: ${hubFiles.length} hub-native pages`);
   }
 }
 
@@ -367,13 +271,6 @@ function checkWebHostWiring() {
     ok('apps/web/tsconfig.json includes @mybudget/ui alias');
   }
 
-  const webAlias = tsconfig.compilerOptions?.paths?.['@myworkouts-web/*'];
-  if (!Array.isArray(webAlias) || !webAlias.includes('../../MyWorkouts/apps/web/*')) {
-    fail('apps/web/tsconfig.json missing @myworkouts-web/* alias');
-  } else {
-    ok('apps/web/tsconfig.json includes @myworkouts-web/* alias');
-  }
-
   const habitsWebAlias = tsconfig.compilerOptions?.paths?.['@myhabits-web/*'];
   if (!Array.isArray(habitsWebAlias) || !habitsWebAlias.includes('../../MyHabits/apps/web/*')) {
     fail('apps/web/tsconfig.json missing @myhabits-web/* alias');
@@ -411,12 +308,6 @@ function checkWebHostWiring() {
     ok("apps/web/next.config.ts transpiles '@mybudget/ui'");
   }
 
-  if (!nextConfig.includes("NEXT_PUBLIC_WORKOUTS_BASE_PATH: '/workouts'")) {
-    fail("apps/web/next.config.ts missing NEXT_PUBLIC_WORKOUTS_BASE_PATH='/workouts'");
-  } else {
-    ok("apps/web/next.config.ts sets NEXT_PUBLIC_WORKOUTS_BASE_PATH='/workouts'");
-  }
-
   for (const file of ['apps/web/postcss.config.js', 'apps/web/tailwind.config.ts']) {
     if (!existsSync(resolve(root, file))) {
       fail(`${file} is missing`);
@@ -431,6 +322,7 @@ function reportPendingModulePassthrough() {
     'fast',
     'recipes',
     'surf',
+    'workouts',
     'car',
     'words',
     'homes',
@@ -456,7 +348,7 @@ console.log('Checking standalone passthrough parity...\n');
 
 checkBooksWebPassthrough();
 checkBudgetWebPassthrough();
-checkWorkoutsWebPassthrough();
+checkWorkoutsWebAdapter();
 checkHabitsWebPassthrough();
 checkWebHostWiring();
 reportPendingModulePassthrough();

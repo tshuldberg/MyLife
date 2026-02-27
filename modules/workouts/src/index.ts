@@ -17,6 +17,7 @@ export type {
   WorkoutLog,
   WorkoutProgram,
   WorkoutCategoryCount,
+  CompletedExercise,
 } from './types';
 export {
   WorkoutFocusSchema,

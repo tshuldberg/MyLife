@@ -44,6 +44,15 @@ Project-specific agent instructions for `/Users/trey/Desktop/Apps/MyLife`.
 - Use `pnpm check:module-parity` for cross-module parity inventory checks, `pnpm check:passthrough-parity` for standalone↔hub parity matrix plus strict passthrough wrapper enforcement, and `pnpm check:workouts-parity` for strict MyWorkouts UI/data parity checks.
 - Modules with standalone repos that only contain design docs are treated as parity-deferred until standalone runtime code exists.
 
+## Standalone Submodules (Parity Workflow)
+
+Standalone submodule directories (`MyBooks/`, `MyBudget/`, etc.) inside the MyLife repo are the canonical product sources. For parity work:
+- Edit standalone submodules directly -- they are the source of truth.
+- Do not create copies, staging directories, or parallel directory trees for standalone apps.
+- Do not create directories at the `/Apps/` root or adjacent to `MyLife/` for parity scaffolding.
+- After editing a standalone submodule, apply the corresponding hub-side change in `modules/<name>/` and/or `apps/` within the same session.
+- Verify with `pnpm check:parity` before merging parity-impacting work.
+
 ## Skills Availability
 
 - Skills are sourced from the global Codex skills directory: `/Users/trey/.codex/skills`.

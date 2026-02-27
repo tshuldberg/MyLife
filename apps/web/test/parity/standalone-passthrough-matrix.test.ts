@@ -212,58 +212,10 @@ const standaloneMatrix: StandaloneParitySpec[] = [
     standalone: 'MyWorkouts',
     moduleId: 'workouts',
     moduleStatus: 'implemented',
-    webParityMode: 'passthrough',
+    webParityMode: 'adapter',
     mobileParityMode: 'adapter',
     standaloneWebRoots: ['MyWorkouts/apps/web/app'],
     standaloneMobileRoots: ['MyWorkouts/apps/mobile/app'],
-  },
-];
-
-const workoutsWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
-  {
-    hub: 'apps/web/app/workouts/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/workouts/page';",
-    standalone: 'MyWorkouts/apps/web/app/workouts/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/builder/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/workouts/builder/page';",
-    standalone: 'MyWorkouts/apps/web/app/workouts/builder/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/explore/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/explore/page';",
-    standalone: 'MyWorkouts/apps/web/app/explore/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/explore/body-map-web.tsx',
-    expected: "export { BodyMapWeb as WorkoutBodyMapWeb } from '@myworkouts-web/app/explore/body-map-web';",
-    standalone: 'MyWorkouts/apps/web/app/explore/body-map-web.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/progress/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/progress/page';",
-    standalone: 'MyWorkouts/apps/web/app/progress/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/recordings/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/recordings/page';",
-    standalone: 'MyWorkouts/apps/web/app/recordings/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/recordings/[id]/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/recordings/[id]/page';",
-    standalone: 'MyWorkouts/apps/web/app/recordings/[id]/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/exercise/[id]/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/exercise/[id]/page';",
-    standalone: 'MyWorkouts/apps/web/app/exercise/[id]/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/workout/[id]/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/workout/[id]/page';",
-    standalone: 'MyWorkouts/apps/web/app/workout/[id]/page.tsx',
   },
 ];
 
@@ -584,69 +536,6 @@ describe('words web passthrough enforcement', () => {
 
     const nextConfig = read('apps/web/next.config.ts');
     expect(nextConfig).toContain('externalDir: true');
-  });
-});
-
-describe('workouts web passthrough enforcement', () => {
-  it('all workouts hub web routes are thin passthrough wrappers to standalone pages', () => {
-    const expectedFiles = workoutsWrappers.map((wrapper) => wrapper.hub).sort();
-    const actualFiles = listRouteTsx('apps/web/app/workouts');
-
-    expect(actualFiles).toEqual(expectedFiles);
-
-    for (const wrapper of workoutsWrappers) {
-      expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
-      expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
-    }
-  });
-
-  it('standalone workouts route helper exists and all key standalone pages use it', () => {
-    const routesHelper = read('MyWorkouts/apps/web/lib/routes.ts');
-    expect(routesHelper).toContain('function workoutsPath');
-    expect(routesHelper).toContain('NEXT_PUBLIC_WORKOUTS_BASE_PATH');
-
-    for (const page of [
-      'MyWorkouts/apps/web/app/explore/page.tsx',
-      'MyWorkouts/apps/web/app/workouts/page.tsx',
-      'MyWorkouts/apps/web/app/workouts/builder/page.tsx',
-      'MyWorkouts/apps/web/app/progress/page.tsx',
-      'MyWorkouts/apps/web/app/recordings/page.tsx',
-      'MyWorkouts/apps/web/app/recordings/[id]/page.tsx',
-      'MyWorkouts/apps/web/app/exercise/[id]/page.tsx',
-      'MyWorkouts/apps/web/app/workout/[id]/page.tsx',
-    ]) {
-      const source = read(page);
-      expect(source).toContain("from '@/lib/routes'");
-      expect(source).toContain('workoutsPath(');
-    }
-  });
-
-  it('MyLife web host wiring supports standalone workouts passthrough', () => {
-    const tsconfig = readJson<TsConfigLike>('apps/web/tsconfig.json');
-    expect(tsconfig.compilerOptions?.paths?.['@myworkouts-web/*']).toContain(
-      '../../MyWorkouts/apps/web/*',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@myhabits-web/*']).toContain(
-      '../../MyHabits/apps/web/*',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@myworkouts/shared']).toContain(
-      '../../MyWorkouts/packages/shared/src/index.ts',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@myworkouts/supabase']).toContain(
-      '../../MyWorkouts/packages/supabase/src/index.ts',
-    );
-
-    const nextConfig = read('apps/web/next.config.ts');
-    expect(nextConfig).toContain('externalDir: true');
-    expect(nextConfig).toContain("NEXT_PUBLIC_WORKOUTS_BASE_PATH: '/workouts'");
-
-    expect(existsSync(repoPath('apps/web/postcss.config.js'))).toBe(true);
-    expect(existsSync(repoPath('apps/web/tailwind.config.ts'))).toBe(true);
-
-    const globalsCss = read('apps/web/app/globals.css');
-    expect(globalsCss).toContain('@tailwind base;');
-    expect(globalsCss).toContain('@tailwind components;');
-    expect(globalsCss).toContain('@tailwind utilities;');
   });
 });
 

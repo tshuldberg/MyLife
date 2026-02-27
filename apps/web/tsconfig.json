@@ -10,8 +10,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": [
-        "./*",
-        "../../MyWorkouts/apps/web/*"
+        "./*"
       ],
       "@mybooks-web/*": [
         "../../MyBooks/apps/web/*"
@@ -37,23 +36,8 @@
       "@mybudget/ui/*": [
         "../../MyBudget/packages/ui/src/*"
       ],
-      "@myworkouts-web/*": [
-        "../../MyWorkouts/apps/web/*"
-      ],
       "@myhabits-web/*": [
         "../../MyHabits/apps/web/*"
-      ],
-      "@myworkouts/shared": [
-        "../../MyWorkouts/packages/shared/src/index.ts"
-      ],
-      "@myworkouts/shared/*": [
-        "../../MyWorkouts/packages/shared/src/*"
-      ],
-      "@myworkouts/supabase": [
-        "../../MyWorkouts/packages/supabase/src/index.ts"
-      ],
-      "@myworkouts/supabase/*": [
-        "../../MyWorkouts/packages/supabase/src/*"
       ],
       "@mywords-web/*": [
         "../../MyWords/apps/web/*"

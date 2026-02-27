@@ -3,6 +3,8 @@
 import { getAdapter, ensureModuleMigrations } from '@/lib/db';
 import {
   createWorkout,
+  createWorkoutSession,
+  completeWorkoutSession,
   deleteWorkout,
   getWorkoutById,
   getWorkoutCategoryCounts,
@@ -18,6 +20,7 @@ import {
   deleteWorkoutFormRecording,
 } from '@mylife/workouts';
 import type {
+  CompletedExercise,
   MuscleGroup,
   WorkoutCategory,
   WorkoutDefinition,
@@ -112,4 +115,37 @@ export async function doDeleteWorkout(id: string): Promise<void> {
 
 export async function doDeleteWorkoutRecording(id: string): Promise<void> {
   deleteWorkoutFormRecording(db(), id);
+}
+
+export async function fetchWorkoutRecording(id: string): Promise<WorkoutFormRecording | null> {
+  const recordings = getWorkoutFormRecordings(db(), {});
+  return recordings.find((r) => r.id === id) ?? null;
+}
+
+export async function fetchWorkoutSessions(input?: {
+  workoutId?: string;
+  onlyCompleted?: boolean;
+  limit?: number;
+}): Promise<WorkoutSession[]> {
+  return getWorkoutSessions(db(), input);
+}
+
+export async function doCreateWorkoutSession(
+  id: string,
+  input: {
+    workoutId: string;
+    startedAt?: string;
+  },
+): Promise<void> {
+  createWorkoutSession(db(), id, input);
+}
+
+export async function doCompleteWorkoutSession(
+  id: string,
+  input: {
+    completedAt?: string;
+    exercisesCompleted: CompletedExercise[];
+  },
+): Promise<void> {
+  completeWorkoutSession(db(), id, input);
 }

@@ -169,7 +169,7 @@ export const MODULE_METADATA: Record<ModuleId, ModuleDefinition> = {
     icon: '\u{1F3C4}',
     accentColor: '#3B82F6',
     tier: 'premium',
-    storageType: 'supabase',
+    storageType: 'sqlite',
     navigation: {
       tabs: [
         { key: 'forecast', label: 'Forecast', icon: 'cloud' },
@@ -222,7 +222,7 @@ export const MODULE_METADATA: Record<ModuleId, ModuleDefinition> = {
     icon: '\u{1F3E0}',
     accentColor: '#D97706',
     tier: 'premium',
-    storageType: 'drizzle',
+    storageType: 'sqlite',
     navigation: {
       tabs: [
         { key: 'search', label: 'Search', icon: 'search' },

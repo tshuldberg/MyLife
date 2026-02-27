@@ -216,9 +216,14 @@ Skip `resolve-library-id` and go directly to `query-docs` with these:
 | Mapbox (RN) | `/rnmapbox/maps` |
 | RevenueCat | `/revenuecat/purchases-js` |
 
-## Legacy Submodules
+## Standalone Submodules (Parity Workflow)
 
-Standalone submodule directories (`MyBooks/`, `MyBudget/`, etc.) remain the canonical sources for product parity. If a module exists in both standalone and MyLife hub form, update both sides in the same session and verify with `pnpm check:parity`.
+Standalone submodule directories (`MyBooks/`, `MyBudget/`, etc.) inside the MyLife repo are the canonical product sources. For parity work:
+- Edit standalone submodules directly -- they are the source of truth.
+- Do not create copies, staging directories, or parallel directory trees for standalone apps.
+- Do not create directories at the `/Apps/` root or adjacent to `MyLife/` for parity scaffolding.
+- After editing a standalone submodule, apply the corresponding hub-side change in `modules/<name>/` and/or `apps/` within the same session.
+- Verify with `pnpm check:parity` before merging parity-impacting work.
 
 
 ## Writing Style
