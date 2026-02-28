@@ -47,6 +47,21 @@
       ],
       "@mywords/shared/*": [
         "../../MyWords/packages/shared/src/*"
+      ],
+      "@myrecipes-web/*": [
+        "../../MyRecipes/apps/web/*"
+      ],
+      "@myrecipes/shared": [
+        "../../MyRecipes/packages/shared/src/index.ts"
+      ],
+      "@myrecipes/shared/*": [
+        "../../MyRecipes/packages/shared/src/*"
+      ],
+      "@myrecipes/ui": [
+        "../../MyRecipes/packages/ui/src/index.ts"
+      ],
+      "@myrecipes/ui/*": [
+        "../../MyRecipes/packages/ui/src/*"
       ]
     }
   },

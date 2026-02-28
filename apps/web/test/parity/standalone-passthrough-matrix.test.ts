@@ -148,7 +148,7 @@ const standaloneMatrix: StandaloneParitySpec[] = [
     standalone: 'MyRecipes',
     moduleId: 'recipes',
     moduleStatus: 'implemented',
-    webParityMode: 'adapter',
+    webParityMode: 'passthrough',
     mobileParityMode: 'adapter',
     standaloneWebRoots: ['MyRecipes/apps/web/app'],
     standaloneMobileRoots: ['MyRecipes/apps/mobile/app'],
@@ -278,6 +278,49 @@ const wordsWrappers: Array<{ hub: string; expected: string; standalone: string }
     hub: 'apps/web/app/words/page.tsx',
     expected: "export { default } from '@mywords-web/app/page';",
     standalone: 'MyWords/apps/web/app/page.tsx',
+  },
+];
+
+const recipesWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
+  {
+    hub: 'apps/web/app/recipes/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/page';",
+    standalone: 'MyRecipes/apps/web/app/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/recipes/library/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/recipes/page';",
+    standalone: 'MyRecipes/apps/web/app/recipes/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/recipes/library/[id]/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/recipes/[id]/page';",
+    standalone: 'MyRecipes/apps/web/app/recipes/[id]/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/recipes/add/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/add/page';",
+    standalone: 'MyRecipes/apps/web/app/add/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/recipes/import/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/import/page';",
+    standalone: 'MyRecipes/apps/web/app/import/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/recipes/import/review/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/import/review/page';",
+    standalone: 'MyRecipes/apps/web/app/import/review/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/recipes/grocery/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/grocery/page';",
+    standalone: 'MyRecipes/apps/web/app/grocery/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/recipes/pantry/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/pantry/page';",
+    standalone: 'MyRecipes/apps/web/app/pantry/page.tsx',
   },
 ];
 
@@ -550,5 +593,43 @@ describe('habits web passthrough enforcement', () => {
       expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
       expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
     }
+  });
+});
+
+describe('recipes web passthrough enforcement', () => {
+  it('all recipes hub web routes are thin passthrough wrappers to standalone pages', () => {
+    const expectedFiles = recipesWrappers.map((wrapper) => wrapper.hub).sort();
+    const actualFiles = listRouteTsx('apps/web/app/recipes');
+
+    expect(actualFiles).toEqual(expectedFiles);
+
+    for (const wrapper of recipesWrappers) {
+      expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
+      expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
+    }
+  });
+
+  it('MyLife web host wiring supports standalone recipes passthrough', () => {
+    const tsconfig = readJson<TsConfigLike>('apps/web/tsconfig.json');
+    expect(tsconfig.compilerOptions?.paths?.['@myrecipes-web/*']).toContain(
+      '../../MyRecipes/apps/web/*',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@myrecipes/shared']).toContain(
+      '../../MyRecipes/packages/shared/src/index.ts',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@myrecipes/shared/*']).toContain(
+      '../../MyRecipes/packages/shared/src/*',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@myrecipes/ui']).toContain(
+      '../../MyRecipes/packages/ui/src/index.ts',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@myrecipes/ui/*']).toContain(
+      '../../MyRecipes/packages/ui/src/*',
+    );
+
+    const nextConfig = read('apps/web/next.config.ts');
+    expect(nextConfig).toContain('externalDir: true');
+    expect(nextConfig).toContain("'@myrecipes/shared'");
+    expect(nextConfig).toContain("'@myrecipes/ui'");
   });
 });
