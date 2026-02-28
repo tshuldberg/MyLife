@@ -49,7 +49,7 @@ const standaloneMatrix: StandaloneParitySpec[] = [
     standalone: 'MyCar',
     moduleId: 'car',
     moduleStatus: 'implemented',
-    webParityMode: 'adapter',
+    webParityMode: 'passthrough',
     mobileParityMode: 'adapter',
     standaloneWebRoots: ['MyCar/apps/web/app'],
     standaloneMobileRoots: ['MyCar/apps/mobile/app'],
@@ -344,6 +344,39 @@ const fastWrappers: Array<{ hub: string; expected: string; standalone: string }>
     hub: 'apps/web/app/fast/stats/page.tsx',
     expected: "export { default } from '@myfast-web/app/stats/page';",
     standalone: 'MyFast/apps/web/app/stats/page.tsx',
+  },
+];
+
+const carWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
+  {
+    hub: 'apps/web/app/car/page.tsx',
+    expected: "export { default } from '@mycar-web/app/page';",
+    standalone: 'MyCar/apps/web/app/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/car/expenses/page.tsx',
+    expected: "export { default } from '@mycar-web/app/expenses/page';",
+    standalone: 'MyCar/apps/web/app/expenses/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/car/garage/page.tsx',
+    expected: "export { default } from '@mycar-web/app/garage/page';",
+    standalone: 'MyCar/apps/web/app/garage/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/car/garage/[id]/page.tsx',
+    expected: "export { default } from '@mycar-web/app/garage/[id]/page';",
+    standalone: 'MyCar/apps/web/app/garage/[id]/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/car/reminders/page.tsx',
+    expected: "export { default } from '@mycar-web/app/reminders/page';",
+    standalone: 'MyCar/apps/web/app/reminders/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/car/settings/page.tsx',
+    expected: "export { default } from '@mycar-web/app/settings/page';",
+    standalone: 'MyCar/apps/web/app/settings/page.tsx',
   },
 ];
 
@@ -692,5 +725,43 @@ describe('fast web passthrough enforcement', () => {
     expect(nextConfig).toContain('externalDir: true');
     expect(nextConfig).toContain("'@myfast/shared'");
     expect(nextConfig).toContain("'@myfast/ui'");
+  });
+});
+
+describe('car web passthrough enforcement', () => {
+  it('all car hub web routes are thin passthrough wrappers to standalone pages', () => {
+    const expectedFiles = carWrappers.map((wrapper) => wrapper.hub).sort();
+    const actualFiles = listRouteTsx('apps/web/app/car');
+
+    expect(actualFiles).toEqual(expectedFiles);
+
+    for (const wrapper of carWrappers) {
+      expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
+      expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
+    }
+  });
+
+  it('MyLife web host wiring supports standalone car passthrough', () => {
+    const tsconfig = readJson<TsConfigLike>('apps/web/tsconfig.json');
+    expect(tsconfig.compilerOptions?.paths?.['@mycar-web/*']).toContain(
+      '../../MyCar/apps/web/*',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@mycar/shared']).toContain(
+      '../../MyCar/packages/shared/src/index.ts',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@mycar/shared/*']).toContain(
+      '../../MyCar/packages/shared/src/*',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@mycar/ui']).toContain(
+      '../../MyCar/packages/ui/src/index.ts',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@mycar/ui/*']).toContain(
+      '../../MyCar/packages/ui/src/*',
+    );
+
+    const nextConfig = read('apps/web/next.config.ts');
+    expect(nextConfig).toContain('externalDir: true');
+    expect(nextConfig).toContain("'@mycar/shared'");
+    expect(nextConfig).toContain("'@mycar/ui'");
   });
 });

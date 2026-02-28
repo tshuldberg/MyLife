@@ -19,7 +19,7 @@ Changes made in a standalone app must flow into MyLife via direct component/rout
 |---|---|---|---|---|
 | MyBooks | books | implemented | passthrough | adapter |
 | MyBudget | budget | implemented | passthrough | adapter |
-| MyCar | car | implemented | adapter | adapter |
+| MyCar | car | implemented | passthrough | adapter |
 | MyFast | fast | implemented | passthrough | adapter |
 | MyHomes | homes | implemented | adapter | adapter |
 | MyRecipes | recipes | implemented | passthrough | adapter |

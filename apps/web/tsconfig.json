@@ -77,6 +77,21 @@
       ],
       "@myfast/ui/*": [
         "../../MyFast/packages/ui/src/*"
+      ],
+      "@mycar-web/*": [
+        "../../MyCar/apps/web/*"
+      ],
+      "@mycar/shared": [
+        "../../MyCar/packages/shared/src/index.ts"
+      ],
+      "@mycar/shared/*": [
+        "../../MyCar/packages/shared/src/*"
+      ],
+      "@mycar/ui": [
+        "../../MyCar/packages/ui/src/index.ts"
+      ],
+      "@mycar/ui/*": [
+        "../../MyCar/packages/ui/src/*"
       ]
     }
   },
