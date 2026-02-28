@@ -90,9 +90,13 @@ function asBool(value: unknown, fallback: boolean): boolean {
 }
 
 function toErrorResponse(error: unknown, fallback: string): NextResponse {
-  const message = error instanceof Error ? error.message : fallback;
-  const status = message.includes('No bank sync provider registered for') ? 400 : 500;
-  return NextResponse.json({ error: message }, { status });
+  const message = error instanceof Error ? error.message : '';
+  const is400 = message.includes('No bank sync provider registered for');
+  console.error(fallback, error);
+  return NextResponse.json(
+    { error: is400 ? message : 'Internal server error.' },
+    { status: is400 ? 400 : 500 },
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -149,8 +153,9 @@ export async function POST(request: NextRequest) {
           nextCursor: syncResult.nextCursor,
         };
       } catch (error) {
+        console.error('Webhook sync failed:', error);
         syncSummary = {
-          error: error instanceof Error ? error.message : 'Webhook sync failed.',
+          error: 'Webhook sync failed.',
         };
       }
     }

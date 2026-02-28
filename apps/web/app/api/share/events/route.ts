@@ -180,11 +180,9 @@ export async function POST(request: NextRequest) {
       payload_json: payloadJson,
     });
   } catch (error) {
+    console.error('Failed to create share event:', error);
     return NextResponse.json(
-      {
-        error: 'Failed to create share event.',
-        detail: error instanceof Error ? error.message : String(error),
-      },
+      { error: 'Failed to create share event.' },
       { status: 400 },
     );
   }

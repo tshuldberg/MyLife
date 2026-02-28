@@ -12,6 +12,7 @@ import {
   deriveEntitlementFromBillingEvent,
   issueSignedEntitlement,
 } from '@/lib/billing/entitlement-issuer';
+import { requireEnvVar } from '@/lib/env-guard';
 
 export const runtime = 'nodejs';
 
@@ -20,21 +21,19 @@ function idempotencyKey(eventId: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  const webhookKey = process.env.MYLIFE_BILLING_WEBHOOK_KEY;
-  const signingSecret = process.env.MYLIFE_ENTITLEMENT_SECRET;
-
-  if (!signingSecret) {
-    return NextResponse.json(
-      { error: 'Entitlement signing secret is not configured.' },
-      { status: 500 },
-    );
+  let webhookKey: string;
+  let signingSecret: string;
+  try {
+    webhookKey = requireEnvVar('MYLIFE_BILLING_WEBHOOK_KEY');
+    signingSecret = requireEnvVar('MYLIFE_ENTITLEMENT_SECRET');
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Required secrets not configured.';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 
-  if (webhookKey) {
-    const providedKey = request.headers.get('x-billing-webhook-key');
-    if (!providedKey || providedKey !== webhookKey) {
-      return NextResponse.json({ error: 'Invalid webhook key.' }, { status: 401 });
-    }
+  const providedKey = request.headers.get('x-billing-webhook-key');
+  if (!providedKey || providedKey !== webhookKey) {
+    return NextResponse.json({ error: 'Invalid webhook key.' }, { status: 401 });
   }
 
   let body: unknown;

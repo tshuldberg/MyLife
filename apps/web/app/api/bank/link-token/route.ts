@@ -41,9 +41,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function toErrorResponse(error: unknown, fallback: string): NextResponse {
-  const message = error instanceof Error ? error.message : fallback;
-  const status = message.includes('No bank sync provider registered for') ? 400 : 500;
-  return NextResponse.json({ error: message }, { status });
+  const message = error instanceof Error ? error.message : '';
+  const is400 = message.includes('No bank sync provider registered for');
+  console.error(fallback, error);
+  return NextResponse.json(
+    { error: is400 ? message : 'Internal server error.' },
+    { status: is400 ? 400 : 500 },
+  );
 }
 
 export async function POST(request: NextRequest) {

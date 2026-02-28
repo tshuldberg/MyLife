@@ -147,15 +147,9 @@ export async function testSelfHostConnection(
     });
   }
 
-  const syncKey = process.env.EXPO_PUBLIC_MYLIFE_ENTITLEMENT_SYNC_KEY;
   try {
-    const syncResponse = await fetch(`${normalizedUrl}/api/entitlements/sync`, {
+    const syncResponse = await fetch(`${normalizedUrl}/api/entitlements/proxy`, {
       method: 'GET',
-      headers: syncKey
-        ? {
-            'x-entitlement-sync-key': syncKey,
-          }
-        : undefined,
     });
 
     if (syncResponse.status === 200) {
@@ -163,30 +157,30 @@ export async function testSelfHostConnection(
         id: 'sync',
         ok: true,
         httpStatus: syncResponse.status,
-        message: 'Entitlement sync endpoint is reachable and returned data.',
+        message: 'Entitlement proxy endpoint is reachable and returned data.',
       });
-    } else if (syncResponse.status === 401 || syncResponse.status === 404) {
+    } else if (syncResponse.status === 400 || syncResponse.status === 401 || syncResponse.status === 404) {
       checks.push({
         id: 'sync',
         ok: true,
         httpStatus: syncResponse.status,
-        message: syncResponse.status === 401
-          ? 'Entitlement sync endpoint is reachable but rejected auth (expected until sync key is configured).'
-          : 'Entitlement sync endpoint is reachable but no entitlement is cached yet.',
+        message: syncResponse.status === 401 || syncResponse.status === 400
+          ? 'Entitlement proxy endpoint is reachable (auth required as expected).'
+          : 'Entitlement proxy endpoint is reachable but no entitlement is cached yet.',
       });
     } else {
       checks.push({
         id: 'sync',
         ok: false,
         httpStatus: syncResponse.status,
-        message: `Entitlement sync endpoint returned HTTP ${syncResponse.status}.`,
+        message: `Entitlement proxy endpoint returned HTTP ${syncResponse.status}.`,
       });
     }
   } catch {
     checks.push({
       id: 'sync',
       ok: false,
-      message: 'Entitlement sync endpoint is unreachable. Confirm reverse proxy rules and API routes.',
+      message: 'Entitlement proxy endpoint is unreachable. Confirm reverse proxy rules and API routes.',
     });
   }
 

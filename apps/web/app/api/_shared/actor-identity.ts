@@ -33,7 +33,10 @@ function isLegacyUserIdFallbackAllowed(now = Date.now()): boolean {
   }
 
   const strictMode = parseBooleanEnv(process.env.MYLIFE_ACTOR_IDENTITY_STRICT_MODE);
-  if (strictMode === true) {
+  // In production, strict mode is ON by default (opt-out via STRICT_MODE=false).
+  // In dev/test, strict mode is OFF by default (opt-in via STRICT_MODE=true).
+  const effectiveStrictMode = strictMode ?? (process.env.NODE_ENV === 'production');
+  if (effectiveStrictMode) {
     return false;
   }
 

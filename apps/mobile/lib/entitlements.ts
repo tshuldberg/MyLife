@@ -109,9 +109,10 @@ export function clearStoredEntitlement(db: DatabaseAdapter): void {
   clearHubEntitlement(db);
 }
 
-/** Pulls latest entitlement payload from configured hosted/self-host endpoint. */
+/** Pulls latest entitlement payload from the authenticated proxy endpoint. */
 export async function refreshEntitlementFromServer(
   db: DatabaseAdapter,
+  actorToken?: string,
 ): Promise<RefreshEntitlementResult> {
   const modeConfig = getModeConfig(db);
   const resolved = resolveApiBaseUrl(modeConfig.mode, modeConfig.serverUrl);
@@ -128,17 +129,16 @@ export async function refreshEntitlementFromServer(
     return { ok: false, reason: 'missing_server_url' };
   }
 
-  const syncKey = process.env.EXPO_PUBLIC_MYLIFE_ENTITLEMENT_SYNC_KEY;
+  const headers: Record<string, string> = {};
+  if (actorToken) {
+    headers['x-actor-identity-token'] = actorToken;
+  }
 
   let response: Response;
   try {
-    response = await fetch(`${resolved.url}/api/entitlements/sync`, {
+    response = await fetch(`${resolved.url}/api/entitlements/proxy`, {
       method: 'GET',
-      headers: syncKey
-        ? {
-            'x-entitlement-sync-key': syncKey,
-          }
-        : undefined,
+      headers,
     });
   } catch {
     return { ok: false, reason: 'network_error' };

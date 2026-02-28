@@ -34,7 +34,7 @@ function signPayload(payloadB64: string, secret: string): string {
 function sanitizeBundleId(bundleId: string): string | null {
   const value = bundleId.trim();
   if (!value) return null;
-  if (!/^[a-zA-Z0-9._-]+$/.test(value)) return null;
+  if (!/^[a-zA-Z0-9-]+$/.test(value)) return null;
   return value;
 }
 

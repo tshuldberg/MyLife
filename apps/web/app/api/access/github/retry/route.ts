@@ -39,11 +39,14 @@ export async function POST(request: NextRequest) {
     const result = await grantGitHubSelfHostAccess({
       githubUsername: job.payload.githubUsername,
       email: job.payload.customerEmail,
-    }).catch((error: unknown) => ({
-      ok: false as const,
-      status: 'failed' as const,
-      detail: error instanceof Error ? error.message : 'Unknown retry exception.',
-    }));
+    }).catch((error: unknown) => {
+      console.error('GitHub access retry failed:', error);
+      return {
+        ok: false as const,
+        status: 'failed' as const,
+        detail: 'Access grant failed.',
+      };
+    });
 
     if (result.ok) {
       markAccessJobCompleted(db, job.eventId);

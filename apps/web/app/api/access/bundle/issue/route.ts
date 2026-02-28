@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { issueSignedBundleDownloadUrl } from '@/lib/access/bundle';
+import { requireEnvVar } from '@/lib/env-guard';
 
 export const runtime = 'nodejs';
 
@@ -8,12 +9,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export async function POST(request: NextRequest) {
-  const issuerKey = process.env.MYLIFE_BUNDLE_ISSUER_KEY;
-  if (issuerKey) {
-    const provided = request.headers.get('x-bundle-issuer-key');
-    if (!provided || provided !== issuerKey) {
-      return NextResponse.json({ error: 'Invalid bundle issuer key.' }, { status: 401 });
-    }
+  let issuerKey: string;
+  try {
+    issuerKey = requireEnvVar('MYLIFE_BUNDLE_ISSUER_KEY');
+  } catch {
+    return NextResponse.json({ error: 'Bundle issuer key not configured.' }, { status: 500 });
+  }
+
+  const provided = request.headers.get('x-bundle-issuer-key');
+  if (!provided || provided !== issuerKey) {
+    return NextResponse.json({ error: 'Invalid bundle issuer key.' }, { status: 401 });
   }
 
   let body: unknown;

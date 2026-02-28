@@ -4,6 +4,42 @@ import { resolveApiBaseUrl } from '@/lib/server-endpoint';
 
 export const runtime = 'nodejs';
 
+const PRIVATE_IP_PATTERNS = [
+  /^127\./,
+  /^10\./,
+  /^172\.(1[6-9]|2\d|3[01])\./,
+  /^192\.168\./,
+  /^0\./,
+  /^169\.254\./,
+  /^::1$/,
+  /^fc00:/i,
+  /^fd/i,
+  /^fe80:/i,
+  /^::ffff:(127\.|10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.)/,
+  /^localhost$/i,
+];
+
+function isPrivateHost(hostname: string): boolean {
+  return PRIVATE_IP_PATTERNS.some((pattern) => pattern.test(hostname));
+}
+
+function getAllowedHosts(): string[] | null {
+  const envValue = process.env.MYLIFE_SYNC_ALLOWED_HOSTS;
+  if (!envValue) return null;
+  return envValue.split(',').map((h) => h.trim().toLowerCase()).filter(Boolean);
+}
+
+function isHostAllowed(hostname: string, configuredHost: string | null): boolean {
+  const allowedHosts = getAllowedHosts();
+  if (allowedHosts) {
+    return allowedHosts.includes(hostname.toLowerCase());
+  }
+  if (configuredHost) {
+    return hostname.toLowerCase() === configuredHost.toLowerCase();
+  }
+  return false;
+}
+
 function buildCurrentBaseUrl(request: NextRequest): string {
   const protocol = request.headers.get('x-forwarded-proto')
     ?? request.nextUrl.protocol.replace(':', '')
@@ -27,6 +63,32 @@ function resolveTargetBaseUrl(request: NextRequest): string | null {
 
   if (mode.mode === 'hosted') {
     return buildCurrentBaseUrl(request);
+  }
+
+  return null;
+}
+
+function validateTargetUrl(target: URL, configuredHost: string | null): string | null {
+  if (target.protocol !== 'https:') {
+    const isLocalDev = process.env.NODE_ENV === 'development';
+    if (!isLocalDev) {
+      return 'Sync proxy requires HTTPS target.';
+    }
+  }
+
+  if (isPrivateHost(target.hostname)) {
+    const isLocalDev = process.env.NODE_ENV === 'development';
+    if (!isLocalDev) {
+      return 'Sync proxy target resolves to a private address.';
+    }
+  }
+
+  if (!isHostAllowed(target.hostname, configuredHost)) {
+    const isSelfProxy = target.hostname === 'localhost' || target.hostname === '127.0.0.1';
+    const isLocalDev = process.env.NODE_ENV === 'development';
+    if (!(isSelfProxy && isLocalDev)) {
+      return 'Sync proxy target host is not in the allowed list.';
+    }
   }
 
   return null;
@@ -58,6 +120,16 @@ async function proxy(request: NextRequest, method: 'GET' | 'POST' | 'DELETE') {
   request.nextUrl.searchParams.forEach((value, key) => {
     target.searchParams.set(key, value);
   });
+
+  let configuredHost: string | null = null;
+  try {
+    configuredHost = new URL(baseUrl).hostname;
+  } catch { /* use null */ }
+
+  const validationError = validateTargetUrl(target, configuredHost);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 403 });
+  }
 
   const outboundHeaders = new Headers();
   const contentType = request.headers.get('content-type');

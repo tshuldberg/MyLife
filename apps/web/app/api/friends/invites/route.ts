@@ -40,6 +40,15 @@ function parseOptionalString(value: unknown): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function isValidUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 function parseProfileCandidate(value: unknown): {
   userId: string;
   displayName: string;
@@ -52,11 +61,21 @@ function parseProfileCandidate(value: unknown): {
   const displayName = parseOptionalString(value.displayName);
   if (!userId || !displayName) return null;
 
+  if (displayName.length > 100) return null;
+
+  const handle = parseOptionalString(value.handle);
+  if (handle && handle.length > 50) return null;
+
+  const avatarUrl = parseOptionalString(value.avatarUrl);
+  if (avatarUrl) {
+    if (avatarUrl.length > 2048 || !isValidUrl(avatarUrl)) return null;
+  }
+
   return {
     userId,
     displayName,
-    handle: parseOptionalString(value.handle),
-    avatarUrl: parseOptionalString(value.avatarUrl),
+    handle,
+    avatarUrl,
   };
 }
 
@@ -151,6 +170,19 @@ export async function POST(request: NextRequest) {
   const fromProfile = parseProfileCandidate(body.fromProfile);
   const toProfile = parseProfileCandidate(body.toProfile);
 
+  if (body.fromProfile != null && !fromProfile) {
+    return NextResponse.json(
+      { error: 'Invalid fromProfile. Check field lengths and URL format.' },
+      { status: 400 },
+    );
+  }
+  if (body.toProfile != null && !toProfile) {
+    return NextResponse.json(
+      { error: 'Invalid toProfile. Check field lengths and URL format.' },
+      { status: 400 },
+    );
+  }
+
   const db = getAdapter();
 
   if (fromProfile) {
@@ -179,11 +211,9 @@ export async function POST(request: NextRequest) {
       message,
     });
   } catch (error) {
+    console.error('Failed to create friend invite:', error);
     return NextResponse.json(
-      {
-        error: 'Failed to create invite.',
-        detail: error instanceof Error ? error.message : String(error),
-      },
+      { error: 'Failed to create invite.' },
       { status: 400 },
     );
   }

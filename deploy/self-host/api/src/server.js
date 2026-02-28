@@ -1,43 +1,121 @@
 import crypto from 'node:crypto';
+import { promisify } from 'node:util';
 import cors from 'cors';
 import express from 'express';
+import rateLimit from 'express-rate-limit';
 import pg from 'pg';
+
+const scryptAsync = promisify(crypto.scrypt);
+
+/**
+ * Require a non-empty environment variable or throw at startup.
+ */
+function requireEnv(name) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new Error(`${name} is required but not set. Set it in your environment or .env file.`);
+  }
+  return value;
+}
+
+/**
+ * Read an optional env var, warning if missing. Returns empty string if unset.
+ */
+function optionalEnv(name, { warnIfMissing = false } = {}) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    if (warnIfMissing) {
+      console.warn(`[WARN] ${name} is not set. Related functionality will be disabled.`);
+    }
+    return '';
+  }
+  return value;
+}
 
 const { Pool } = pg;
 
 const PORT = Number(process.env.PORT ?? '8787');
-const DATABASE_URL = process.env.DATABASE_URL;
+const DATABASE_URL = requireEnv('DATABASE_URL');
 const STORAGE_HEALTHCHECK_URL = process.env.STORAGE_HEALTHCHECK_URL ?? 'http://minio:9000/minio/health/live';
-const ENTITLEMENT_SYNC_KEY = process.env.MYLIFE_ENTITLEMENT_SYNC_KEY ?? '';
-const ENTITLEMENT_ISSUER_KEY = process.env.MYLIFE_ENTITLEMENT_ISSUER_KEY ?? '';
-const SELF_HOST_ADMIN_EMAIL = process.env.SELF_HOST_ADMIN_EMAIL ?? 'admin@example.com';
-const SELF_HOST_ADMIN_PASSWORD = process.env.SELF_HOST_ADMIN_PASSWORD ?? 'change-me-admin-password';
-const FEDERATION_SERVER = normalizeServerName(process.env.MYLIFE_FEDERATION_SERVER ?? '');
-const FEDERATION_SHARED_KEY = process.env.MYLIFE_FEDERATION_SHARED_KEY ?? '';
-const FEDERATION_SHARED_KEYS = parseFederationSharedKeys(process.env.MYLIFE_FEDERATION_SHARED_KEYS ?? '');
-const FEDERATION_DISPATCH_KEY = process.env.MYLIFE_FEDERATION_DISPATCH_KEY ?? '';
+const ENTITLEMENT_SYNC_KEY = optionalEnv('MYLIFE_ENTITLEMENT_SYNC_KEY', { warnIfMissing: true });
+const ENTITLEMENT_ISSUER_KEY = optionalEnv('MYLIFE_ENTITLEMENT_ISSUER_KEY', { warnIfMissing: true });
+const SELF_HOST_ADMIN_EMAIL = requireEnv('SELF_HOST_ADMIN_EMAIL');
+const SELF_HOST_ADMIN_PASSWORD = requireEnv('SELF_HOST_ADMIN_PASSWORD');
+const FEDERATION_SERVER = normalizeServerName(optionalEnv('MYLIFE_FEDERATION_SERVER'));
+const FEDERATION_SHARED_KEY = optionalEnv('MYLIFE_FEDERATION_SHARED_KEY', { warnIfMissing: true });
+const FEDERATION_SHARED_KEYS = parseFederationSharedKeys(optionalEnv('MYLIFE_FEDERATION_SHARED_KEYS'));
+const FEDERATION_DISPATCH_KEY = optionalEnv('MYLIFE_FEDERATION_DISPATCH_KEY', { warnIfMissing: true });
 const FEDERATION_ALLOW_INSECURE_HTTP = (process.env.MYLIFE_FEDERATION_ALLOW_INSECURE_HTTP ?? 'false').toLowerCase() === 'true';
 const FEDERATION_MAX_ATTEMPTS = Math.max(1, Number(process.env.MYLIFE_FEDERATION_MAX_ATTEMPTS ?? '6') || 6);
-const FEDERATION_MAX_CLOCK_SKEW_MS = Math.max(30_000, Number(process.env.MYLIFE_FEDERATION_MAX_CLOCK_SKEW_MS ?? '300000') || 300_000);
+const FEDERATION_MAX_CLOCK_SKEW_MS = Math.max(30_000, Number(process.env.MYLIFE_FEDERATION_MAX_CLOCK_SKEW_MS ?? '30000') || 30_000);
 const FEDERATION_DISPATCH_DEFAULT_LIMIT = Math.max(
   1,
   Number(process.env.MYLIFE_FEDERATION_DISPATCH_LIMIT ?? '25') || 25,
 );
 const ACTOR_IDENTITY_SECRET = (
-  process.env.MYLIFE_ACTOR_IDENTITY_SECRET
-  ?? process.env.MYLIFE_ENTITLEMENT_ISSUER_KEY
-  ?? process.env.MYLIFE_ENTITLEMENT_SYNC_KEY
-  ?? ''
-).trim();
+  optionalEnv('MYLIFE_ACTOR_IDENTITY_SECRET')
+  || optionalEnv('MYLIFE_ENTITLEMENT_ISSUER_KEY')
+  || optionalEnv('MYLIFE_ENTITLEMENT_SYNC_KEY')
+);
 
-if (!DATABASE_URL) {
-  throw new Error('DATABASE_URL is required.');
-}
-
-const allowedOrigins = (process.env.CORS_ORIGIN ?? '*')
+const CORS_ORIGIN = requireEnv('CORS_ORIGIN');
+const allowedOrigins = CORS_ORIGIN
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+if (allowedOrigins.length === 0) {
+  throw new Error('CORS_ORIGIN must contain at least one valid origin.');
+}
+
+// ── Session token store ─────────────────────────────────────────────────────
+// Maps token string -> { expiresAt: number (ms epoch) }
+const SESSION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const sessionTokens = new Map();
+
+function issueSessionToken() {
+  const token = crypto.randomBytes(32).toString('hex');
+  sessionTokens.set(token, { expiresAt: Date.now() + SESSION_TOKEN_TTL_MS });
+  return token;
+}
+
+function validateSessionToken(token) {
+  const entry = sessionTokens.get(token);
+  if (!entry) return false;
+  if (Date.now() > entry.expiresAt) {
+    sessionTokens.delete(token);
+    return false;
+  }
+  return true;
+}
+
+function revokeSessionToken(token) {
+  return sessionTokens.delete(token);
+}
+
+// Clean up expired tokens every 15 minutes.
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, entry] of sessionTokens) {
+    if (now > entry.expiresAt) {
+      sessionTokens.delete(token);
+    }
+  }
+}, 15 * 60 * 1000).unref();
+
+// ── Password hashing ────────────────────────────────────────────────────────
+// Hash the admin password at startup for timing-safe comparison on login.
+let adminPasswordHash;
+async function hashAdminPassword() {
+  const salt = crypto.randomBytes(16);
+  const derived = await scryptAsync(SELF_HOST_ADMIN_PASSWORD, salt, 64);
+  adminPasswordHash = { salt, hash: derived };
+}
+
+async function verifyPassword(candidate) {
+  const derived = await scryptAsync(candidate, adminPasswordHash.salt, 64);
+  return crypto.timingSafeEqual(adminPasswordHash.hash, derived);
+}
 
 const app = express();
 const pool = new Pool({
@@ -45,9 +123,7 @@ const pool = new Pool({
 });
 
 app.use(cors({
-  origin: allowedOrigins.length === 1 && allowedOrigins[0] === '*'
-    ? true
-    : allowedOrigins,
+  origin: allowedOrigins,
   credentials: true,
 }));
 app.use(express.json({
@@ -56,6 +132,65 @@ app.use(express.json({
     req.rawBody = buf.toString('utf8');
   },
 }));
+
+// Routes that bypass session token validation (they use their own auth).
+const PUBLIC_ROUTES = new Set([
+  '/health',
+  '/api/auth/session',
+  '/api/auth/logout',
+  '/api/entitlements/sync',
+  '/api/federation/inbox/messages',
+  '/api/federation/dispatch',
+]);
+
+app.use((req, res, next) => {
+  if (PUBLIC_ROUTES.has(req.path)) return next();
+
+  const authHeader = req.header('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or malformed Authorization header.' });
+  }
+
+  const token = authHeader.slice(7);
+  if (!validateSessionToken(token)) {
+    return res.status(401).json({ error: 'Invalid or expired session token.' });
+  }
+
+  next();
+});
+
+// ── Rate limiting ───────────────────────────────────────────────────────────
+const rateLimitMessage = { error: 'Too many requests. Please try again later.' };
+
+// Global: 100 requests per 15 minutes per IP.
+app.use(rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: rateLimitMessage,
+}));
+
+// Auth: 5 attempts per 15 minutes per IP (brute-force protection).
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: rateLimitMessage,
+});
+app.use('/api/auth/session', authLimiter);
+
+// Sensitive endpoints: 20 requests per 15 minutes per IP.
+const sensitiveLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: rateLimitMessage,
+});
+app.use('/api/entitlements', sensitiveLimiter);
+app.use('/api/federation/inbox', sensitiveLimiter);
 
 function nowIso() {
   return new Date().toISOString();
@@ -890,7 +1025,7 @@ app.get('/api/entitlements/sync', async (req, res) => {
   });
 });
 
-app.post('/api/auth/session', (req, res) => {
+app.post('/api/auth/session', async (req, res) => {
   const email = parseString(req.body?.email);
   const password = parseString(req.body?.password);
 
@@ -898,18 +1033,30 @@ app.post('/api/auth/session', (req, res) => {
     return badRequest(res, 'email and password are required.');
   }
 
-  if (email !== SELF_HOST_ADMIN_EMAIL || password !== SELF_HOST_ADMIN_PASSWORD) {
+  // Timing-safe: always verify the hash even if the email doesn't match,
+  // so the response time doesn't leak which field was wrong.
+  const passwordValid = await verifyPassword(password);
+  if (email !== SELF_HOST_ADMIN_EMAIL || !passwordValid) {
     return unauthorized(res, 'Invalid credentials.');
   }
 
+  const accessToken = issueSessionToken();
   return res.json({
-    accessToken: crypto.randomBytes(24).toString('hex'),
-    expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    accessToken,
+    expiresAt: new Date(Date.now() + SESSION_TOKEN_TTL_MS).toISOString(),
     user: {
       id: 'self-host-admin',
       email,
     },
   });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  const authHeader = req.header('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    revokeSessionToken(authHeader.slice(7));
+  }
+  return res.json({ ok: true });
 });
 
 app.post('/api/identity/actor/issue', (req, res) => {
@@ -1860,6 +2007,12 @@ app.use((error, _req, res, _next) => {
   res.status(500).json({ error: 'Internal server error.' });
 });
 
-app.listen(PORT, () => {
-  console.log(`MyLife self-host API listening on ${PORT}`);
+// Hash the admin password before accepting connections.
+hashAdminPassword().then(() => {
+  app.listen(PORT, () => {
+    console.log(`MyLife self-host API listening on ${PORT}`);
+  });
+}).catch((err) => {
+  console.error('Failed to initialize:', err.message);
+  process.exit(1);
 });

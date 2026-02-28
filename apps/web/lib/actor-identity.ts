@@ -37,7 +37,23 @@ export function getActorIdentitySecret(): string | null {
     return secret.trim();
   }
   if (process.env.NODE_ENV !== 'production') {
-    // In dev/test we use a deterministic fallback to keep local flows usable.
+    // Refuse the dev fallback if the app is being served on a non-localhost origin.
+    const origin = process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? '';
+    try {
+      const hostname = new URL(origin).hostname;
+      if (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname !== '::1') {
+        console.error(
+          '[actor-identity] Dev fallback secret refused: non-localhost origin detected (%s). Set MYLIFE_ACTOR_IDENTITY_SECRET.',
+          origin
+        );
+        return null;
+      }
+    } catch {
+      // If origin is empty or unparseable, allow fallback (local dev without URL configured).
+    }
+    console.warn(
+      '[actor-identity] Using dev fallback secret. Set MYLIFE_ACTOR_IDENTITY_SECRET for production.'
+    );
     return 'mylife-dev-actor-identity-secret';
   }
   return null;

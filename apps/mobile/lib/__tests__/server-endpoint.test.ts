@@ -11,7 +11,6 @@ describe('mobile server endpoint helpers', () => {
   beforeEach(() => {
     process.env = { ...ORIGINAL_ENV };
     delete process.env.EXPO_PUBLIC_MYLIFE_HOSTED_API_URL;
-    delete process.env.EXPO_PUBLIC_MYLIFE_ENTITLEMENT_SYNC_KEY;
   });
 
   afterAll(() => {

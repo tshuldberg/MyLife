@@ -1,16 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getHubEntitlement } from '@mylife/db';
 import { getAdapter } from '@/lib/db';
+import { requireEnvVar } from '@/lib/env-guard';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
-  const syncKey = process.env.MYLIFE_ENTITLEMENT_SYNC_KEY;
-  if (syncKey) {
-    const provided = request.headers.get('x-entitlement-sync-key');
-    if (!provided || provided !== syncKey) {
-      return NextResponse.json({ error: 'Invalid sync key.' }, { status: 401 });
-    }
+  let syncKey: string;
+  try {
+    syncKey = requireEnvVar('MYLIFE_ENTITLEMENT_SYNC_KEY');
+  } catch {
+    return NextResponse.json({ error: 'Entitlement sync key not configured.' }, { status: 500 });
+  }
+
+  const provided = request.headers.get('x-entitlement-sync-key');
+  if (!provided || provided !== syncKey) {
+    return NextResponse.json({ error: 'Invalid sync key.' }, { status: 401 });
   }
 
   const db = getAdapter();
