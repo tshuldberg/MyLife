@@ -104,7 +104,7 @@ const standaloneMatrix: StandaloneParitySpec[] = [
     standalone: 'MyHomes',
     moduleId: 'homes',
     moduleStatus: 'implemented',
-    webParityMode: 'adapter',
+    webParityMode: 'passthrough',
     mobileParityMode: 'adapter',
     standaloneWebRoots: ['MyHomes/apps/web/src/app', 'MyHomes/apps/web/app'],
     standaloneMobileRoots: ['MyHomes/apps/mobile/app'],
@@ -344,6 +344,29 @@ const fastWrappers: Array<{ hub: string; expected: string; standalone: string }>
     hub: 'apps/web/app/fast/stats/page.tsx',
     expected: "export { default } from '@myfast-web/app/stats/page';",
     standalone: 'MyFast/apps/web/app/stats/page.tsx',
+  },
+];
+
+const homesWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
+  {
+    hub: 'apps/web/app/homes/messages/page.tsx',
+    expected: "export { default } from '@myhomes-web/src/app/(app)/messages/page';",
+    standalone: 'MyHomes/apps/web/src/app/(app)/messages/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/homes/page.tsx',
+    expected: "export { default } from '@myhomes-web/src/app/(app)/discover/page';",
+    standalone: 'MyHomes/apps/web/src/app/(app)/discover/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/homes/profile/page.tsx',
+    expected: "export { default } from '@myhomes-web/src/app/(app)/profile/page';",
+    standalone: 'MyHomes/apps/web/src/app/(app)/profile/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/homes/sell/page.tsx',
+    expected: "export { default } from '@myhomes-web/src/app/(app)/sell/page';",
+    standalone: 'MyHomes/apps/web/src/app/(app)/sell/page.tsx',
   },
 ];
 
@@ -725,6 +748,47 @@ describe('fast web passthrough enforcement', () => {
     expect(nextConfig).toContain('externalDir: true');
     expect(nextConfig).toContain("'@myfast/shared'");
     expect(nextConfig).toContain("'@myfast/ui'");
+  });
+});
+
+describe('homes web passthrough enforcement', () => {
+  it('all homes hub web routes are thin passthrough wrappers to standalone pages', () => {
+    const expectedFiles = homesWrappers.map((wrapper) => wrapper.hub).sort();
+    const actualFiles = listRouteTsx('apps/web/app/homes');
+
+    expect(actualFiles).toEqual(expectedFiles);
+
+    for (const wrapper of homesWrappers) {
+      expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
+      expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
+    }
+  });
+
+  it('MyLife web host wiring supports standalone homes passthrough', () => {
+    const tsconfig = readJson<TsConfigLike>('apps/web/tsconfig.json');
+    expect(tsconfig.compilerOptions?.paths?.['@myhomes-web/*']).toContain(
+      '../../MyHomes/apps/web/*',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@humanhomes/shared']).toContain(
+      '../../MyHomes/packages/shared/src/index.ts',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@humanhomes/shared/*']).toContain(
+      '../../MyHomes/packages/shared/src/*',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@humanhomes/ui']).toContain(
+      '../../MyHomes/packages/ui/src/index.ts',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@humanhomes/ui/*']).toContain(
+      '../../MyHomes/packages/ui/src/*',
+    );
+
+    const nextConfig = read('apps/web/next.config.ts');
+    expect(nextConfig).toContain('externalDir: true');
+    expect(nextConfig).toContain("'@humanhomes/shared'");
+    expect(nextConfig).toContain("'@humanhomes/ui'");
+
+    const tailwindConfig = read('apps/web/tailwind.config.ts');
+    expect(tailwindConfig).toContain('../../MyHomes/apps/web/src/**/*.{ts,tsx}');
   });
 });
 

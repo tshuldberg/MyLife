@@ -92,6 +92,21 @@
       ],
       "@mycar/ui/*": [
         "../../MyCar/packages/ui/src/*"
+      ],
+      "@myhomes-web/*": [
+        "../../MyHomes/apps/web/*"
+      ],
+      "@humanhomes/shared": [
+        "../../MyHomes/packages/shared/src/index.ts"
+      ],
+      "@humanhomes/shared/*": [
+        "../../MyHomes/packages/shared/src/*"
+      ],
+      "@humanhomes/ui": [
+        "../../MyHomes/packages/ui/src/index.ts"
+      ],
+      "@humanhomes/ui/*": [
+        "../../MyHomes/packages/ui/src/*"
       ]
     }
   },
