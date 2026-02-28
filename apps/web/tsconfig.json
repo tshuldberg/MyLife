@@ -107,6 +107,21 @@
       ],
       "@humanhomes/ui/*": [
         "../../MyHomes/packages/ui/src/*"
+      ],
+      "@myworkouts-web/*": [
+        "../../MyWorkouts/apps/web/*"
+      ],
+      "@myworkouts/shared": [
+        "../../MyWorkouts/packages/shared/src/index.ts"
+      ],
+      "@myworkouts/shared/*": [
+        "../../MyWorkouts/packages/shared/src/*"
+      ],
+      "@myworkouts/ui": [
+        "../../MyWorkouts/packages/ui/src/index.ts"
+      ],
+      "@myworkouts/ui/*": [
+        "../../MyWorkouts/packages/ui/src/*"
       ]
     }
   },

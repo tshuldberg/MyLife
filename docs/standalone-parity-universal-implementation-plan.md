@@ -26,6 +26,7 @@ Changes made in a standalone app must flow into MyLife via direct component/rout
 | MySurf | surf | implemented | adapter | adapter |
 | MyWords | words | implemented | passthrough | adapter |
 | MyWorkouts | workouts | implemented | passthrough | adapter |
+
 | MyHabits | habits | implemented | passthrough | adapter |
 | MyMeds | meds | design_only | design_only | design_only |
 | MySubs | subs | design_only | design_only | design_only |

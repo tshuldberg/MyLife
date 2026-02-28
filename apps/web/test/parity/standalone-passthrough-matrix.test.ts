@@ -212,7 +212,7 @@ const standaloneMatrix: StandaloneParitySpec[] = [
     standalone: 'MyWorkouts',
     moduleId: 'workouts',
     moduleStatus: 'implemented',
-    webParityMode: 'adapter',
+    webParityMode: 'passthrough',
     mobileParityMode: 'adapter',
     standaloneWebRoots: ['MyWorkouts/apps/web/app'],
     standaloneMobileRoots: ['MyWorkouts/apps/mobile/app'],
@@ -367,6 +367,79 @@ const homesWrappers: Array<{ hub: string; expected: string; standalone: string }
     hub: 'apps/web/app/homes/sell/page.tsx',
     expected: "export { default } from '@myhomes-web/src/app/(app)/sell/page';",
     standalone: 'MyHomes/apps/web/src/app/(app)/sell/page.tsx',
+  },
+];
+
+const workoutsWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
+  {
+    hub: 'apps/web/app/workouts/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/page';",
+    standalone: 'MyWorkouts/apps/web/app/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/workouts/exercise/[id]/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/exercise/[id]/page';",
+    standalone: 'MyWorkouts/apps/web/app/exercise/[id]/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/workouts/explore/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/explore/page';",
+    standalone: 'MyWorkouts/apps/web/app/explore/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/workouts/plans/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/plans/page';",
+    standalone: 'MyWorkouts/apps/web/app/plans/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/workouts/plans/[id]/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/plans/[id]/page';",
+    standalone: 'MyWorkouts/apps/web/app/plans/[id]/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/workouts/plans/builder/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/plans/builder/page';",
+    standalone: 'MyWorkouts/apps/web/app/plans/builder/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/workouts/pricing/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/pricing/page';",
+    standalone: 'MyWorkouts/apps/web/app/pricing/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/workouts/profile/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/profile/page';",
+    standalone: 'MyWorkouts/apps/web/app/profile/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/workouts/progress/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/progress/page';",
+    standalone: 'MyWorkouts/apps/web/app/progress/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/workouts/recordings/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/recordings/page';",
+    standalone: 'MyWorkouts/apps/web/app/recordings/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/workouts/recordings/[id]/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/recordings/[id]/page';",
+    standalone: 'MyWorkouts/apps/web/app/recordings/[id]/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/workouts/workout/[id]/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/workout/[id]/page';",
+    standalone: 'MyWorkouts/apps/web/app/workout/[id]/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/workouts/workouts/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/workouts/page';",
+    standalone: 'MyWorkouts/apps/web/app/workouts/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/workouts/workouts/builder/page.tsx',
+    expected: "export { default } from '@myworkouts-web/app/workouts/builder/page';",
+    standalone: 'MyWorkouts/apps/web/app/workouts/builder/page.tsx',
   },
 ];
 
@@ -827,5 +900,47 @@ describe('car web passthrough enforcement', () => {
     expect(nextConfig).toContain('externalDir: true');
     expect(nextConfig).toContain("'@mycar/shared'");
     expect(nextConfig).toContain("'@mycar/ui'");
+  });
+});
+
+describe('workouts web passthrough enforcement', () => {
+  it('all workouts hub web routes are thin passthrough wrappers to standalone pages', () => {
+    const expectedFiles = workoutsWrappers.map((wrapper) => wrapper.hub).sort();
+    const actualFiles = listRouteTsx('apps/web/app/workouts');
+
+    expect(actualFiles).toEqual(expectedFiles);
+
+    for (const wrapper of workoutsWrappers) {
+      expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
+      expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
+    }
+  });
+
+  it('MyLife web host wiring supports standalone workouts passthrough', () => {
+    const tsconfig = readJson<TsConfigLike>('apps/web/tsconfig.json');
+    expect(tsconfig.compilerOptions?.paths?.['@myworkouts-web/*']).toContain(
+      '../../MyWorkouts/apps/web/*',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@myworkouts/shared']).toContain(
+      '../../MyWorkouts/packages/shared/src/index.ts',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@myworkouts/shared/*']).toContain(
+      '../../MyWorkouts/packages/shared/src/*',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@myworkouts/ui']).toContain(
+      '../../MyWorkouts/packages/ui/src/index.ts',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@myworkouts/ui/*']).toContain(
+      '../../MyWorkouts/packages/ui/src/*',
+    );
+
+    const nextConfig = read('apps/web/next.config.ts');
+    expect(nextConfig).toContain('externalDir: true');
+    expect(nextConfig).toContain("'@myworkouts/shared'");
+    expect(nextConfig).toContain("'@myworkouts/ui'");
+    expect(nextConfig).toContain("NEXT_PUBLIC_WORKOUTS_BASE_PATH");
+
+    const tailwindConfig = read('apps/web/tailwind.config.ts');
+    expect(tailwindConfig).toContain('../../MyWorkouts/apps/web/app/**/*.{ts,tsx}');
   });
 });
