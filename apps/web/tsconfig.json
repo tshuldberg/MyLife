@@ -62,6 +62,21 @@
       ],
       "@myrecipes/ui/*": [
         "../../MyRecipes/packages/ui/src/*"
+      ],
+      "@myfast-web/*": [
+        "../../MyFast/apps/web/*"
+      ],
+      "@myfast/shared": [
+        "../../MyFast/packages/shared/src/index.ts"
+      ],
+      "@myfast/shared/*": [
+        "../../MyFast/packages/shared/src/*"
+      ],
+      "@myfast/ui": [
+        "../../MyFast/packages/ui/src/index.ts"
+      ],
+      "@myfast/ui/*": [
+        "../../MyFast/packages/ui/src/*"
       ]
     }
   },

@@ -72,7 +72,7 @@ const standaloneMatrix: StandaloneParitySpec[] = [
     standalone: 'MyFast',
     moduleId: 'fast',
     moduleStatus: 'implemented',
-    webParityMode: 'adapter',
+    webParityMode: 'passthrough',
     mobileParityMode: 'adapter',
     standaloneWebRoots: ['MyFast/apps/web/app'],
     standaloneMobileRoots: ['MyFast/apps/mobile/app'],
@@ -321,6 +321,29 @@ const recipesWrappers: Array<{ hub: string; expected: string; standalone: string
     hub: 'apps/web/app/recipes/pantry/page.tsx',
     expected: "export { default } from '@myrecipes-web/app/pantry/page';",
     standalone: 'MyRecipes/apps/web/app/pantry/page.tsx',
+  },
+];
+
+const fastWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
+  {
+    hub: 'apps/web/app/fast/page.tsx',
+    expected: "export { default } from '@myfast-web/app/page';",
+    standalone: 'MyFast/apps/web/app/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/fast/history/page.tsx',
+    expected: "export { default } from '@myfast-web/app/history/page';",
+    standalone: 'MyFast/apps/web/app/history/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/fast/settings/page.tsx',
+    expected: "export { default } from '@myfast-web/app/settings/page';",
+    standalone: 'MyFast/apps/web/app/settings/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/fast/stats/page.tsx',
+    expected: "export { default } from '@myfast-web/app/stats/page';",
+    standalone: 'MyFast/apps/web/app/stats/page.tsx',
   },
 ];
 
@@ -631,5 +654,43 @@ describe('recipes web passthrough enforcement', () => {
     expect(nextConfig).toContain('externalDir: true');
     expect(nextConfig).toContain("'@myrecipes/shared'");
     expect(nextConfig).toContain("'@myrecipes/ui'");
+  });
+});
+
+describe('fast web passthrough enforcement', () => {
+  it('all fast hub web routes are thin passthrough wrappers to standalone pages', () => {
+    const expectedFiles = fastWrappers.map((wrapper) => wrapper.hub).sort();
+    const actualFiles = listRouteTsx('apps/web/app/fast');
+
+    expect(actualFiles).toEqual(expectedFiles);
+
+    for (const wrapper of fastWrappers) {
+      expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
+      expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
+    }
+  });
+
+  it('MyLife web host wiring supports standalone fast passthrough', () => {
+    const tsconfig = readJson<TsConfigLike>('apps/web/tsconfig.json');
+    expect(tsconfig.compilerOptions?.paths?.['@myfast-web/*']).toContain(
+      '../../MyFast/apps/web/*',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@myfast/shared']).toContain(
+      '../../MyFast/packages/shared/src/index.ts',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@myfast/shared/*']).toContain(
+      '../../MyFast/packages/shared/src/*',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@myfast/ui']).toContain(
+      '../../MyFast/packages/ui/src/index.ts',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@myfast/ui/*']).toContain(
+      '../../MyFast/packages/ui/src/*',
+    );
+
+    const nextConfig = read('apps/web/next.config.ts');
+    expect(nextConfig).toContain('externalDir: true');
+    expect(nextConfig).toContain("'@myfast/shared'");
+    expect(nextConfig).toContain("'@myfast/ui'");
   });
 });
