@@ -4,11 +4,18 @@ import { createModuleTestDatabase } from '@mylife/db';
 import { RECIPES_MODULE } from '../definition';
 import { createRecipe, addIngredient } from '../db/crud';
 import {
+  addEventGuest,
   createGardenPlant,
   createEvent,
   detectStepTimerMinutes,
+  getEventInviteBundle,
+  getGardenLayoutCells,
   generateMealPlanShoppingList,
+  getEventAllergyWarnings,
   getNextWateringDate,
+  respondToInviteToken,
+  setEventMenu,
+  upsertGardenLayout,
   upsertMealPlanItem,
 } from '../db/mygarden';
 
@@ -74,5 +81,43 @@ describe('@mylife/recipes mygarden features', () => {
     });
     expect(event.title).toBe('Garden Dinner');
   });
-});
 
+  it('persists garden layout and supports invite token RSVP', () => {
+    const layout = upsertGardenLayout(adapter, {
+      name: 'Bed 1',
+      gridWidth: 3,
+      gridHeight: 2,
+      cells: [{ x: 0, y: 0, plantId: 'p1', species: 'Tomato' }],
+    });
+    const cells = getGardenLayoutCells(adapter, layout.id);
+    expect(cells.length).toBe(1);
+    expect(cells[0].species).toBe('Tomato');
+
+    createRecipe(adapter, 'r-menu', { title: 'Peanut Slaw' });
+    addIngredient(adapter, 'i-menu', { recipe_id: 'r-menu', name: 'peanut', quantity: '1', unit: 'cup' });
+    const event = createEvent(adapter, {
+      id: 'e2',
+      title: 'Invite Night',
+      eventDate: '2026-08-21',
+      eventTime: '19:00',
+      capacity: 6,
+    });
+    setEventMenu(adapter, { eventId: event.id, recipeIds: ['r-menu'], servings: 6 });
+
+    const invite = getEventInviteBundle(adapter, event.invite_token ?? '');
+    expect(invite).not.toBeNull();
+    expect(invite?.menu.length).toBe(1);
+
+    const response = respondToInviteToken(adapter, {
+      inviteToken: event.invite_token ?? '',
+      guestName: 'Alex',
+      allergies: 'nut',
+      response: 'attending',
+    });
+    expect(response).not.toBeNull();
+
+    addEventGuest(adapter, { id: 'g-manual', eventId: event.id, name: 'Manual Guest', allergies: '' });
+    const warnings = getEventAllergyWarnings(adapter, event.id);
+    expect(warnings.some((warning) => warning.guest_name === 'Alex')).toBe(true);
+  });
+});

@@ -24,6 +24,58 @@ export interface AllergyWarning {
   ingredient: string;
 }
 
+export interface GardenLayoutCell {
+  x: number;
+  y: number;
+  plantId: string | null;
+  species: string | null;
+}
+
+export interface GardenLayout {
+  id: string;
+  name: string;
+  grid_width: number;
+  grid_height: number;
+  cells_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventGuestRow {
+  id: string;
+  event_id: string;
+  name: string;
+  contact: string | null;
+  dietary_preferences: string | null;
+  allergies: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface EventInviteBundle {
+  event: Event;
+  menu: Array<{
+    recipe_id: string;
+    recipe_title: string;
+    servings: number;
+    course: string;
+  }>;
+  timeline: Array<{
+    id: string;
+    event_id: string;
+    label: string;
+    starts_at: string;
+    sort_order: number;
+    created_at: string;
+    updated_at: string;
+  }>;
+  rsvpSummary: {
+    attending: number;
+    maybe: number;
+    declined: number;
+  };
+}
+
 function nowIso(): string {
   return new Date().toISOString();
 }
@@ -34,6 +86,72 @@ function normalizeWeekStartDate(date: string): string {
   const diffToMonday = (day + 6) % 7;
   dt.setUTCDate(dt.getUTCDate() - diffToMonday);
   return dt.toISOString().slice(0, 10);
+}
+
+function randomId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function clampGrid(value: number, fallback: number): number {
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+  return Math.max(2, Math.min(24, Math.floor(value)));
+}
+
+function sanitizeLayoutCells(cells: GardenLayoutCell[]): GardenLayoutCell[] {
+  const unique = new Map<string, GardenLayoutCell>();
+  for (const cell of cells) {
+    const x = Math.max(0, Math.floor(cell.x));
+    const y = Math.max(0, Math.floor(cell.y));
+    unique.set(`${x}:${y}`, {
+      x,
+      y,
+      plantId: cell.plantId ?? null,
+      species: cell.species ?? null,
+    });
+  }
+  return Array.from(unique.values());
+}
+
+function parseLayoutCells(cellsJson: string): GardenLayoutCell[] {
+  try {
+    const parsed = JSON.parse(cellsJson) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    const rows: GardenLayoutCell[] = [];
+    for (const entry of parsed) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+      const row = entry as Record<string, unknown>;
+      const x = typeof row.x === 'number' ? row.x : Number(row.x);
+      const y = typeof row.y === 'number' ? row.y : Number(row.y);
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        continue;
+      }
+      rows.push({
+        x,
+        y,
+        plantId: typeof row.plantId === 'string' ? row.plantId : null,
+        species: typeof row.species === 'string' ? row.species : null,
+      });
+    }
+    return sanitizeLayoutCells(rows);
+  } catch {
+    return [];
+  }
+}
+
+function getEventByInviteTokenInternal(db: DatabaseAdapter, inviteToken: string): Event | null {
+  const rows = db.query<Event>(
+    `SELECT id, title, event_date, event_time, location, description, capacity, invite_token, created_at, updated_at
+     FROM ev_events
+     WHERE invite_token = ?`,
+    [inviteToken],
+  );
+  return rows[0] ?? null;
 }
 
 function getOrCreateMealPlan(db: DatabaseAdapter, weekStartDateInput: string): MealPlan {
@@ -283,6 +401,86 @@ export function markPlantWatered(
   );
 }
 
+export function getGardenLayouts(db: DatabaseAdapter): GardenLayout[] {
+  return db.query<GardenLayout>(
+    `SELECT id, name, grid_width, grid_height, cells_json, created_at, updated_at
+     FROM gd_garden_layouts
+     ORDER BY updated_at DESC, created_at DESC`,
+  );
+}
+
+export function getGardenLayoutCells(
+  db: DatabaseAdapter,
+  layoutId: string,
+): GardenLayoutCell[] {
+  const rows = db.query<{ cells_json: string }>(
+    `SELECT cells_json FROM gd_garden_layouts WHERE id = ?`,
+    [layoutId],
+  );
+  if (rows.length === 0) {
+    return [];
+  }
+  return parseLayoutCells(rows[0].cells_json);
+}
+
+export function upsertGardenLayout(
+  db: DatabaseAdapter,
+  input: {
+    layoutId?: string;
+    name: string;
+    gridWidth: number;
+    gridHeight: number;
+    cells: GardenLayoutCell[];
+  },
+): GardenLayout {
+  const now = nowIso();
+  const id = input.layoutId ?? randomId('layout');
+  const name = input.name.trim() || 'Garden Layout';
+  const gridWidth = clampGrid(input.gridWidth, 8);
+  const gridHeight = clampGrid(input.gridHeight, 8);
+  const cellsJson = JSON.stringify(sanitizeLayoutCells(input.cells));
+
+  const existing = db.query<GardenLayout>(
+    `SELECT id, name, grid_width, grid_height, cells_json, created_at, updated_at
+     FROM gd_garden_layouts
+     WHERE id = ?`,
+    [id],
+  );
+
+  if (existing.length > 0) {
+    db.execute(
+      `UPDATE gd_garden_layouts
+       SET name = ?, grid_width = ?, grid_height = ?, cells_json = ?, updated_at = ?
+       WHERE id = ?`,
+      [name, gridWidth, gridHeight, cellsJson, now, id],
+    );
+    return {
+      ...existing[0],
+      name,
+      grid_width: gridWidth,
+      grid_height: gridHeight,
+      cells_json: cellsJson,
+      updated_at: now,
+    };
+  }
+
+  db.execute(
+    `INSERT INTO gd_garden_layouts
+      (id, name, grid_width, grid_height, cells_json, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [id, name, gridWidth, gridHeight, cellsJson, now, now],
+  );
+  return {
+    id,
+    name,
+    grid_width: gridWidth,
+    grid_height: gridHeight,
+    cells_json: cellsJson,
+    created_at: now,
+    updated_at: now,
+  };
+}
+
 export function getRecipesForHarvest(
   db: DatabaseAdapter,
   harvestItem: string,
@@ -346,6 +544,13 @@ export function createEvent(
   };
 }
 
+export function getEventByInviteToken(
+  db: DatabaseAdapter,
+  inviteToken: string,
+): Event | null {
+  return getEventByInviteTokenInternal(db, inviteToken);
+}
+
 export function addEventGuest(
   db: DatabaseAdapter,
   input: {
@@ -380,6 +585,99 @@ export function respondToInvite(
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [input.id, input.eventId, input.guestId, input.response, input.note ?? null, now, now, now],
   );
+}
+
+export function respondToInviteToken(
+  db: DatabaseAdapter,
+  input: {
+    inviteToken: string;
+    guestName: string;
+    response: EventResponse;
+    note?: string;
+    contact?: string;
+    dietaryPreferences?: string;
+    allergies?: string;
+  },
+): { event: Event; guest: EventGuestRow } | null {
+  const event = getEventByInviteTokenInternal(db, input.inviteToken);
+  if (!event) {
+    return null;
+  }
+
+  const normalizedName = input.guestName.trim().toLowerCase();
+  if (!normalizedName) {
+    return null;
+  }
+
+  const existingGuests = db.query<EventGuestRow>(
+    `SELECT id, event_id, name, contact, dietary_preferences, allergies, created_at, updated_at
+     FROM ev_guests
+     WHERE event_id = ? AND lower(name) = ?
+     LIMIT 1`,
+    [event.id, normalizedName],
+  );
+
+  const now = nowIso();
+  let guest: EventGuestRow;
+  if (existingGuests.length > 0) {
+    guest = existingGuests[0];
+    const contact = input.contact?.trim() || guest.contact;
+    const dietaryPreferences = input.dietaryPreferences?.trim() || guest.dietary_preferences;
+    const allergies = input.allergies?.trim() || guest.allergies;
+    db.execute(
+      `UPDATE ev_guests
+       SET contact = ?, dietary_preferences = ?, allergies = ?, updated_at = ?
+       WHERE id = ?`,
+      [contact ?? null, dietaryPreferences ?? null, allergies ?? null, now, guest.id],
+    );
+    guest = {
+      ...guest,
+      contact: contact ?? null,
+      dietary_preferences: dietaryPreferences ?? null,
+      allergies: allergies ?? null,
+      updated_at: now,
+    };
+  } else {
+    const guestId = randomId('guest');
+    db.execute(
+      `INSERT INTO ev_guests (id, event_id, name, contact, dietary_preferences, allergies, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        guestId,
+        event.id,
+        input.guestName.trim(),
+        input.contact?.trim() || null,
+        input.dietaryPreferences?.trim() || null,
+        input.allergies?.trim() || null,
+        now,
+        now,
+      ],
+    );
+    guest = {
+      id: guestId,
+      event_id: event.id,
+      name: input.guestName.trim(),
+      contact: input.contact?.trim() || null,
+      dietary_preferences: input.dietaryPreferences?.trim() || null,
+      allergies: input.allergies?.trim() || null,
+      created_at: now,
+      updated_at: now,
+    };
+  }
+
+  const existingRsvps = db.query<{ id: string }>(
+    `SELECT id FROM ev_rsvps WHERE event_id = ? AND guest_id = ? LIMIT 1`,
+    [event.id, guest.id],
+  );
+  const rsvpId = existingRsvps[0]?.id ?? randomId('rsvp');
+  db.execute(
+    `INSERT OR REPLACE INTO ev_rsvps
+      (id, event_id, guest_id, response, note, responded_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [rsvpId, event.id, guest.id, input.response, input.note?.trim() || null, now, now, now],
+  );
+
+  return { event, guest };
 }
 
 export function setEventMenu(
@@ -453,4 +751,63 @@ export function getEventAllergyWarnings(
   }
 
   return warnings;
+}
+
+export function getEventInviteBundle(
+  db: DatabaseAdapter,
+  inviteToken: string,
+): EventInviteBundle | null {
+  const event = getEventByInviteTokenInternal(db, inviteToken);
+  if (!event) {
+    return null;
+  }
+
+  const menu = db.query<{
+    recipe_id: string;
+    recipe_title: string;
+    servings: number;
+    course: string;
+  }>(
+    `SELECT m.recipe_id, r.title AS recipe_title, m.servings, m.course
+     FROM ev_menu_items m
+     JOIN rc_recipes r ON r.id = m.recipe_id
+     WHERE m.event_id = ?
+     ORDER BY m.created_at ASC`,
+    [event.id],
+  );
+
+  const timeline = db.query<{
+    id: string;
+    event_id: string;
+    label: string;
+    starts_at: string;
+    sort_order: number;
+    created_at: string;
+    updated_at: string;
+  }>(
+    `SELECT id, event_id, label, starts_at, sort_order, created_at, updated_at
+     FROM ev_event_timeline
+     WHERE event_id = ?
+     ORDER BY sort_order ASC, starts_at ASC`,
+    [event.id],
+  );
+
+  const summary = { attending: 0, maybe: 0, declined: 0 };
+  const summaryRows = db.query<{ response: EventResponse; total: number }>(
+    `SELECT response, COUNT(*) AS total
+     FROM ev_rsvps
+     WHERE event_id = ?
+     GROUP BY response`,
+    [event.id],
+  );
+  for (const row of summaryRows) {
+    summary[row.response] = row.total;
+  }
+
+  return {
+    event,
+    menu,
+    timeline,
+    rsvpSummary: summary,
+  };
 }
