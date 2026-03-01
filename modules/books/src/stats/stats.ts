@@ -1,5 +1,71 @@
-import type { Book, ReadingSession, Review, ReadingGoal } from '../models/schemas';
+import type { Book, ReadingSession, Review } from '../models/schemas';
 import type { ReadingStats } from './types';
+
+type BookSummary = {
+  title: string;
+  pages: number;
+};
+
+type ReadDuration = {
+  title: string;
+  days: number;
+};
+
+type AuthorSummary = {
+  author: string;
+  count: number;
+};
+
+type BookMeta = {
+  title: string;
+  pageCount: number | null;
+  authors: string[];
+};
+
+function buildBookMetaMap(books: Book[]): Map<string, BookMeta> {
+  const map = new Map<string, BookMeta>();
+  for (const book of books) {
+    map.set(book.id, {
+      title: book.title,
+      pageCount: book.page_count ?? null,
+      authors: parseAuthors(book.authors),
+    });
+  }
+  return map;
+}
+
+function parseAuthors(value: string): string[] {
+  const parsed = safeParseJSON(value);
+  if (Array.isArray(parsed)) {
+    return parsed.filter((author): author is string => typeof author === 'string');
+  }
+  if (typeof parsed === 'string' && parsed.length > 0) {
+    return [parsed];
+  }
+  return [];
+}
+
+function topAuthorsFromCounts(counts: Record<string, number>, limit: number): AuthorSummary[] {
+  const top: AuthorSummary[] = [];
+  for (const [author, count] of Object.entries(counts)) {
+    const candidate = { author, count };
+    let inserted = false;
+    for (let index = 0; index < top.length; index += 1) {
+      if (count > top[index].count) {
+        top.splice(index, 0, candidate);
+        inserted = true;
+        break;
+      }
+    }
+    if (!inserted && top.length < limit) {
+      top.push(candidate);
+    }
+    if (inserted && top.length > limit) {
+      top.pop();
+    }
+  }
+  return top;
+}
 
 /**
  * Calculate aggregate reading statistics from sessions, reviews, and books.
@@ -10,8 +76,7 @@ export function calculateReadingStats(
   reviews: Review[],
   books: Book[],
 ): ReadingStats {
-  const bookMap = new Map(books.map((b) => [b.id, b]));
-  const reviewMap = new Map(reviews.map((r) => [r.book_id, r]));
+  const bookMap = buildBookMetaMap(books);
 
   const finishedSessions = sessions.filter((s) => s.status === 'finished');
 
@@ -19,8 +84,13 @@ export function calculateReadingStats(
   const booksPerMonth: Record<string, number> = {};
   const pagesPerMonth: Record<string, number> = {};
   let totalPages = 0;
-  const readDurations: Array<{ title: string; days: number }> = [];
-  const booksByPages: Array<{ title: string; pages: number }> = [];
+  let totalDurationDays = 0;
+  let durationCount = 0;
+  let fastestRead: ReadDuration | null = null;
+  let slowestRead: ReadDuration | null = null;
+  let longestBook: BookSummary | null = null;
+  let shortestBook: BookSummary | null = null;
+  const authorCounts: Record<string, number> = {};
 
   for (const session of finishedSessions) {
     const book = bookMap.get(session.book_id);
@@ -30,15 +100,20 @@ export function calculateReadingStats(
     if (session.finished_at) {
       const month = session.finished_at.substring(0, 7); // "YYYY-MM"
       booksPerMonth[month] = (booksPerMonth[month] ?? 0) + 1;
-      if (book.page_count) {
-        pagesPerMonth[month] = (pagesPerMonth[month] ?? 0) + book.page_count;
+      if (book.pageCount) {
+        pagesPerMonth[month] = (pagesPerMonth[month] ?? 0) + book.pageCount;
       }
     }
 
     // Total pages
-    if (book.page_count) {
-      totalPages += book.page_count;
-      booksByPages.push({ title: book.title, pages: book.page_count });
+    if (book.pageCount) {
+      totalPages += book.pageCount;
+      if (!longestBook || book.pageCount > longestBook.pages) {
+        longestBook = { title: book.title, pages: book.pageCount };
+      }
+      if (!shortestBook || book.pageCount <= shortestBook.pages) {
+        shortestBook = { title: book.title, pages: book.pageCount };
+      }
     }
 
     // Reading duration
@@ -46,7 +121,19 @@ export function calculateReadingStats(
       const start = new Date(session.started_at);
       const end = new Date(session.finished_at);
       const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-      readDurations.push({ title: book.title, days });
+      totalDurationDays += days;
+      durationCount += 1;
+      if (!fastestRead || days < fastestRead.days) {
+        fastestRead = { title: book.title, days };
+      }
+      if (!slowestRead || days >= slowestRead.days) {
+        slowestRead = { title: book.title, days };
+      }
+    }
+
+    // Author stats
+    for (const author of book.authors) {
+      authorCounts[author] = (authorCounts[author] ?? 0) + 1;
     }
   }
 
@@ -54,35 +141,15 @@ export function calculateReadingStats(
   const ratings: number[] = [];
   const ratingDistribution: Record<number, number> = {};
   for (const review of reviews) {
-    if (review.rating !== null) {
-      ratings.push(review.rating);
-      ratingDistribution[review.rating] = (ratingDistribution[review.rating] ?? 0) + 1;
-    }
+    if (review.rating === null) continue;
+    ratings.push(review.rating);
+    ratingDistribution[review.rating] = (ratingDistribution[review.rating] ?? 0) + 1;
   }
   const averageRating = ratings.length > 0
     ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 100) / 100
     : null;
 
-  // Author stats
-  const authorCounts: Record<string, number> = {};
-  for (const session of finishedSessions) {
-    const book = bookMap.get(session.book_id);
-    if (!book) continue;
-    const authors = safeParseJSON(book.authors);
-    if (Array.isArray(authors)) {
-      for (const author of authors) {
-        authorCounts[author] = (authorCounts[author] ?? 0) + 1;
-      }
-    }
-  }
-  const topAuthors = Object.entries(authorCounts)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 10)
-    .map(([author, count]) => ({ author, count }));
-
-  // Sort durations and pages
-  readDurations.sort((a, b) => a.days - b.days);
-  booksByPages.sort((a, b) => b.pages - a.pages);
+  const topAuthors = topAuthorsFromCounts(authorCounts, 10);
 
   const totalBooks = finishedSessions.length;
 
@@ -94,14 +161,14 @@ export function calculateReadingStats(
     averageRating,
     ratingDistribution,
     averagePagesPerBook: totalBooks > 0 ? Math.round(totalPages / totalBooks) : null,
-    averageDaysPerBook: readDurations.length > 0
-      ? Math.round(readDurations.reduce((sum, d) => sum + d.days, 0) / readDurations.length)
+    averageDaysPerBook: durationCount > 0
+      ? Math.round(totalDurationDays / durationCount)
       : null,
     topAuthors,
-    fastestRead: readDurations[0] ?? null,
-    slowestRead: readDurations.length > 0 ? readDurations[readDurations.length - 1] : null,
-    longestBook: booksByPages[0] ?? null,
-    shortestBook: booksByPages.length > 0 ? booksByPages[booksByPages.length - 1] : null,
+    fastestRead,
+    slowestRead,
+    longestBook,
+    shortestBook,
   };
 }
 
