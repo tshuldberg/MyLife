@@ -225,6 +225,21 @@ const habitsWrappers: Array<{ hub: string; expected: string; standalone: string 
     expected: "export { default } from '@myhabits-web/app/habits/page';",
     standalone: 'MyHabits/apps/web/app/habits/page.tsx',
   },
+  {
+    hub: 'apps/web/app/habits/stats/page.tsx',
+    expected: "export { default } from '@myhabits-web/app/habits/stats/page';",
+    standalone: 'MyHabits/apps/web/app/habits/stats/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/habits/cycle/page.tsx',
+    expected: "export { default } from '@myhabits-web/app/habits/cycle/page';",
+    standalone: 'MyHabits/apps/web/app/habits/cycle/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/habits/[id]/page.tsx',
+    expected: "export { default } from '@myhabits-web/app/habits/[id]/page';",
+    standalone: 'MyHabits/apps/web/app/habits/[id]/page.tsx',
+  },
 ];
 
 const booksWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
@@ -416,6 +431,11 @@ const recipesWrappers: Array<{ hub: string; expected: string; standalone: string
     hub: 'apps/web/app/recipes/events/page.tsx',
     expected: "export { default } from '@myrecipes-web/app/events/page';",
     standalone: 'MyRecipes/apps/web/app/events/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/recipes/events/invite/[token]/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/events/invite/[token]/page';",
+    standalone: 'MyRecipes/apps/web/app/events/invite/[token]/page.tsx',
   },
   {
     hub: 'apps/web/app/recipes/pantry/page.tsx',

@@ -21,6 +21,30 @@ export default function HabitsLayout() {
           headerLeft: () => <BackToHubButton />,
         }}
       />
+      <Stack.Screen
+        name="habits"
+        options={{ title: 'All Habits' }}
+      />
+      <Stack.Screen
+        name="add-habit"
+        options={{ title: 'New Habit', presentation: 'modal' }}
+      />
+      <Stack.Screen
+        name="[id]"
+        options={{ title: 'Habit Detail' }}
+      />
+      <Stack.Screen
+        name="stats"
+        options={{ title: 'Statistics' }}
+      />
+      <Stack.Screen
+        name="cycle"
+        options={{ title: 'MyCycle' }}
+      />
+      <Stack.Screen
+        name="settings"
+        options={{ title: 'Settings' }}
+      />
     </Stack>
   );
 }
