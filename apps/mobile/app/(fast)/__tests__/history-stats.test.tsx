@@ -11,6 +11,18 @@ const adherenceRateMock = vi.fn();
 const averageDurationMock = vi.fn();
 const durationTrendMock = vi.fn();
 const weeklyRollupMock = vi.fn();
+const getMonthlySummaryMock = vi.fn();
+const getAnnualSummaryMock = vi.fn();
+const formatSummaryShareTextMock = vi.fn();
+
+vi.mock('react-native-view-shot', () => ({
+  captureRef: vi.fn(),
+}));
+
+vi.mock('expo-sharing', () => ({
+  isAvailableAsync: vi.fn(async () => false),
+  shareAsync: vi.fn(),
+}));
 
 vi.mock('@mylife/fast', () => ({
   listFasts: (...args: unknown[]) => listFastsMock(...args),
@@ -19,6 +31,9 @@ vi.mock('@mylife/fast', () => ({
   averageDuration: (...args: unknown[]) => averageDurationMock(...args),
   durationTrend: (...args: unknown[]) => durationTrendMock(...args),
   weeklyRollup: (...args: unknown[]) => weeklyRollupMock(...args),
+  getMonthlySummary: (...args: unknown[]) => getMonthlySummaryMock(...args),
+  getAnnualSummary: (...args: unknown[]) => getAnnualSummaryMock(...args),
+  formatSummaryShareText: (...args: unknown[]) => formatSummaryShareTextMock(...args),
 }));
 
 vi.mock('../../../components/DatabaseProvider', () => ({
@@ -51,6 +66,23 @@ describe('Fast history and stats screens (mobile)', () => {
       { date: '2026-02-20', durationHours: 16, movingAverage: 15.5 },
       { date: '2026-02-21', durationHours: 18, movingAverage: 16.0 },
     ]);
+    getMonthlySummaryMock.mockReturnValue({
+      totalFasts: 18,
+      totalHours: 288,
+      averageDurationHours: 16,
+      longestFastHours: 24,
+      currentStreak: 4,
+      adherenceRate: 82.5,
+    });
+    getAnnualSummaryMock.mockReturnValue({
+      totalFasts: 140,
+      totalHours: 2240,
+      averageDurationHours: 16,
+      longestFastHours: 36,
+      currentStreak: 4,
+      adherenceRate: 80.1,
+    });
+    formatSummaryShareTextMock.mockReturnValue('summary');
   });
 
   it('renders grouped fast history with summary and empty state handling', () => {
@@ -67,7 +99,7 @@ describe('Fast history and stats screens (mobile)', () => {
 
     expect(screen.getByText('Avg Duration')).toBeInTheDocument();
     expect(screen.getByText('12.0h')).toBeInTheDocument();
-    expect(screen.getByText('82.5%')).toBeInTheDocument();
+    expect(screen.getAllByText('82.5%').length).toBeGreaterThan(0);
     expect(screen.getByText('Last 7 Days')).toBeInTheDocument();
     expect(screen.getByText('14-Day Trend')).toBeInTheDocument();
   });

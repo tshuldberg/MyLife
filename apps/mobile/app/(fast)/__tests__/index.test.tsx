@@ -12,6 +12,13 @@ const getStreaksMock = vi.fn();
 const refreshStreakCacheMock = vi.fn();
 const startFastMock = vi.fn();
 const endFastMock = vi.fn();
+const getCurrentFastingZoneMock = vi.fn();
+const getCurrentZoneProgressMock = vi.fn();
+const getWaterIntakeMock = vi.fn();
+const incrementWaterIntakeMock = vi.fn();
+const listGoalsMock = vi.fn();
+const getGoalProgressMock = vi.fn();
+const refreshGoalProgressMock = vi.fn();
 
 vi.mock('@mylife/fast', () => ({
   computeTimerState: (...args: unknown[]) => computeTimerStateMock(...args),
@@ -22,6 +29,13 @@ vi.mock('@mylife/fast', () => ({
   refreshStreakCache: (...args: unknown[]) => refreshStreakCacheMock(...args),
   startFast: (...args: unknown[]) => startFastMock(...args),
   endFast: (...args: unknown[]) => endFastMock(...args),
+  getCurrentFastingZone: (...args: unknown[]) => getCurrentFastingZoneMock(...args),
+  getCurrentZoneProgress: (...args: unknown[]) => getCurrentZoneProgressMock(...args),
+  getWaterIntake: (...args: unknown[]) => getWaterIntakeMock(...args),
+  incrementWaterIntake: (...args: unknown[]) => incrementWaterIntakeMock(...args),
+  listGoals: (...args: unknown[]) => listGoalsMock(...args),
+  getGoalProgress: (...args: unknown[]) => getGoalProgressMock(...args),
+  refreshGoalProgress: (...args: unknown[]) => refreshGoalProgressMock(...args),
 }));
 
 vi.mock('../../../components/DatabaseProvider', () => ({
@@ -60,6 +74,28 @@ describe('FastTimerScreen (mobile)', () => {
       progress: 0,
       targetReached: false,
     });
+    getCurrentFastingZoneMock.mockReturnValue({
+      name: 'Fat Burn',
+      title: 'Fat Burn Zone',
+      description: 'Primary fat oxidation window.',
+    });
+    getCurrentZoneProgressMock.mockReturnValue(0.4);
+    getWaterIntakeMock.mockReturnValue({
+      date: '2026-03-01',
+      count: 2,
+      target: 8,
+      completed: false,
+      updatedAt: '2026-03-01T10:00:00.000Z',
+    });
+    incrementWaterIntakeMock.mockReturnValue({
+      date: '2026-03-01',
+      count: 3,
+      target: 8,
+      completed: false,
+      updatedAt: '2026-03-01T10:05:00.000Z',
+    });
+    listGoalsMock.mockReturnValue([]);
+    getGoalProgressMock.mockReturnValue(null);
   });
 
   it('starts a fast with selected protocol', () => {

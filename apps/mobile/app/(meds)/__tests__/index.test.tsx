@@ -5,23 +5,21 @@ import MedsScreen from '../index';
 const mockDb = { id: 'mock-db' };
 
 const countMedicationsMock = vi.fn();
-const createMedicationMock = vi.fn();
-const deleteDoseMock = vi.fn();
-const deleteMedicationMock = vi.fn();
-const getAdherenceRateMock = vi.fn();
-const getDosesForDateMock = vi.fn();
-const getMedicationsMock = vi.fn();
-const recordDoseMock = vi.fn();
+const getActiveMedicationsMock = vi.fn();
+const getDoseLogsForDateMock = vi.fn();
+const logDoseMock = vi.fn();
+const undoDoseLogMock = vi.fn();
+const getLowSupplyAlertsMock = vi.fn();
+const getAdherenceRateV2Mock = vi.fn();
 
 vi.mock('@mylife/meds', () => ({
   countMedications: (...args: unknown[]) => countMedicationsMock(...args),
-  createMedication: (...args: unknown[]) => createMedicationMock(...args),
-  deleteDose: (...args: unknown[]) => deleteDoseMock(...args),
-  deleteMedication: (...args: unknown[]) => deleteMedicationMock(...args),
-  getAdherenceRate: (...args: unknown[]) => getAdherenceRateMock(...args),
-  getDosesForDate: (...args: unknown[]) => getDosesForDateMock(...args),
-  getMedications: (...args: unknown[]) => getMedicationsMock(...args),
-  recordDose: (...args: unknown[]) => recordDoseMock(...args),
+  getActiveMedications: (...args: unknown[]) => getActiveMedicationsMock(...args),
+  getDoseLogsForDate: (...args: unknown[]) => getDoseLogsForDateMock(...args),
+  logDose: (...args: unknown[]) => logDoseMock(...args),
+  undoDoseLog: (...args: unknown[]) => undoDoseLogMock(...args),
+  getLowSupplyAlerts: (...args: unknown[]) => getLowSupplyAlertsMock(...args),
+  getAdherenceRateV2: (...args: unknown[]) => getAdherenceRateV2Mock(...args),
 }));
 
 vi.mock('../../../components/DatabaseProvider', () => ({
@@ -37,77 +35,63 @@ describe('MedsScreen (mobile)', () => {
     vi.clearAllMocks();
 
     countMedicationsMock.mockReturnValue(1);
-    getMedicationsMock.mockReturnValue([
+    getActiveMedicationsMock.mockReturnValue([
       {
         id: 'med-1',
         name: 'Ibuprofen',
         dosage: '200mg',
         frequency: 'daily',
+        supplyPills: 12,
+        lowSupplyThreshold: 5,
       },
     ]);
-    getAdherenceRateMock.mockReturnValue(88);
+    getLowSupplyAlertsMock.mockReturnValue([]);
+    getAdherenceRateV2Mock.mockReturnValue(88);
   });
 
-  it('creates medication and records take/skip actions', () => {
-    getDosesForDateMock.mockReturnValue([]);
+  it('records take and skip actions for today', () => {
+    getDoseLogsForDateMock.mockReturnValue([]);
 
     render(<MedsScreen />);
-
-    fireEvent.change(screen.getByPlaceholderText('Medication name'), {
-      target: { value: 'Vitamin D' },
-    });
-    fireEvent.change(screen.getByPlaceholderText('Dosage (e.g. 10mg)'), {
-      target: { value: '500 IU' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'weekly' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Create' }));
-
-    expect(createMedicationMock).toHaveBeenCalledWith(
-      mockDb,
-      'uuid-123',
-      expect.objectContaining({
-        name: 'Vitamin D',
-        dosage: '500 IU',
-        frequency: 'weekly',
-      }),
-    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Take' }));
     fireEvent.click(screen.getByRole('button', { name: 'Skip' }));
 
-    expect(recordDoseMock).toHaveBeenCalledWith(
+    expect(logDoseMock).toHaveBeenNthCalledWith(
+      1,
       mockDb,
       'uuid-123',
-      'med-1',
-      expect.any(String),
-      false,
+      expect.objectContaining({
+        medicationId: 'med-1',
+        status: 'taken',
+      }),
     );
-    expect(recordDoseMock).toHaveBeenCalledWith(
+    expect(logDoseMock).toHaveBeenNthCalledWith(
+      2,
       mockDb,
       'uuid-123',
-      'med-1',
-      expect.any(String),
-      true,
+      expect.objectContaining({
+        medicationId: 'med-1',
+        status: 'skipped',
+      }),
     );
-
-    fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
-    expect(deleteMedicationMock).toHaveBeenCalledWith(mockDb, 'med-1');
   });
 
-  it('deletes a logged dose from the daily chips', () => {
-    getDosesForDateMock.mockReturnValue([
+  it('undoes an existing skipped dose from today', () => {
+    getDoseLogsForDateMock.mockReturnValue([
       {
         id: 'dose-1',
         medicationId: 'med-1',
-        takenAt: '2026-01-01T10:00:00.000Z',
-        skipped: true,
+        scheduledTime: '2026-01-01T10:00:00.000Z',
+        actualTime: null,
+        status: 'skipped',
       },
     ]);
 
     render(<MedsScreen />);
 
-    fireEvent.click(screen.getByRole('button', { name: /Skipped/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }));
 
-    expect(deleteDoseMock).toHaveBeenCalledWith(mockDb, 'dose-1');
+    expect(undoDoseLogMock).toHaveBeenCalledWith(mockDb, 'dose-1');
   });
 });
