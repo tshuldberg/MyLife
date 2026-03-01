@@ -180,7 +180,7 @@ const standaloneMatrix: StandaloneParitySpec[] = [
     standalone: 'MySurf',
     moduleId: 'surf',
     moduleStatus: 'implemented',
-    webParityMode: 'adapter',
+    webParityMode: 'passthrough',
     mobileParityMode: 'adapter',
     standaloneWebRoots: ['MySurf/apps/web/app'],
     standaloneMobileRoots: ['MySurf/apps/mobile/app'],
@@ -270,6 +270,81 @@ const budgetWrappers: Array<{ hub: string; expected: string; standalone: string 
     hub: 'apps/web/app/budget/page.tsx',
     expected: "export { default } from '@mybudget-web/app/page';",
     standalone: 'MyBudget/apps/web/app/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/budget/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/budget/page';",
+    standalone: 'MyBudget/apps/web/app/budget/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/transactions/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/transactions/page';",
+    standalone: 'MyBudget/apps/web/app/transactions/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/transactions/import/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/transactions/import/page';",
+    standalone: 'MyBudget/apps/web/app/transactions/import/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/subscriptions/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/subscriptions/page';",
+    standalone: 'MyBudget/apps/web/app/subscriptions/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/subscriptions/add/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/subscriptions/add/page';",
+    standalone: 'MyBudget/apps/web/app/subscriptions/add/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/subscriptions/calendar/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/subscriptions/calendar/page';",
+    standalone: 'MyBudget/apps/web/app/subscriptions/calendar/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/subscriptions/[subscriptionId]/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/subscriptions/[subscriptionId]/page';",
+    standalone: 'MyBudget/apps/web/app/subscriptions/[subscriptionId]/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/accounts/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/accounts/page';",
+    standalone: 'MyBudget/apps/web/app/accounts/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/accounts/connect/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/accounts/connect/page';",
+    standalone: 'MyBudget/apps/web/app/accounts/connect/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/reports/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/reports/page';",
+    standalone: 'MyBudget/apps/web/app/reports/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/reports/spending/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/reports/spending/page';",
+    standalone: 'MyBudget/apps/web/app/reports/spending/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/reports/spending/[categoryId]/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/reports/spending/[categoryId]/page';",
+    standalone: 'MyBudget/apps/web/app/reports/spending/[categoryId]/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/reports/income-vs-expense/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/reports/income-vs-expense/page';",
+    standalone: 'MyBudget/apps/web/app/reports/income-vs-expense/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/reports/net-worth/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/reports/net-worth/page';",
+    standalone: 'MyBudget/apps/web/app/reports/net-worth/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/budget/settings/page.tsx',
+    expected: "export { default } from '@mybudget-web/app/settings/page';",
+    standalone: 'MyBudget/apps/web/app/settings/page.tsx',
   },
 ];
 
@@ -367,6 +442,39 @@ const homesWrappers: Array<{ hub: string; expected: string; standalone: string }
     hub: 'apps/web/app/homes/sell/page.tsx',
     expected: "export { default } from '@myhomes-web/src/app/(app)/sell/page';",
     standalone: 'MyHomes/apps/web/src/app/(app)/sell/page.tsx',
+  },
+];
+
+const surfWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
+  {
+    hub: 'apps/web/app/surf/page.tsx',
+    expected: "export { default } from '@mysurf-web/app/page';",
+    standalone: 'MySurf/apps/web/app/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/surf/map/page.tsx',
+    expected: "export { default } from '@mysurf-web/app/map/page';",
+    standalone: 'MySurf/apps/web/app/map/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/surf/favorites/page.tsx',
+    expected: "export { default } from '@mysurf-web/app/favorites/page';",
+    standalone: 'MySurf/apps/web/app/favorites/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/surf/sessions/page.tsx',
+    expected: "export { default } from '@mysurf-web/app/sessions/page';",
+    standalone: 'MySurf/apps/web/app/sessions/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/surf/account/page.tsx',
+    expected: "export { default } from '@mysurf-web/app/account/page';",
+    standalone: 'MySurf/apps/web/app/account/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/surf/spot/[slug]/page.tsx',
+    expected: "export { default } from '@mysurf-web/app/spot/[slug]/page';",
+    standalone: 'MySurf/apps/web/app/spot/[slug]/page.tsx',
   },
 ];
 
@@ -942,5 +1050,47 @@ describe('workouts web passthrough enforcement', () => {
 
     const tailwindConfig = read('apps/web/tailwind.config.ts');
     expect(tailwindConfig).toContain('../../MyWorkouts/apps/web/app/**/*.{ts,tsx}');
+  });
+});
+
+describe('surf web passthrough enforcement', () => {
+  it('all surf hub web routes are thin passthrough wrappers to standalone pages', () => {
+    const expectedFiles = surfWrappers.map((wrapper) => wrapper.hub).sort();
+    const actualFiles = listRouteTsx('apps/web/app/surf');
+
+    expect(actualFiles).toEqual(expectedFiles);
+
+    for (const wrapper of surfWrappers) {
+      expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
+      expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
+    }
+  });
+
+  it('MyLife web host wiring supports standalone surf passthrough', () => {
+    const tsconfig = readJson<TsConfigLike>('apps/web/tsconfig.json');
+    expect(tsconfig.compilerOptions?.paths?.['@mysurf-web/*']).toContain(
+      '../../MySurf/apps/web/*',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@mysurf/shared']).toContain(
+      '../../MySurf/packages/shared/src/index.ts',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@mysurf/shared/*']).toContain(
+      '../../MySurf/packages/shared/src/*',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@mysurf/ui']).toContain(
+      '../../MySurf/packages/ui/src/index.ts',
+    );
+    expect(tsconfig.compilerOptions?.paths?.['@mysurf/ui/*']).toContain(
+      '../../MySurf/packages/ui/src/*',
+    );
+
+    const nextConfig = read('apps/web/next.config.ts');
+    expect(nextConfig).toContain('externalDir: true');
+    expect(nextConfig).toContain("'@mysurf/shared'");
+    expect(nextConfig).toContain("'@mysurf/ui'");
+
+    const tailwindConfig = read('apps/web/tailwind.config.ts');
+    expect(tailwindConfig).toContain('../../MySurf/apps/web/app/**/*.{ts,tsx}');
+    expect(tailwindConfig).toContain('../../MySurf/apps/web/components/**/*.{ts,tsx}');
   });
 });
