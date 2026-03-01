@@ -1,5 +1,19 @@
 # Timeline
 
+## 2026-02-28
+
+- Built MyMeds module from scaffold to feature-complete across all 3 feature sets defined in `docs/feature-prompts/Done/mymeds-features.md`.
+- **Schema and models:** Extended from 3 tables to 11 (md_medications, md_doses, md_dose_logs, md_reminders, md_refills, md_interactions, md_measurements, md_mood_entries, md_mood_activities, md_symptoms, md_symptom_logs). Added MEDS_MIGRATION_V2 with ALTER TABLE extensions, 9 new tables, indexes, and 50 seeded drug interactions. Created 9 Zod model files.
+- **Feature Set 1 (Medication Management):** Extended medication CRUD with pill count, pills per dose, time slots, end date. Refill tracking with burn rate calculation, days remaining, low supply alerts. Reminder scheduler parsing frequency into individual reminders. Dose logging (taken/skipped/late/snoozed). Adherence engine with rate calculation, streak tracking, per-day status, calendar heatmap.
+- **Feature Set 2 (Drug Safety and Health Measurements):** Bundled drug interaction database with 200+ interaction pairs (50 seeded in migration + 150 additional). Case-insensitive interaction checker with severity warnings. Health measurement CRUD (blood pressure, blood sugar, weight, temperature, heart rate, custom). Trend analysis with medication start/stop date markers.
+- **Feature Set 3 (Mood and Symptom Tracking):** How We Feel Mood Meter vocabulary (144 descriptors in 4 quadrants by energy/pleasantness). Mood check-in with activity tagging and intensity. Symptom logging with predefined + custom symptoms. Year-in-pixels mood calendar, monthly view, daily detail. Correlation engine: mood-medication before/after comparison, adherence-mood Pearson correlation, symptom frequency changes. Doctor and therapy markdown report generation.
+- **Mobile UI (8 screens):** Converted from single Stack screen to 5-tab Tabs layout (Today, Medications, History, Mood, Settings). Hidden screens for Add Medication form and 4-step Mood Check-In wizard. Today tab with dose tracking, refill alerts, adherence metrics. History tab with adherence calendar. Mood tab with calendar and entries list.
+- **Web UI (6 files):** Expanded server actions from 14 to 45+. Added 4 sub-route pages: mood tracking with quadrant picker, health measurements with trend stats, adherence history with color-coded calendar grid, export with doctor/therapy report generation.
+- **Test suite:** 9 new test files, 139 tests total (up from 17). Covers all 6 engines. All 3 acceptance criteria tests pass: adherence calculation (28/30 = 93.3%), drug interaction detection (warfarin+aspirin warning), mood correlation (before/after split on medication start date).
+- **Agent team:** Used "mymeds-build" team with 6 agents across 2 phases. Phase 1: schema-dev, med-engine-dev, health-mood-dev (engines). Phase 2: mobile-dev, web-dev, test-writer (UI and tests).
+- Verification: `pnpm --filter @mylife/meds typecheck` passes, `pnpm --filter @mylife/meds test` passes (139/139), `pnpm --filter mobile typecheck` passes.
+- Commits: `2b4dc87` (22 files, +2,282 lines: engines), `d00d529` (23 files, +4,952 lines: UI + tests). Pushed to `origin/main`.
+
 ## 2026-02-27
 
 - Consolidated MySubs into MyBudget: retired the standalone MySubs module from the MyLife hub.
