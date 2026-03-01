@@ -15,9 +15,14 @@ import {
   getSetting,
   setSetting,
 } from '../db/fasts';
+import { getWaterIntake, incrementWaterIntake, setWaterTarget } from '../db/water';
+import { getNotificationPreferences, setNotificationPreference } from '../db/notifications';
+import { createGoal, getGoalProgress, refreshGoalProgress, listGoalProgress } from '../db/goals';
 import { computeStreaks } from '../stats/streaks';
 import { averageDuration, adherenceRate } from '../stats/aggregation';
+import { getMonthlySummary } from '../stats/summary';
 import { exportFastsCSV } from '../export';
+import { getCurrentFastingZone } from '../zones';
 
 describe('@mylife/fast', () => {
   let adapter: DatabaseAdapter;
@@ -155,6 +160,12 @@ describe('@mylife/fast', () => {
     it('has default settings seeded', () => {
       expect(getSetting(adapter, 'defaultProtocol')).toBe('16:8');
     });
+
+    it('has default notification config seeded', () => {
+      const prefs = getNotificationPreferences(adapter);
+      expect(prefs.fastStart).toBe(true);
+      expect(prefs.fastComplete).toBe(true);
+    });
   });
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -232,6 +243,96 @@ describe('@mylife/fast', () => {
       expect(streaks.currentStreak).toBeGreaterThanOrEqual(0);
       expect(streaks.longestStreak).toBeGreaterThanOrEqual(0);
       expect(streaks.totalFasts).toBe(2);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Water Intake
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('water intake', () => {
+    it('increments and completes against target', () => {
+      const date = new Date('2026-01-15T08:00:00Z');
+      incrementWaterIntake(adapter, 5, date);
+      incrementWaterIntake(adapter, 3, date);
+
+      const intake = getWaterIntake(adapter, date);
+      expect(intake.count).toBe(8);
+      expect(intake.target).toBe(8);
+      expect(intake.completed).toBe(true);
+    });
+
+    it('supports custom target', () => {
+      const date = new Date('2026-01-15T08:00:00Z');
+      setWaterTarget(adapter, 10, date);
+      incrementWaterIntake(adapter, 4, date);
+      const intake = getWaterIntake(adapter, date);
+      expect(intake.target).toBe(10);
+      expect(intake.count).toBe(4);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Notification Preferences
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('notification preferences', () => {
+    it('updates notification preference', () => {
+      setNotificationPreference(adapter, 'progress25', true);
+      const prefs = getNotificationPreferences(adapter);
+      expect(prefs.progress25).toBe(true);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Goals + Summary + Zones
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('goals and summary', () => {
+    it('computes weekly fast-count goal progress', () => {
+      const goal = createGoal(adapter, { type: 'fasts_per_week', targetValue: 5 });
+
+      startFast(adapter, 'f1', '16:8', 16, new Date('2026-01-05T08:00:00Z'));
+      endFast(adapter, new Date('2026-01-06T00:00:00Z'));
+      startFast(adapter, 'f2', '16:8', 16, new Date('2026-01-06T08:00:00Z'));
+      endFast(adapter, new Date('2026-01-07T00:00:00Z'));
+      startFast(adapter, 'f3', '16:8', 16, new Date('2026-01-07T08:00:00Z'));
+      endFast(adapter, new Date('2026-01-08T00:00:00Z'));
+
+      const progress = getGoalProgress(adapter, goal.id, new Date('2026-01-07T20:00:00Z'));
+      expect(progress).not.toBeNull();
+      expect(progress!.currentValue).toBe(3);
+      expect(progress!.completed).toBe(false);
+    });
+
+    it('refreshGoalProgress keeps one row per period', () => {
+      const goal = createGoal(adapter, { type: 'fasts_per_week', targetValue: 2 });
+      startFast(adapter, 'f1', '16:8', 16, new Date('2026-01-05T08:00:00Z'));
+      endFast(adapter, new Date('2026-01-06T00:00:00Z'));
+
+      refreshGoalProgress(adapter, new Date('2026-01-05T20:00:00Z'));
+      refreshGoalProgress(adapter, new Date('2026-01-06T20:00:00Z'));
+
+      const progressRows = listGoalProgress(adapter, goal.id, 10);
+      expect(progressRows).toHaveLength(1);
+      expect(progressRows[0].currentValue).toBe(1);
+    });
+
+    it('computes monthly summary', () => {
+      startFast(adapter, 'f1', '16:8', 16, new Date('2026-01-01T08:00:00Z'));
+      endFast(adapter, new Date('2026-01-02T00:00:00Z'));
+      startFast(adapter, 'f2', '16:8', 16, new Date('2026-01-03T08:00:00Z'));
+      endFast(adapter, new Date('2026-01-04T02:00:00Z'));
+
+      const summary = getMonthlySummary(adapter, 2026, 1);
+      expect(summary.totalFasts).toBe(2);
+      expect(summary.totalHours).toBe(34);
+      expect(summary.longestFastHours).toBe(18);
+    });
+
+    it('resolves fasting zone from elapsed time', () => {
+      const zone = getCurrentFastingZone(10 * 3600);
+      expect(zone.name).toBe('Fat Burning');
     });
   });
 
