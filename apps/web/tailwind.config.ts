@@ -8,6 +8,9 @@ const config: Config = {
     '../../MyWorkouts/apps/web/app/**/*.{ts,tsx}',
     '../../MyWorkouts/apps/web/lib/**/*.{ts,tsx}',
     '../../MyHomes/apps/web/src/**/*.{ts,tsx}',
+    '../../MySurf/apps/web/app/**/*.{ts,tsx}',
+    '../../MySurf/apps/web/components/**/*.{ts,tsx}',
+    '../../MySurf/apps/web/lib/**/*.{ts,tsx}',
   ],
   theme: {
     extend: {

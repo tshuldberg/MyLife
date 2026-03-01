@@ -122,6 +122,21 @@
       ],
       "@myworkouts/ui/*": [
         "../../MyWorkouts/packages/ui/src/*"
+      ],
+      "@mysurf-web/*": [
+        "../../MySurf/apps/web/*"
+      ],
+      "@mysurf/shared": [
+        "../../MySurf/packages/shared/src/index.ts"
+      ],
+      "@mysurf/shared/*": [
+        "../../MySurf/packages/shared/src/*"
+      ],
+      "@mysurf/ui": [
+        "../../MySurf/packages/ui/src/index.ts"
+      ],
+      "@mysurf/ui/*": [
+        "../../MySurf/packages/ui/src/*"
       ]
     }
   },
