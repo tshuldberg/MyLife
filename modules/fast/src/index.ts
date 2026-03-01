@@ -14,6 +14,7 @@ export { computeTimerState, formatDuration } from './timer';
 
 // Preset protocols
 export { PRESET_PROTOCOLS } from './protocols';
+export { FASTING_ZONES, getCurrentFastingZone, getCurrentZoneProgress } from './zones';
 
 // Stats (streaks, aggregation)
 export * from './stats/index';

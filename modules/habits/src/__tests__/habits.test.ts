@@ -17,6 +17,15 @@ import {
   getSetting,
   setSetting,
 } from '../db/crud';
+import { getStreaksWithGrace, getNegativeStreaks, getMeasurableStreaks } from '../db/streaks';
+import { startSession, endSession, getSessionsForHabit, getSessionsForDate } from '../db/timed-sessions';
+import { recordMeasurement, getMeasurementsForHabit, getMeasurementsForDate } from '../db/measurements';
+import { getHeatmapData, getHeatmapRange } from '../heatmap';
+import { getYearlyStats, getOverallStats } from '../stats';
+import { exportHabitsCSV, exportCompletionsCSV, exportAllCSV } from '../export';
+import { logPeriod, getPeriods, updatePeriod, deletePeriod } from '../cycle/crud';
+import { logSymptom, getSymptoms, updateSymptom, deleteSymptom, PREDEFINED_SYMPTOMS } from '../cycle/symptoms';
+import { predictNextPeriod, getLatestPrediction } from '../cycle/prediction';
 
 describe('@mylife/habits', () => {
   let adapter: DatabaseAdapter;
@@ -32,24 +41,36 @@ describe('@mylife/habits', () => {
     closeDb();
   });
 
+  // ── Module definition ──────────────────────────────────────────────────
+
   describe('HABITS_MODULE definition', () => {
     it('has correct metadata', () => {
       expect(HABITS_MODULE.id).toBe('habits');
       expect(HABITS_MODULE.tier).toBe('premium');
       expect(HABITS_MODULE.storageType).toBe('sqlite');
       expect(HABITS_MODULE.tablePrefix).toBe('hb_');
+      expect(HABITS_MODULE.schemaVersion).toBe(2);
     });
 
     it('has 4 navigation tabs', () => {
       expect(HABITS_MODULE.navigation.tabs).toHaveLength(4);
     });
+
+    it('has cycle-tracker screen', () => {
+      const screen = HABITS_MODULE.navigation.screens.find((s) => s.name === 'cycle-tracker');
+      expect(screen).toBeDefined();
+    });
   });
+
+  // ── Seeded data ────────────────────────────────────────────────────────
 
   describe('seeded data', () => {
     it('has default settings', () => {
       expect(getSetting(adapter, 'weekStartsOn')).toBe('monday');
     });
   });
+
+  // ── Habits CRUD ────────────────────────────────────────────────────────
 
   describe('habits CRUD', () => {
     it('starts empty', () => {
@@ -64,6 +85,28 @@ describe('@mylife/habits', () => {
       expect(h!.name).toBe('Meditate');
       expect(h!.frequency).toBe('daily');
       expect(h!.targetCount).toBe(1);
+      expect(h!.habitType).toBe('standard');
+      expect(h!.timeOfDay).toBe('anytime');
+      expect(h!.gracePeriod).toBe(0);
+    });
+
+    it('creates a habit with V2 fields', () => {
+      createHabit(adapter, 'h1', {
+        name: 'Meditation Timer',
+        habitType: 'timed',
+        timeOfDay: 'morning',
+        specificDays: ['mon', 'wed', 'fri'],
+        gracePeriod: 1,
+        reminderTime: '08:00',
+        description: 'Morning meditation',
+      });
+      const h = getHabitById(adapter, 'h1');
+      expect(h!.habitType).toBe('timed');
+      expect(h!.timeOfDay).toBe('morning');
+      expect(h!.specificDays).toEqual(['mon', 'wed', 'fri']);
+      expect(h!.gracePeriod).toBe(1);
+      expect(h!.reminderTime).toBe('08:00');
+      expect(h!.description).toBe('Morning meditation');
     });
 
     it('lists habits filtering by archived', () => {
@@ -75,12 +118,21 @@ describe('@mylife/habits', () => {
       expect(getHabits(adapter)).toHaveLength(2);
     });
 
-    it('updates a habit', () => {
+    it('updates a habit with V2 fields', () => {
       createHabit(adapter, 'h1', { name: 'Old' });
-      updateHabit(adapter, 'h1', { name: 'New', targetCount: 3 });
+      updateHabit(adapter, 'h1', {
+        name: 'New',
+        targetCount: 3,
+        habitType: 'negative',
+        timeOfDay: 'evening',
+        gracePeriod: 2,
+      });
       const h = getHabitById(adapter, 'h1');
       expect(h!.name).toBe('New');
       expect(h!.targetCount).toBe(3);
+      expect(h!.habitType).toBe('negative');
+      expect(h!.timeOfDay).toBe('evening');
+      expect(h!.gracePeriod).toBe(2);
     });
 
     it('deletes a habit', () => {
@@ -89,6 +141,8 @@ describe('@mylife/habits', () => {
       expect(countHabits(adapter)).toBe(0);
     });
   });
+
+  // ── Completions ────────────────────────────────────────────────────────
 
   describe('completions', () => {
     it('records and retrieves completions', () => {
@@ -123,6 +177,8 @@ describe('@mylife/habits', () => {
     });
   });
 
+  // ── Streaks ────────────────────────────────────────────────────────────
+
   describe('streaks', () => {
     it('returns zero for no completions', () => {
       createHabit(adapter, 'h1', { name: 'Test' });
@@ -131,6 +187,300 @@ describe('@mylife/habits', () => {
       expect(streaks.longestStreak).toBe(0);
     });
   });
+
+  // ── Streaks with grace period ──────────────────────────────────────────
+
+  describe('streaks with grace period', () => {
+    it('allows 1-day grace period', () => {
+      createHabit(adapter, 'h1', { name: 'Test', gracePeriod: 1 });
+      // Record completions with a 1-day gap (day 1, skip day 2, day 3)
+      recordCompletion(adapter, 'c1', 'h1', '2026-01-01T08:00:00Z');
+      recordCompletion(adapter, 'c2', 'h1', '2026-01-03T08:00:00Z');
+      recordCompletion(adapter, 'c3', 'h1', '2026-01-04T08:00:00Z');
+      const streaks = getStreaksWithGrace(adapter, 'h1', 1);
+      // With grace=1, the gap of 2 days between Jan 1 and Jan 3 should not break the streak
+      expect(streaks.longestStreak).toBe(3);
+    });
+
+    it('breaks streak when gap exceeds grace period', () => {
+      createHabit(adapter, 'h1', { name: 'Test' });
+      recordCompletion(adapter, 'c1', 'h1', '2026-01-01T08:00:00Z');
+      recordCompletion(adapter, 'c2', 'h1', '2026-01-04T08:00:00Z'); // 3-day gap
+      const streaks = getStreaksWithGrace(adapter, 'h1', 1);
+      expect(streaks.longestStreak).toBe(1); // grace of 1 can't bridge 3-day gap
+    });
+  });
+
+  // ── Negative habit streaks ─────────────────────────────────────────────
+
+  describe('negative habit streaks', () => {
+    it('tracks days since last slip', () => {
+      createHabit(adapter, 'h1', { name: 'No Smoking', habitType: 'negative' });
+      // Record a slip (value = -1)
+      recordCompletion(adapter, 'c1', 'h1', '2026-01-10T08:00:00Z', -1);
+      const info = getNegativeStreaks(adapter, 'h1');
+      expect(info.daysSinceLastSlip).toBeGreaterThan(0);
+    });
+
+    it('computes clean streak between slips', () => {
+      createHabit(adapter, 'h1', { name: 'No Junk Food', habitType: 'negative' });
+      recordCompletion(adapter, 'c1', 'h1', '2026-01-01T08:00:00Z', -1);
+      recordCompletion(adapter, 'c2', 'h1', '2026-01-11T08:00:00Z', -1);
+      const info = getNegativeStreaks(adapter, 'h1');
+      // 9 days between Jan 1 and Jan 11 (exclusive)
+      expect(info.longestCleanStreak).toBeGreaterThanOrEqual(9);
+    });
+  });
+
+  // ── Timed sessions ────────────────────────────────────────────────────
+
+  describe('timed sessions', () => {
+    it('starts and ends a session', () => {
+      createHabit(adapter, 'h1', { name: 'Meditate', habitType: 'timed' });
+      startSession(adapter, 's1', 'h1', 600);
+      const sessions = getSessionsForHabit(adapter, 'h1');
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].targetSeconds).toBe(600);
+      expect(sessions[0].completed).toBe(false);
+
+      endSession(adapter, 's1', 630);
+      const updated = getSessionsForHabit(adapter, 'h1');
+      expect(updated[0].durationSeconds).toBe(630);
+      expect(updated[0].completed).toBe(true);
+    });
+
+    it('filters sessions by date', () => {
+      createHabit(adapter, 'h1', { name: 'Focus', habitType: 'timed' });
+      // Manually insert with specific date
+      adapter.execute(
+        `INSERT INTO hb_timed_sessions (id, habit_id, started_at, duration_seconds, target_seconds, completed, created_at)
+         VALUES ('s1', 'h1', '2026-01-15T08:00:00Z', 300, 300, 1, '2026-01-15T08:05:00Z')`,
+      );
+      adapter.execute(
+        `INSERT INTO hb_timed_sessions (id, habit_id, started_at, duration_seconds, target_seconds, completed, created_at)
+         VALUES ('s2', 'h1', '2026-01-16T08:00:00Z', 300, 300, 1, '2026-01-16T08:05:00Z')`,
+      );
+      const results = getSessionsForDate(adapter, '2026-01-15');
+      expect(results).toHaveLength(1);
+    });
+  });
+
+  // ── Measurements ──────────────────────────────────────────────────────
+
+  describe('measurements', () => {
+    it('records and retrieves measurements', () => {
+      createHabit(adapter, 'h1', { name: 'Water Intake', habitType: 'measurable' });
+      recordMeasurement(adapter, 'm1', 'h1', '2026-01-15T08:00:00Z', 2.5, 3.0);
+      recordMeasurement(adapter, 'm2', 'h1', '2026-01-16T08:00:00Z', 3.5, 3.0);
+      const measurements = getMeasurementsForHabit(adapter, 'h1');
+      expect(measurements).toHaveLength(2);
+      expect(measurements[0].value).toBe(3.5); // DESC order
+      expect(measurements[1].target).toBe(3.0);
+    });
+
+    it('filters measurements by date', () => {
+      createHabit(adapter, 'h1', { name: 'Steps', habitType: 'measurable' });
+      recordMeasurement(adapter, 'm1', 'h1', '2026-01-15T10:00:00Z', 8000, 10000);
+      recordMeasurement(adapter, 'm2', 'h1', '2026-01-16T10:00:00Z', 12000, 10000);
+      const results = getMeasurementsForDate(adapter, '2026-01-15');
+      expect(results).toHaveLength(1);
+      expect(results[0].value).toBe(8000);
+    });
+  });
+
+  // ── Measurable habit streaks ──────────────────────────────────────────
+
+  describe('measurable habit streaks', () => {
+    it('counts streak when target met', () => {
+      createHabit(adapter, 'h1', { name: 'Water', habitType: 'measurable' });
+      recordMeasurement(adapter, 'm1', 'h1', '2026-01-01T10:00:00Z', 3.0, 3.0);
+      recordMeasurement(adapter, 'm2', 'h1', '2026-01-02T10:00:00Z', 3.5, 3.0);
+      recordMeasurement(adapter, 'm3', 'h1', '2026-01-03T10:00:00Z', 2.0, 3.0); // below target
+      const streaks = getMeasurableStreaks(adapter, 'h1');
+      // Only Jan 1-2 meet target
+      expect(streaks.longestStreak).toBe(2);
+    });
+  });
+
+  // ── Heatmap ───────────────────────────────────────────────────────────
+
+  describe('heatmap', () => {
+    it('generates 365 days for a year', () => {
+      createHabit(adapter, 'h1', { name: 'Test' });
+      recordCompletion(adapter, 'c1', 'h1', '2026-06-15T08:00:00Z');
+      const data = getHeatmapData(adapter, 'h1', 2026);
+      expect(data.length).toBe(365);
+      const june15 = data.find((d) => d.date === '2026-06-15');
+      expect(june15!.count).toBe(1);
+    });
+
+    it('generates range data', () => {
+      createHabit(adapter, 'h1', { name: 'Test' });
+      recordCompletion(adapter, 'c1', 'h1', '2026-01-15T08:00:00Z');
+      recordCompletion(adapter, 'c2', 'h1', '2026-01-15T12:00:00Z');
+      const data = getHeatmapRange(adapter, 'h1', '2026-01-14', '2026-01-16');
+      expect(data).toHaveLength(3);
+      expect(data[1].date).toBe('2026-01-15');
+      expect(data[1].count).toBe(2); // two completions on same day
+    });
+  });
+
+  // ── Statistics ────────────────────────────────────────────────────────
+
+  describe('statistics', () => {
+    it('computes yearly stats', () => {
+      createHabit(adapter, 'h1', { name: 'Exercise' });
+      recordCompletion(adapter, 'c1', 'h1', '2026-01-15T08:00:00Z');
+      recordCompletion(adapter, 'c2', 'h1', '2026-01-16T14:00:00Z');
+      recordCompletion(adapter, 'c3', 'h1', '2026-01-17T20:00:00Z');
+      const stats = getYearlyStats(adapter, 'h1');
+      expect(stats.totalCompletions).toBe(3);
+      expect(stats.bestStreak).toBe(3);
+      expect(stats.completionRate).toBeGreaterThan(0);
+    });
+
+    it('computes overall stats', () => {
+      createHabit(adapter, 'h1', { name: 'Read' });
+      createHabit(adapter, 'h2', { name: 'Exercise' });
+      recordCompletion(adapter, 'c1', 'h1', '2026-01-15T08:00:00Z');
+      recordCompletion(adapter, 'c2', 'h2', '2026-01-15T08:00:00Z');
+      recordCompletion(adapter, 'c3', 'h2', '2026-01-16T08:00:00Z');
+      const stats = getOverallStats(adapter);
+      expect(stats.totalHabits).toBe(2);
+      expect(stats.totalCompletions).toBe(3);
+      expect(stats.bestHabit).not.toBeNull();
+      expect(stats.bestHabit!.name).toBe('Exercise');
+    });
+  });
+
+  // ── CSV export ────────────────────────────────────────────────────────
+
+  describe('CSV export', () => {
+    it('exports habits CSV', () => {
+      createHabit(adapter, 'h1', { name: 'Read' });
+      createHabit(adapter, 'h2', { name: 'Exercise' });
+      const csv = exportHabitsCSV(adapter);
+      const lines = csv.split('\n');
+      expect(lines[0]).toContain('id,name');
+      expect(lines).toHaveLength(3); // header + 2 habits
+    });
+
+    it('exports completions CSV', () => {
+      createHabit(adapter, 'h1', { name: 'Read' });
+      recordCompletion(adapter, 'c1', 'h1', '2026-01-15T08:00:00Z');
+      const csv = exportCompletionsCSV(adapter, 'h1');
+      const lines = csv.split('\n');
+      expect(lines[0]).toContain('id,habit_id');
+      expect(lines).toHaveLength(2);
+    });
+
+    it('exports all data CSV', () => {
+      createHabit(adapter, 'h1', { name: 'Read' });
+      recordCompletion(adapter, 'c1', 'h1', '2026-01-15T08:00:00Z');
+      const csv = exportAllCSV(adapter);
+      expect(csv).toContain('# Habits');
+      expect(csv).toContain('# Completions');
+    });
+
+    it('returns empty string for no data', () => {
+      expect(exportHabitsCSV(adapter)).toBe('');
+      expect(exportCompletionsCSV(adapter)).toBe('');
+    });
+  });
+
+  // ── Cycle tracking ────────────────────────────────────────────────────
+
+  describe('cycle tracking', () => {
+    it('has predefined symptoms', () => {
+      expect(PREDEFINED_SYMPTOMS.length).toBeGreaterThan(0);
+      expect(PREDEFINED_SYMPTOMS).toContain('cramps');
+      expect(PREDEFINED_SYMPTOMS).toContain('headache');
+    });
+
+    describe('periods CRUD', () => {
+      it('logs and retrieves a period', () => {
+        logPeriod(adapter, 'p1', { startDate: '2026-01-01', endDate: '2026-01-05' });
+        const periods = getPeriods(adapter);
+        expect(periods).toHaveLength(1);
+        expect(periods[0].startDate).toBe('2026-01-01');
+        expect(periods[0].endDate).toBe('2026-01-05');
+      });
+
+      it('updates a period', () => {
+        logPeriod(adapter, 'p1', { startDate: '2026-01-01' });
+        updatePeriod(adapter, 'p1', { endDate: '2026-01-06', notes: 'Light flow' });
+        const periods = getPeriods(adapter);
+        expect(periods[0].endDate).toBe('2026-01-06');
+        expect(periods[0].notes).toBe('Light flow');
+      });
+
+      it('deletes a period', () => {
+        logPeriod(adapter, 'p1', { startDate: '2026-01-01' });
+        deletePeriod(adapter, 'p1');
+        expect(getPeriods(adapter)).toHaveLength(0);
+      });
+    });
+
+    describe('symptoms CRUD', () => {
+      it('logs and retrieves symptoms', () => {
+        logPeriod(adapter, 'p1', { startDate: '2026-01-01', endDate: '2026-01-05' });
+        logSymptom(adapter, 's1', { periodId: 'p1', date: '2026-01-02', symptomType: 'cramps', severity: 3 });
+        logSymptom(adapter, 's2', { periodId: 'p1', date: '2026-01-03', symptomType: 'headache', severity: 2 });
+        const symptoms = getSymptoms(adapter, 'p1');
+        expect(symptoms).toHaveLength(2);
+        expect(symptoms[0].symptomType).toBe('cramps');
+        expect(symptoms[0].severity).toBe(3);
+      });
+
+      it('updates a symptom', () => {
+        logPeriod(adapter, 'p1', { startDate: '2026-01-01', endDate: '2026-01-05' });
+        logSymptom(adapter, 's1', { periodId: 'p1', date: '2026-01-02', symptomType: 'cramps', severity: 2 });
+        updateSymptom(adapter, 's1', { severity: 4, notes: 'Worse than usual' });
+        const symptoms = getSymptoms(adapter, 'p1');
+        expect(symptoms[0].severity).toBe(4);
+        expect(symptoms[0].notes).toBe('Worse than usual');
+      });
+
+      it('deletes a symptom', () => {
+        logPeriod(adapter, 'p1', { startDate: '2026-01-01', endDate: '2026-01-05' });
+        logSymptom(adapter, 's1', { periodId: 'p1', date: '2026-01-02', symptomType: 'cramps', severity: 3 });
+        deleteSymptom(adapter, 's1');
+        expect(getSymptoms(adapter, 'p1')).toHaveLength(0);
+      });
+    });
+
+    describe('predictions', () => {
+      it('returns null with insufficient data', () => {
+        const prediction = predictNextPeriod(adapter);
+        expect(prediction).toBeNull();
+      });
+
+      it('predicts next period with sufficient data', () => {
+        // Log 3 periods about 28 days apart
+        logPeriod(adapter, 'p1', { startDate: '2025-10-01', endDate: '2025-10-06' });
+        logPeriod(adapter, 'p2', { startDate: '2025-10-29', endDate: '2025-11-03' });
+        logPeriod(adapter, 'p3', { startDate: '2025-11-26', endDate: '2025-12-01' });
+
+        const prediction = predictNextPeriod(adapter);
+        expect(prediction).not.toBeNull();
+        expect(prediction!.predictedStart).toBeTruthy();
+        expect(prediction!.predictedEnd).toBeTruthy();
+        expect(prediction!.algorithmVersion).toBe('moving_avg_v1');
+        expect(prediction!.confidenceDays).toBeGreaterThanOrEqual(0);
+      });
+
+      it('stores prediction in database', () => {
+        logPeriod(adapter, 'p1', { startDate: '2025-10-01', endDate: '2025-10-06' });
+        logPeriod(adapter, 'p2', { startDate: '2025-10-29', endDate: '2025-11-03' });
+        logPeriod(adapter, 'p3', { startDate: '2025-11-26', endDate: '2025-12-01' });
+        predictNextPeriod(adapter);
+        const latest = getLatestPrediction(adapter);
+        expect(latest).not.toBeNull();
+      });
+    });
+  });
+
+  // ── Settings ──────────────────────────────────────────────────────────
 
   describe('settings', () => {
     it('updates a setting', () => {
