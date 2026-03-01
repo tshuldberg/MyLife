@@ -9,7 +9,15 @@ import {
   refreshStreakCache,
   startFast,
   endFast,
+  getCurrentFastingZone,
+  getCurrentZoneProgress,
+  getWaterIntake,
+  incrementWaterIntake,
+  listGoals,
+  getGoalProgress,
+  refreshGoalProgress,
 } from '@mylife/fast';
+import type { Goal } from '@mylife/fast';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
 import { uuid } from '../../lib/uuid';
@@ -25,12 +33,55 @@ interface ProtocolRow {
   sort_order: number;
 }
 
+interface GoalProgressDisplay {
+  label: string;
+  current: number;
+  target: number;
+  completed: boolean;
+}
+
+function formatGoalValue(goal: Goal, value: number): number {
+  if (goal.type === 'hours_per_week' || goal.type === 'hours_per_month') {
+    return Math.round(value * 10) / 10;
+  }
+  return Math.round(value);
+}
+
+function primaryGoalProgress(db: ReturnType<typeof useDatabase>): GoalProgressDisplay | null {
+  const goals = listGoals(db, false);
+  if (goals.length === 0) return null;
+
+  const preferred = goals.find((goal) => goal.type === 'fasts_per_week') ?? goals[0];
+  const progress = getGoalProgress(db, preferred.id);
+  if (!progress) return null;
+
+  const label = preferred.label ?? 'Goal Progress';
+  return {
+    label,
+    current: formatGoalValue(preferred, progress.currentValue),
+    target: formatGoalValue(preferred, progress.targetValue),
+    completed: progress.completed,
+  };
+}
+
 export default function FastTimerScreen() {
   const db = useDatabase();
   const [timerState, setTimerState] = useState(() => computeTimerState(null, new Date()));
   const [protocols, setProtocols] = useState<ProtocolRow[]>([]);
   const [selectedProtocol, setSelectedProtocol] = useState('16:8');
   const [streaks, setStreaks] = useState({ currentStreak: 0, longestStreak: 0, totalFasts: 0 });
+  const [waterCount, setWaterCount] = useState(0);
+  const [waterTarget, setWaterTarget] = useState(8);
+  const [goalProgress, setGoalProgress] = useState<GoalProgressDisplay | null>(null);
+
+  const reloadDailyState = useCallback(() => {
+    const water = getWaterIntake(db);
+    setWaterCount(water.count);
+    setWaterTarget(water.target);
+
+    refreshGoalProgress(db);
+    setGoalProgress(primaryGoalProgress(db));
+  }, [db]);
 
   const load = useCallback(() => {
     const active = getActiveFast(db);
@@ -39,7 +90,8 @@ export default function FastTimerScreen() {
     setSelectedProtocol((prev) => prev || protocolRows[0]?.id || '16:8');
     setTimerState(computeTimerState(active, new Date()));
     setStreaks(getStreaks(db));
-  }, [db]);
+    reloadDailyState();
+  }, [db, reloadDailyState]);
 
   useEffect(() => {
     load();
@@ -72,6 +124,16 @@ export default function FastTimerScreen() {
     refreshStreakCache(db);
     load();
   };
+
+  const handleLogWater = () => {
+    const updated = incrementWaterIntake(db);
+    setWaterCount(updated.count);
+    setWaterTarget(updated.target);
+  };
+
+  const zone = getCurrentFastingZone(timerState.elapsed);
+  const zoneProgress = getCurrentZoneProgress(timerState.elapsed);
+  const waterProgress = waterTarget > 0 ? Math.min(1, waterCount / waterTarget) : 0;
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
@@ -134,6 +196,56 @@ export default function FastTimerScreen() {
           </Pressable>
         )}
       </Card>
+
+      <Card>
+        <Text variant="subheading">Metabolic Zone</Text>
+        <Text style={styles.zoneName}>{zone.name}</Text>
+        <Text variant="caption" color={colors.textSecondary}>{zone.title}</Text>
+        <Text variant="caption" color={colors.textSecondary} style={styles.zoneDescription}>{zone.description}</Text>
+        <View style={styles.zoneTrack}>
+          <View style={[styles.zoneFill, { width: `${Math.max(6, zoneProgress * 100)}%` }]} />
+        </View>
+      </Card>
+
+      <Card>
+        <View style={styles.rowBetween}>
+          <Text variant="subheading">Hydration</Text>
+          <Text style={styles.metricValue}>{waterCount}/{waterTarget}</Text>
+        </View>
+        <View style={styles.zoneTrack}>
+          <View style={[styles.zoneFill, { width: `${Math.max(4, waterProgress * 100)}%` }]} />
+        </View>
+        <View style={[styles.rowBetween, { marginTop: spacing.sm }]}>
+          <Pressable style={styles.chipButton} onPress={handleLogWater}>
+            <Text variant="label" color={colors.background}>Log Water</Text>
+          </Pressable>
+          {waterCount >= waterTarget ? (
+            <Text variant="caption" color={colors.success}>Hydration Goal Met</Text>
+          ) : null}
+        </View>
+      </Card>
+
+      {goalProgress ? (
+        <Card>
+          <View style={styles.rowBetween}>
+            <Text variant="subheading">{goalProgress.label}</Text>
+            <Text style={[styles.metricValue, { color: goalProgress.completed ? colors.success : colors.modules.fast }]}>
+              {goalProgress.current}/{goalProgress.target}
+            </Text>
+          </View>
+          <View style={styles.zoneTrack}>
+            <View
+              style={[
+                styles.zoneFill,
+                {
+                  width: `${Math.min(100, Math.round((goalProgress.current / Math.max(1, goalProgress.target)) * 100))}%`,
+                  backgroundColor: goalProgress.completed ? colors.success : colors.modules.fast,
+                },
+              ]}
+            />
+          </View>
+        </Card>
+      ) : null}
 
       <View style={styles.metricsGrid}>
         <Card style={styles.metricCard}>
@@ -229,5 +341,40 @@ const styles = StyleSheet.create({
     color: colors.modules.fast,
     fontSize: 22,
     fontWeight: '700',
+  },
+  zoneName: {
+    color: colors.modules.fast,
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: spacing.xs,
+  },
+  zoneDescription: {
+    marginTop: spacing.xs,
+    lineHeight: 18,
+  },
+  zoneTrack: {
+    width: '100%',
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceElevated,
+    overflow: 'hidden',
+    marginTop: spacing.sm,
+  },
+  zoneFill: {
+    height: '100%',
+    borderRadius: 999,
+    backgroundColor: colors.modules.fast,
+  },
+  rowBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  chipButton: {
+    borderRadius: 999,
+    backgroundColor: colors.modules.fast,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
   },
 });

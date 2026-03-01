@@ -18,7 +18,26 @@
     },
     "plugins": [
       "expo-router",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-sharing",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "minSdkVersion": 26
+          }
+        }
+      ],
+      [
+        "react-native-health",
+        {
+          "healthSharePermission": "Allow MyLife Fast to read your health data for weight sync.",
+          "healthUpdatePermission": "Allow MyLife Fast to write fasting sessions to Apple Health."
+        }
+      ],
+      "expo-health-connect"
     ]
   }
 }

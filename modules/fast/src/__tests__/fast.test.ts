@@ -306,7 +306,7 @@ describe('@mylife/fast', () => {
     });
 
     it('refreshGoalProgress keeps one row per period', () => {
-      const goal = createGoal(adapter, { type: 'fasts_per_week', targetValue: 2 });
+      const goal = createGoal(adapter, { type: 'fasts_per_week', targetValue: 2, startDate: '2026-01-01' });
       startFast(adapter, 'f1', '16:8', 16, new Date('2026-01-05T08:00:00Z'));
       endFast(adapter, new Date('2026-01-06T00:00:00Z'));
 
