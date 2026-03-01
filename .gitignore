@@ -13,6 +13,7 @@ ios/
 android/
 coverage/
 .vercel/
+.claude/worktrees/
 *.sqlite
 *.db
 *.sqlite-shm
