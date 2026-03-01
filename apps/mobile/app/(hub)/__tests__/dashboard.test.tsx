@@ -1,14 +1,13 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import DashboardScreen from '../index';
-
-let enabledModules: Array<{
-  id: string;
-  name: string;
-}> = [];
+import AppSelectorScreen from '../index';
 
 vi.mock('@mylife/module-registry', () => ({
-  useEnabledModules: () => enabledModules,
+  MODULE_IDS: ['books', 'fast'],
+  MODULE_METADATA: {
+    books: { id: 'books', name: 'MyBooks', tagline: 'Books', icon: '📚' },
+    fast: { id: 'fast', name: 'MyFast', tagline: 'Fast', icon: '⏱️' },
+  },
 }));
 
 vi.mock('../../../components/ModuleCard', () => ({
@@ -17,25 +16,12 @@ vi.mock('../../../components/ModuleCard', () => ({
   ),
 }));
 
-describe('Hub DashboardScreen (mobile)', () => {
-  it('shows welcome empty state when no modules are enabled', () => {
-    enabledModules = [];
-    render(<DashboardScreen />);
+describe('Hub AppSelectorScreen (mobile)', () => {
+  it('shows the selector heading and app cards', () => {
+    render(<AppSelectorScreen />);
 
-    expect(screen.getByText('Welcome to MyLife')).toBeInTheDocument();
-    expect(
-      screen.getByText(/Head to Discover to enable your first module/i),
-    ).toBeInTheDocument();
-  });
-
-  it('renders enabled module cards when modules exist', () => {
-    enabledModules = [
-      { id: 'books', name: 'MyBooks' },
-      { id: 'fast', name: 'MyFast' },
-    ];
-
-    render(<DashboardScreen />);
-
+    expect(screen.getByText('MyLife')).toBeInTheDocument();
+    expect(screen.getByText('Choose an app to open.')).toBeInTheDocument();
     expect(screen.getByText('MyBooks')).toBeInTheDocument();
     expect(screen.getByText('MyFast')).toBeInTheDocument();
   });
