@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import Link from 'next/link';
 import {
   fetchMedications,
   fetchMedicationCount,
@@ -723,6 +724,39 @@ export default function MedsPage() {
             </div>
           ))
         )}
+      </div>
+
+      {/* Quick Navigation */}
+      <div style={styles.section}>
+        <h2 style={styles.sectionTitle}>More</h2>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+          gap: '0.75rem',
+        }}>
+          {[
+            { href: '/meds/mood', label: 'Mood Tracking', desc: 'Log mood and activities' },
+            { href: '/meds/measurements', label: 'Measurements', desc: 'Track health vitals' },
+            { href: '/meds/history', label: 'Adherence History', desc: 'Calendar and stats' },
+            { href: '/meds/export', label: 'Export Reports', desc: 'Doctor and therapy reports' },
+          ].map((item) => (
+            <Link key={item.href} href={item.href} style={{
+              background: 'var(--surface-elevated)',
+              border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '1rem 1.25rem',
+              textDecoration: 'none',
+              display: 'block',
+            }}>
+              <div style={{ fontWeight: 600, color: 'var(--accent-meds)', fontSize: '0.95rem' }}>
+                {item.label}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                {item.desc}
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
     </div>
   );
