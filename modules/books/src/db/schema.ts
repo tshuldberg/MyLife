@@ -209,6 +209,175 @@ CREATE TABLE IF NOT EXISTS bk_settings (
   value TEXT NOT NULL
 );`;
 
+// -- 13. Progress Updates --
+export const CREATE_PROGRESS_UPDATES = `
+CREATE TABLE IF NOT EXISTS bk_progress_updates (
+  id TEXT PRIMARY KEY NOT NULL,
+  session_id TEXT NOT NULL REFERENCES bk_reading_sessions(id) ON DELETE CASCADE,
+  book_id TEXT NOT NULL REFERENCES bk_books(id) ON DELETE CASCADE,
+  page_number INTEGER,
+  percent_complete REAL,
+  note TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`;
+
+// -- 14. Timed Sessions --
+export const CREATE_TIMED_SESSIONS = `
+CREATE TABLE IF NOT EXISTS bk_timed_sessions (
+  id TEXT PRIMARY KEY NOT NULL,
+  session_id TEXT NOT NULL REFERENCES bk_reading_sessions(id) ON DELETE CASCADE,
+  book_id TEXT NOT NULL REFERENCES bk_books(id) ON DELETE CASCADE,
+  started_at TEXT NOT NULL,
+  ended_at TEXT,
+  duration_ms INTEGER,
+  start_page INTEGER,
+  end_page INTEGER,
+  pages_read INTEGER,
+  pages_per_hour REAL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`;
+
+// -- 15. Series --
+export const CREATE_SERIES = `
+CREATE TABLE IF NOT EXISTS bk_series (
+  id TEXT PRIMARY KEY NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  total_books INTEGER,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`;
+
+// -- 16. Series Books --
+export const CREATE_SERIES_BOOKS = `
+CREATE TABLE IF NOT EXISTS bk_series_books (
+  series_id TEXT NOT NULL REFERENCES bk_series(id) ON DELETE CASCADE,
+  book_id TEXT NOT NULL REFERENCES bk_books(id) ON DELETE CASCADE,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (series_id, book_id)
+);`;
+
+// -- 17. Mood Tags --
+export const CREATE_MOOD_TAGS = `
+CREATE TABLE IF NOT EXISTS bk_mood_tags (
+  id TEXT PRIMARY KEY NOT NULL,
+  book_id TEXT NOT NULL REFERENCES bk_books(id) ON DELETE CASCADE,
+  tag_type TEXT NOT NULL CHECK (tag_type IN ('mood', 'pace', 'genre')),
+  value TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`;
+
+// -- 18. Content Warnings --
+export const CREATE_CONTENT_WARNINGS = `
+CREATE TABLE IF NOT EXISTS bk_content_warnings (
+  id TEXT PRIMARY KEY NOT NULL,
+  book_id TEXT NOT NULL REFERENCES bk_books(id) ON DELETE CASCADE,
+  warning TEXT NOT NULL,
+  severity TEXT NOT NULL DEFAULT 'moderate'
+    CHECK (severity IN ('mild', 'moderate', 'severe')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`;
+
+// -- 19. Challenges --
+export const CREATE_CHALLENGES = `
+CREATE TABLE IF NOT EXISTS bk_challenges (
+  id TEXT PRIMARY KEY NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  challenge_type TEXT NOT NULL
+    CHECK (challenge_type IN ('books_count', 'pages_count', 'minutes_count', 'themed')),
+  target_value INTEGER NOT NULL,
+  target_unit TEXT NOT NULL
+    CHECK (target_unit IN ('books', 'pages', 'minutes')),
+  time_frame TEXT NOT NULL
+    CHECK (time_frame IN ('yearly', 'monthly', 'weekly', 'custom')),
+  start_date TEXT NOT NULL,
+  end_date TEXT NOT NULL,
+  theme_prompt TEXT,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`;
+
+// -- 20. Challenge Progress --
+export const CREATE_CHALLENGE_PROGRESS = `
+CREATE TABLE IF NOT EXISTS bk_challenge_progress (
+  id TEXT PRIMARY KEY NOT NULL,
+  challenge_id TEXT NOT NULL REFERENCES bk_challenges(id) ON DELETE CASCADE,
+  book_id TEXT REFERENCES bk_books(id) ON DELETE SET NULL,
+  session_id TEXT REFERENCES bk_reading_sessions(id) ON DELETE SET NULL,
+  value_added INTEGER NOT NULL DEFAULT 0,
+  note TEXT,
+  logged_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`;
+
+// -- 21. Journal Entries --
+export const CREATE_JOURNAL_ENTRIES = `
+CREATE TABLE IF NOT EXISTS bk_journal_entries (
+  id TEXT PRIMARY KEY NOT NULL,
+  title TEXT,
+  content TEXT NOT NULL,
+  content_encrypted INTEGER NOT NULL DEFAULT 0,
+  encryption_salt TEXT,
+  encryption_iv TEXT,
+  word_count INTEGER NOT NULL DEFAULT 0,
+  mood TEXT,
+  is_favorite INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`;
+
+// -- 22. Journal Photos --
+export const CREATE_JOURNAL_PHOTOS = `
+CREATE TABLE IF NOT EXISTS bk_journal_photos (
+  id TEXT PRIMARY KEY NOT NULL,
+  entry_id TEXT NOT NULL REFERENCES bk_journal_entries(id) ON DELETE CASCADE,
+  file_path TEXT NOT NULL,
+  file_name TEXT,
+  width INTEGER,
+  height INTEGER,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);`;
+
+// -- 23. Journal Book Links --
+export const CREATE_JOURNAL_BOOK_LINKS = `
+CREATE TABLE IF NOT EXISTS bk_journal_book_links (
+  entry_id TEXT NOT NULL REFERENCES bk_journal_entries(id) ON DELETE CASCADE,
+  book_id TEXT NOT NULL REFERENCES bk_books(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (entry_id, book_id)
+);`;
+
+// -- Journal FTS5 --
+export const CREATE_JOURNAL_FTS = `
+CREATE VIRTUAL TABLE IF NOT EXISTS bk_journal_fts USING fts5(
+  title,
+  content,
+  content='bk_journal_entries',
+  content_rowid='rowid',
+  tokenize='porter unicode61'
+);`;
+
+// -- Journal FTS sync triggers --
+export const CREATE_JOURNAL_FTS_TRIGGERS = [
+  `CREATE TRIGGER IF NOT EXISTS bk_journal_fts_ai AFTER INSERT ON bk_journal_entries BEGIN
+    INSERT INTO bk_journal_fts(rowid, title, content)
+    VALUES (new.rowid, new.title, new.content);
+  END;`,
+  `CREATE TRIGGER IF NOT EXISTS bk_journal_fts_ad AFTER DELETE ON bk_journal_entries BEGIN
+    INSERT INTO bk_journal_fts(bk_journal_fts, rowid, title, content)
+    VALUES ('delete', old.rowid, old.title, old.content);
+  END;`,
+  `CREATE TRIGGER IF NOT EXISTS bk_journal_fts_au AFTER UPDATE ON bk_journal_entries BEGIN
+    INSERT INTO bk_journal_fts(bk_journal_fts, rowid, title, content)
+    VALUES ('delete', old.rowid, old.title, old.content);
+    INSERT INTO bk_journal_fts(rowid, title, content)
+    VALUES (new.rowid, new.title, new.content);
+  END;`,
+];
+
 // -- FTS5 --
 export const CREATE_BOOKS_FTS = `
 CREATE VIRTUAL TABLE IF NOT EXISTS bk_books_fts USING fts5(
@@ -280,6 +449,36 @@ export const CREATE_READER_INDEXES = [
      ON bk_reader_notes(document_id, created_at DESC);`,
   `CREATE INDEX IF NOT EXISTS bk_reader_notes_type_idx
      ON bk_reader_notes(note_type);`,
+];
+
+// -- Feature set indexes (added in migration v4) --
+export const CREATE_FEATURE_INDEXES = [
+  // Progress + timed sessions
+  `CREATE INDEX IF NOT EXISTS bk_progress_updates_session_idx ON bk_progress_updates(session_id);`,
+  `CREATE INDEX IF NOT EXISTS bk_progress_updates_book_idx ON bk_progress_updates(book_id);`,
+  `CREATE INDEX IF NOT EXISTS bk_progress_updates_created_idx ON bk_progress_updates(created_at);`,
+  `CREATE INDEX IF NOT EXISTS bk_timed_sessions_session_idx ON bk_timed_sessions(session_id);`,
+  `CREATE INDEX IF NOT EXISTS bk_timed_sessions_book_idx ON bk_timed_sessions(book_id);`,
+  `CREATE INDEX IF NOT EXISTS bk_timed_sessions_started_idx ON bk_timed_sessions(started_at);`,
+  // Series
+  `CREATE INDEX IF NOT EXISTS bk_series_name_idx ON bk_series(name COLLATE NOCASE);`,
+  `CREATE INDEX IF NOT EXISTS bk_series_books_book_idx ON bk_series_books(book_id);`,
+  `CREATE INDEX IF NOT EXISTS bk_series_books_order_idx ON bk_series_books(series_id, sort_order);`,
+  // Mood tags + content warnings
+  `CREATE UNIQUE INDEX IF NOT EXISTS bk_mood_tags_book_type_value_idx ON bk_mood_tags(book_id, tag_type, value);`,
+  `CREATE INDEX IF NOT EXISTS bk_mood_tags_type_value_idx ON bk_mood_tags(tag_type, value);`,
+  `CREATE INDEX IF NOT EXISTS bk_content_warnings_book_idx ON bk_content_warnings(book_id);`,
+  // Challenges
+  `CREATE INDEX IF NOT EXISTS bk_challenges_active_idx ON bk_challenges(is_active) WHERE is_active = 1;`,
+  `CREATE INDEX IF NOT EXISTS bk_challenges_type_idx ON bk_challenges(challenge_type);`,
+  `CREATE INDEX IF NOT EXISTS bk_challenge_progress_challenge_idx ON bk_challenge_progress(challenge_id);`,
+  `CREATE INDEX IF NOT EXISTS bk_challenge_progress_book_idx ON bk_challenge_progress(book_id);`,
+  // Journal
+  `CREATE INDEX IF NOT EXISTS bk_journal_entries_created_idx ON bk_journal_entries(created_at DESC);`,
+  `CREATE INDEX IF NOT EXISTS bk_journal_entries_favorite_idx ON bk_journal_entries(is_favorite) WHERE is_favorite = 1;`,
+  `CREATE INDEX IF NOT EXISTS bk_journal_photos_entry_idx ON bk_journal_photos(entry_id);`,
+  `CREATE INDEX IF NOT EXISTS bk_journal_book_links_book_idx ON bk_journal_book_links(book_id);`,
+  `CREATE INDEX IF NOT EXISTS bk_journal_book_links_entry_idx ON bk_journal_book_links(entry_id);`,
 ];
 
 // -- System shelf seeds --

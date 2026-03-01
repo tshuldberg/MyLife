@@ -22,6 +22,20 @@ export {
   CREATE_INDEXES,
   CREATE_SHARE_INDEXES,
   CREATE_READER_INDEXES,
+  CREATE_PROGRESS_UPDATES,
+  CREATE_TIMED_SESSIONS,
+  CREATE_SERIES,
+  CREATE_SERIES_BOOKS,
+  CREATE_MOOD_TAGS,
+  CREATE_CONTENT_WARNINGS,
+  CREATE_CHALLENGES,
+  CREATE_CHALLENGE_PROGRESS,
+  CREATE_JOURNAL_ENTRIES,
+  CREATE_JOURNAL_PHOTOS,
+  CREATE_JOURNAL_BOOK_LINKS,
+  CREATE_JOURNAL_FTS,
+  CREATE_JOURNAL_FTS_TRIGGERS,
+  CREATE_FEATURE_INDEXES,
   SEED_SYSTEM_SHELVES,
   ALL_TABLES,
 } from './schema';
@@ -157,3 +171,107 @@ export {
   logImport,
   getImportHistory,
 } from './import-log';
+
+// Progress update CRUD
+export {
+  createProgressUpdate,
+  getProgressHistory,
+  getLatestProgress,
+  deleteProgressUpdate,
+} from './progress-updates';
+
+// Timed session CRUD
+export {
+  startTimedSession,
+  stopTimedSession,
+  getTimedSession,
+  getTimedSessionsForBook,
+  getTimedSessionsForSession,
+  deleteTimedSession,
+} from './timed-sessions';
+
+// Series CRUD
+export {
+  createSeries,
+  getSeries,
+  getAllSeries,
+  updateSeries,
+  deleteSeries,
+} from './series';
+
+// Series-Books junction
+export {
+  addBookToSeries,
+  removeBookFromSeries,
+  getBooksInSeries,
+  getSeriesForBook,
+  reorderSeriesBook,
+  getNextUnread,
+} from './series-books';
+
+// Mood tag CRUD
+export {
+  addMoodTag,
+  removeMoodTag,
+  getMoodTagsForBook,
+  getMoodTagsByType,
+  getBooksWithMoodTag,
+  getDistinctMoodValues,
+} from './mood-tags';
+
+// Content warning CRUD
+export {
+  addContentWarning,
+  removeContentWarning,
+  getContentWarningsForBook,
+  getBooksWithContentWarning,
+  getDistinctWarnings,
+} from './content-warnings';
+
+// Challenge CRUD
+export {
+  createChallenge,
+  getChallenge,
+  getActiveChallenges,
+  getAllChallenges,
+  updateChallenge,
+  deactivateChallenge,
+  deleteChallenge,
+} from './challenges';
+
+// Challenge progress CRUD
+export {
+  logChallengeProgress,
+  getProgressForChallenge,
+  getTotalProgress,
+  deleteChallengeProgress,
+} from './challenge-progress';
+
+// Journal entries
+export {
+  createJournalEntry,
+  getJournalEntry,
+  getJournalEntries,
+  updateJournalEntry,
+  deleteJournalEntry,
+  searchJournalEntries,
+  getJournalEntryCount,
+} from './journal-entries';
+export type { JournalFilters } from './journal-entries';
+
+// Journal photos
+export {
+  addJournalPhoto,
+  getPhotosForEntry,
+  removeJournalPhoto,
+  reorderJournalPhotos,
+} from './journal-photos';
+
+// Journal book links
+export {
+  linkJournalToBook,
+  unlinkJournalFromBook,
+  getLinkedBooks,
+  getJournalEntriesForBook,
+  getLinkedEntryCount,
+} from './journal-book-links';

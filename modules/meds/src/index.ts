@@ -1,6 +1,9 @@
 export { MEDS_MODULE } from './definition';
-export type { Medication, MedFrequency, Dose } from './types';
-export { MedicationSchema, MedFrequencySchema, DoseSchema } from './types';
+
+// Re-export all models
+export * from './models';
+
+// Re-export CRUD operations
 export {
   createMedication,
   getMedications,
@@ -16,3 +19,6 @@ export {
   getSetting,
   setSetting,
 } from './db';
+
+// Re-export migration for external use
+export { MEDS_MIGRATION_V2 } from './db/migrations';

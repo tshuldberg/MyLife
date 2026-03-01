@@ -40,8 +40,8 @@ describe('@mylife/meds', () => {
       expect(MEDS_MODULE.tablePrefix).toBe('md_');
     });
 
-    it('has 4 navigation tabs', () => {
-      expect(MEDS_MODULE.navigation.tabs).toHaveLength(4);
+    it('has 5 navigation tabs', () => {
+      expect(MEDS_MODULE.navigation.tabs).toHaveLength(5);
     });
   });
 

@@ -76,10 +76,17 @@ pnpm check:parity        # Full parity gate (standalone integrity + module parit
 pnpm test:parity-matrix  # Run standalone↔MyLife parity matrix tests only
 pnpm scaffold:function-test --file <path> --function <name> # Scaffold contract + fuzz + perf test template
 pnpm gate:function --file <path> # Run lint + typecheck + tests for a changed function package
+pnpm gate:function:changed # Run the function gate across all changed source files
 pnpm gate:function --standalone <MyAppName> # Run same gate for a contained standalone app root
 pnpm gate:function --all-standalone # Run same gate across all contained standalone app roots
 pnpm clean               # Clean build artifacts
 ```
+
+## Function Quality Gate Requirement
+
+- For any code change that modifies function logic, run `pnpm gate:function:changed` before finalizing.
+- If no function logic changed, state that explicitly when skipping this gate.
+- This requirement applies to both hub code and contained standalone apps.
 
 ## Architecture
 

@@ -20,6 +20,8 @@ Available helpers:
 - `assertMemoryBudget`
 - `randomInt`
 
+The gate runner auto-detects `pnpm` when `node` is available and falls back to `bun` when running in Bun-only environments.
+
 ## 1) Scaffold a Function Gate Test
 
 Create a test scaffold near your source file:
@@ -41,6 +43,12 @@ Run by source file (auto-resolves package, auto-detects nearby tests):
 
 ```bash
 pnpm gate:function --file modules/books/src/stats/stats.ts
+```
+
+Run for all changed source files in the current branch (recommended agent command):
+
+```bash
+pnpm gate:function:changed
 ```
 
 Run explicit tests:
@@ -90,3 +98,5 @@ pnpm gate:function --all-standalone --skip-test
 3. Fill in contract and invariants.
 4. Run `pnpm gate:function --file <path>`.
 5. Commit only when gate passes.
+
+For multi-file changes, run `pnpm gate:function:changed` before finalizing.

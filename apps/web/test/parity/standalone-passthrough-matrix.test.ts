@@ -373,6 +373,16 @@ const recipesWrappers: Array<{ hub: string; expected: string; standalone: string
     standalone: 'MyRecipes/apps/web/app/recipes/[id]/page.tsx',
   },
   {
+    hub: 'apps/web/app/recipes/library/[id]/cook/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/recipes/[id]/cook/page';",
+    standalone: 'MyRecipes/apps/web/app/recipes/[id]/cook/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/recipes/library/[id]/print/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/recipes/[id]/print/page';",
+    standalone: 'MyRecipes/apps/web/app/recipes/[id]/print/page.tsx',
+  },
+  {
     hub: 'apps/web/app/recipes/add/page.tsx',
     expected: "export { default } from '@myrecipes-web/app/add/page';",
     standalone: 'MyRecipes/apps/web/app/add/page.tsx',
@@ -391,6 +401,21 @@ const recipesWrappers: Array<{ hub: string; expected: string; standalone: string
     hub: 'apps/web/app/recipes/grocery/page.tsx',
     expected: "export { default } from '@myrecipes-web/app/grocery/page';",
     standalone: 'MyRecipes/apps/web/app/grocery/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/recipes/meal-planner/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/meal-planner/page';",
+    standalone: 'MyRecipes/apps/web/app/meal-planner/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/recipes/garden/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/garden/page';",
+    standalone: 'MyRecipes/apps/web/app/garden/page.tsx',
+  },
+  {
+    hub: 'apps/web/app/recipes/events/page.tsx',
+    expected: "export { default } from '@myrecipes-web/app/events/page';",
+    standalone: 'MyRecipes/apps/web/app/events/page.tsx',
   },
   {
     hub: 'apps/web/app/recipes/pantry/page.tsx',

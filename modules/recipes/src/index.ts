@@ -1,4 +1,4 @@
-// @mylife/recipes — MyRecipes module
+// @mylife/recipes — MyGarden module
 
 export { RECIPES_MODULE } from './definition';
 
@@ -11,6 +11,14 @@ export type {
   RecipeTag,
   Difficulty,
   RecipeFilters,
+  Step,
+  MealPlan,
+  MealPlanItem,
+  MealSlot,
+  PlantLocation,
+  GardenPlant,
+  Event,
+  EventResponse,
 } from './types';
 
 export {
@@ -30,3 +38,18 @@ export {
   getSetting,
   setSetting,
 } from './db/crud';
+export {
+  addEventGuest,
+  createEvent,
+  createGardenPlant,
+  detectStepTimerMinutes,
+  generateMealPlanShoppingList,
+  getEventAllergyWarnings,
+  getMealPlanWeek,
+  getNextWateringDate,
+  getRecipesForHarvest,
+  markPlantWatered,
+  respondToInvite,
+  setEventMenu,
+  upsertMealPlanItem,
+} from './db/mygarden';

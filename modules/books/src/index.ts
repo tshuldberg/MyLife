@@ -23,3 +23,15 @@ export * from './stats/index';
 
 // E-reader upload parsing helpers
 export * from './reader/index';
+
+// Progress engine
+export * from './progress/index';
+
+// Discovery engine
+export * from './discovery/index';
+
+// Challenge engine
+export * from './challenges/index';
+
+// Journal engine
+export * from './journal/index';

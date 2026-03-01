@@ -13,12 +13,12 @@ function escapeRegex(value: string): string {
 
 // ─── Test 1: Recipes ─────────────────────────────────────────────────────────
 
-test.describe('MyRecipes CRUD', () => {
+test.describe('MyGarden CRUD', () => {
   test('create, search, and delete a recipe', async ({ page }) => {
     const idSuffix = Date.now();
     const recipeName = `E2E Pasta ${idSuffix}`;
 
-    await ensureModuleEnabledFromDiscover(page, 'MyRecipes');
+    await ensureModuleEnabledFromDiscover(page, 'MyGarden');
     await page.goto('/recipes');
     await expect(page.getByRole('heading', { name: 'Recipes' })).toBeVisible();
 

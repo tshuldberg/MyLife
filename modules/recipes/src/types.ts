@@ -101,3 +101,69 @@ export interface RecipeFilters {
   limit?: number;
   offset?: number;
 }
+
+export const StepSchema = z.object({
+  id: z.string(),
+  recipe_id: z.string(),
+  step_number: z.number().int().positive(),
+  instruction: z.string().min(1),
+  timer_minutes: z.number().int().positive().nullable(),
+  sort_order: z.number().int(),
+});
+export type Step = z.infer<typeof StepSchema>;
+
+export const MealSlotSchema = z.enum(['breakfast', 'lunch', 'dinner', 'snack']);
+export type MealSlot = z.infer<typeof MealSlotSchema>;
+
+export const MealPlanSchema = z.object({
+  id: z.string(),
+  week_start_date: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type MealPlan = z.infer<typeof MealPlanSchema>;
+
+export const MealPlanItemSchema = z.object({
+  id: z.string(),
+  meal_plan_id: z.string(),
+  recipe_id: z.string(),
+  day_of_week: z.number().int().min(0).max(6),
+  meal_slot: MealSlotSchema,
+  servings: z.number().int().positive(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type MealPlanItem = z.infer<typeof MealPlanItemSchema>;
+
+export const PlantLocationSchema = z.enum(['indoor', 'outdoor', 'raised_bed', 'container']);
+export type PlantLocation = z.infer<typeof PlantLocationSchema>;
+
+export const GardenPlantSchema = z.object({
+  id: z.string(),
+  species: z.string(),
+  location: PlantLocationSchema,
+  planting_date: z.string(),
+  watering_interval_days: z.number().int().positive(),
+  last_watered_at: z.string().nullable(),
+  notes: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type GardenPlant = z.infer<typeof GardenPlantSchema>;
+
+export const EventResponseSchema = z.enum(['attending', 'maybe', 'declined']);
+export type EventResponse = z.infer<typeof EventResponseSchema>;
+
+export const EventSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  event_date: z.string(),
+  event_time: z.string(),
+  location: z.string().nullable(),
+  description: z.string().nullable(),
+  capacity: z.number().int().nullable(),
+  invite_token: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type Event = z.infer<typeof EventSchema>;

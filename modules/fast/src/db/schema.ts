@@ -70,12 +70,62 @@ CREATE TABLE IF NOT EXISTS ft_settings (
     value TEXT NOT NULL
 )`;
 
+// -- 7. Water Intake --
+export const CREATE_WATER_INTAKE = `
+CREATE TABLE IF NOT EXISTS ft_water_intake (
+    date TEXT PRIMARY KEY,
+    count INTEGER NOT NULL DEFAULT 0,
+    target INTEGER NOT NULL DEFAULT 8,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+// -- 8. Goals --
+export const CREATE_GOALS = `
+CREATE TABLE IF NOT EXISTS ft_goals (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    target_value REAL NOT NULL,
+    period TEXT NOT NULL,
+    direction TEXT NOT NULL DEFAULT 'at_least',
+    label TEXT,
+    unit TEXT,
+    start_date TEXT NOT NULL,
+    end_date TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+// -- 9. Goal Progress --
+export const CREATE_GOAL_PROGRESS = `
+CREATE TABLE IF NOT EXISTS ft_goal_progress (
+    id TEXT PRIMARY KEY,
+    goal_id TEXT NOT NULL REFERENCES ft_goals(id) ON DELETE CASCADE,
+    period_start TEXT NOT NULL,
+    period_end TEXT NOT NULL,
+    current_value REAL NOT NULL,
+    target_value REAL NOT NULL,
+    completed INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+// -- 10. Notifications Config --
+export const CREATE_NOTIFICATIONS_CONFIG = `
+CREATE TABLE IF NOT EXISTS ft_notifications_config (
+    key TEXT PRIMARY KEY,
+    enabled INTEGER NOT NULL DEFAULT 1
+)`;
+
 // -- Indexes --
 export const CREATE_INDEXES = [
   `CREATE INDEX IF NOT EXISTS ft_fasts_started_idx ON ft_fasts(started_at)`,
   `CREATE INDEX IF NOT EXISTS ft_fasts_protocol_idx ON ft_fasts(protocol)`,
   `CREATE INDEX IF NOT EXISTS ft_fasts_hit_target_idx ON ft_fasts(hit_target)`,
   `CREATE INDEX IF NOT EXISTS ft_weight_date_idx ON ft_weight_entries(date)`,
+  `CREATE INDEX IF NOT EXISTS ft_water_updated_idx ON ft_water_intake(updated_at)`,
+  `CREATE INDEX IF NOT EXISTS ft_goals_active_idx ON ft_goals(is_active)`,
+  `CREATE INDEX IF NOT EXISTS ft_goals_type_idx ON ft_goals(type)`,
+  `CREATE INDEX IF NOT EXISTS ft_goal_progress_goal_idx ON ft_goal_progress(goal_id)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS ft_goal_progress_unique_period_idx ON ft_goal_progress(goal_id, period_start, period_end)`,
 ];
 
 /** All table creation statements in dependency order */
@@ -86,6 +136,10 @@ export const ALL_TABLES = [
   CREATE_STREAK_CACHE,
   CREATE_ACTIVE_FAST,
   CREATE_SETTINGS,
+  CREATE_WATER_INTAKE,
+  CREATE_GOALS,
+  CREATE_GOAL_PROGRESS,
+  CREATE_NOTIFICATIONS_CONFIG,
 ];
 
 /** Seed SQL for the 6 preset fasting protocols */
@@ -101,8 +155,21 @@ export const SEED_PROTOCOLS = [
 /** Seed SQL for default settings */
 export const SEED_SETTINGS = [
   `INSERT OR IGNORE INTO ft_settings (key, value) VALUES ('defaultProtocol', '16:8')`,
-  `INSERT OR IGNORE INTO ft_settings (key, value) VALUES ('notifyFastComplete', 'false')`,
+  `INSERT OR IGNORE INTO ft_settings (key, value) VALUES ('notifyFastComplete', 'true')`,
   `INSERT OR IGNORE INTO ft_settings (key, value) VALUES ('notifyEatingWindowClosing', 'false')`,
   `INSERT OR IGNORE INTO ft_settings (key, value) VALUES ('weightTrackingEnabled', 'false')`,
   `INSERT OR IGNORE INTO ft_settings (key, value) VALUES ('weightUnit', 'lbs')`,
+  `INSERT OR IGNORE INTO ft_settings (key, value) VALUES ('waterDailyTarget', '8')`,
+  `INSERT OR IGNORE INTO ft_settings (key, value) VALUES ('healthSyncEnabled', 'false')`,
+  `INSERT OR IGNORE INTO ft_settings (key, value) VALUES ('healthReadWeight', 'false')`,
+  `INSERT OR IGNORE INTO ft_settings (key, value) VALUES ('healthWriteFasts', 'false')`,
+];
+
+/** Seed SQL for notification preferences */
+export const SEED_NOTIFICATIONS_CONFIG = [
+  `INSERT OR IGNORE INTO ft_notifications_config (key, enabled) VALUES ('fastStart', 1)`,
+  `INSERT OR IGNORE INTO ft_notifications_config (key, enabled) VALUES ('progress25', 0)`,
+  `INSERT OR IGNORE INTO ft_notifications_config (key, enabled) VALUES ('progress50', 1)`,
+  `INSERT OR IGNORE INTO ft_notifications_config (key, enabled) VALUES ('progress75', 1)`,
+  `INSERT OR IGNORE INTO ft_notifications_config (key, enabled) VALUES ('fastComplete', 1)`,
 ];

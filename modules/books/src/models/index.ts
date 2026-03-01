@@ -1,4 +1,4 @@
-// Data models and Zod schemas — all 11 tables
+// Data models and Zod schemas
 export {
   // Enums
   BookFormat,
@@ -10,6 +10,11 @@ export {
   ReaderNoteType,
   ReaderTheme,
   ImportSource,
+  MoodTagType,
+  ContentWarningSeverity,
+  ChallengeType,
+  ChallengeTargetUnit,
+  ChallengeTimeFrame,
   // Schemas
   BookSchema,
   BookInsertSchema,
@@ -39,6 +44,29 @@ export {
   ImportLogSchema,
   ImportLogInsertSchema,
   SettingSchema,
+  // New feature schemas
+  ProgressUpdateSchema,
+  ProgressUpdateInsertSchema,
+  TimedSessionSchema,
+  TimedSessionInsertSchema,
+  SeriesSchema,
+  SeriesInsertSchema,
+  SeriesBookSchema,
+  SeriesBookInsertSchema,
+  MoodTagSchema,
+  MoodTagInsertSchema,
+  ContentWarningSchema,
+  ContentWarningInsertSchema,
+  ChallengeSchema,
+  ChallengeInsertSchema,
+  ChallengeProgressSchema,
+  ChallengeProgressInsertSchema,
+  JournalEntrySchema,
+  JournalEntryInsertSchema,
+  JournalPhotoSchema,
+  JournalPhotoInsertSchema,
+  JournalBookLinkSchema,
+  JournalBookLinkInsertSchema,
 } from './schemas';
 
 // Types
@@ -71,4 +99,27 @@ export type {
   ImportLog,
   ImportLogInsert,
   Setting,
+  // New feature types
+  ProgressUpdate,
+  ProgressUpdateInsert,
+  TimedSession,
+  TimedSessionInsert,
+  Series,
+  SeriesInsert,
+  SeriesBook,
+  SeriesBookInsert,
+  MoodTag,
+  MoodTagInsert,
+  ContentWarning,
+  ContentWarningInsert,
+  Challenge,
+  ChallengeInsert,
+  ChallengeProgress,
+  ChallengeProgressInsert,
+  JournalEntry,
+  JournalEntryInsert,
+  JournalPhoto,
+  JournalPhotoInsert,
+  JournalBookLink,
+  JournalBookLinkInsert,
 } from './schemas';

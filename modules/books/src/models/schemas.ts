@@ -386,3 +386,270 @@ export const SettingSchema = z.object({
   value: z.string(),
 });
 export type Setting = z.infer<typeof SettingSchema>;
+
+// --- 13. Progress Updates ---
+
+export const ProgressUpdateSchema = z.object({
+  id,
+  session_id: z.string().uuid(),
+  book_id: z.string().uuid(),
+  page_number: z.number().int().nonnegative().nullable(),
+  percent_complete: z.number().min(0).max(100).nullable(),
+  note: z.string().nullable(),
+  created_at: timestamp,
+});
+export type ProgressUpdate = z.infer<typeof ProgressUpdateSchema>;
+
+export const ProgressUpdateInsertSchema = ProgressUpdateSchema.omit({
+  id: true,
+  created_at: true,
+}).partial({
+  page_number: true,
+  percent_complete: true,
+  note: true,
+});
+export type ProgressUpdateInsert = z.infer<typeof ProgressUpdateInsertSchema>;
+
+// --- 14. Timed Sessions ---
+
+export const TimedSessionSchema = z.object({
+  id,
+  session_id: z.string().uuid(),
+  book_id: z.string().uuid(),
+  started_at: isoDatetime,
+  ended_at: isoDatetime.nullable(),
+  duration_ms: z.number().int().nonnegative().nullable(),
+  start_page: z.number().int().nonnegative().nullable(),
+  end_page: z.number().int().nonnegative().nullable(),
+  pages_read: z.number().int().nonnegative().nullable(),
+  pages_per_hour: z.number().nonnegative().nullable(),
+  created_at: timestamp,
+});
+export type TimedSession = z.infer<typeof TimedSessionSchema>;
+
+export const TimedSessionInsertSchema = TimedSessionSchema.omit({
+  id: true,
+  created_at: true,
+}).partial({
+  ended_at: true,
+  duration_ms: true,
+  start_page: true,
+  end_page: true,
+  pages_read: true,
+  pages_per_hour: true,
+});
+export type TimedSessionInsert = z.infer<typeof TimedSessionInsertSchema>;
+
+// --- 15. Series ---
+
+export const SeriesSchema = z.object({
+  id,
+  name: z.string().min(1),
+  description: z.string().nullable(),
+  total_books: z.number().int().nonnegative().nullable(),
+  created_at: timestamp,
+  updated_at: timestamp,
+});
+export type Series = z.infer<typeof SeriesSchema>;
+
+export const SeriesInsertSchema = SeriesSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+}).partial({
+  description: true,
+  total_books: true,
+});
+export type SeriesInsert = z.infer<typeof SeriesInsertSchema>;
+
+// --- 16. Series Books ---
+
+export const SeriesBookSchema = z.object({
+  series_id: z.string().uuid(),
+  book_id: z.string().uuid(),
+  sort_order: z.number().int().nonnegative(),
+  created_at: timestamp,
+});
+export type SeriesBook = z.infer<typeof SeriesBookSchema>;
+
+export const SeriesBookInsertSchema = SeriesBookSchema.omit({
+  created_at: true,
+}).partial({
+  sort_order: true,
+});
+export type SeriesBookInsert = z.infer<typeof SeriesBookInsertSchema>;
+
+// --- 17. Mood Tags ---
+
+export const MoodTagType = z.enum(['mood', 'pace', 'genre']);
+export type MoodTagType = z.infer<typeof MoodTagType>;
+
+export const MoodTagSchema = z.object({
+  id,
+  book_id: z.string().uuid(),
+  tag_type: MoodTagType,
+  value: z.string().min(1),
+  created_at: timestamp,
+});
+export type MoodTag = z.infer<typeof MoodTagSchema>;
+
+export const MoodTagInsertSchema = MoodTagSchema.omit({
+  id: true,
+  created_at: true,
+});
+export type MoodTagInsert = z.infer<typeof MoodTagInsertSchema>;
+
+// --- 18. Content Warnings ---
+
+export const ContentWarningSeverity = z.enum(['mild', 'moderate', 'severe']);
+export type ContentWarningSeverity = z.infer<typeof ContentWarningSeverity>;
+
+export const ContentWarningSchema = z.object({
+  id,
+  book_id: z.string().uuid(),
+  warning: z.string().min(1),
+  severity: ContentWarningSeverity.default('moderate'),
+  created_at: timestamp,
+});
+export type ContentWarning = z.infer<typeof ContentWarningSchema>;
+
+export const ContentWarningInsertSchema = ContentWarningSchema.omit({
+  id: true,
+  created_at: true,
+}).partial({
+  severity: true,
+});
+export type ContentWarningInsert = z.infer<typeof ContentWarningInsertSchema>;
+
+// --- 19. Challenges ---
+
+export const ChallengeType = z.enum(['books_count', 'pages_count', 'minutes_count', 'themed']);
+export type ChallengeType = z.infer<typeof ChallengeType>;
+
+export const ChallengeTargetUnit = z.enum(['books', 'pages', 'minutes']);
+export type ChallengeTargetUnit = z.infer<typeof ChallengeTargetUnit>;
+
+export const ChallengeTimeFrame = z.enum(['yearly', 'monthly', 'weekly', 'custom']);
+export type ChallengeTimeFrame = z.infer<typeof ChallengeTimeFrame>;
+
+export const ChallengeSchema = z.object({
+  id,
+  name: z.string().min(1),
+  description: z.string().nullable(),
+  challenge_type: ChallengeType,
+  target_value: z.number().int().positive(),
+  target_unit: ChallengeTargetUnit,
+  time_frame: ChallengeTimeFrame,
+  start_date: isoDatetime,
+  end_date: isoDatetime,
+  theme_prompt: z.string().nullable(),
+  is_active: z.number().int().min(0).max(1),
+  created_at: timestamp,
+  updated_at: timestamp,
+});
+export type Challenge = z.infer<typeof ChallengeSchema>;
+
+export const ChallengeInsertSchema = ChallengeSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+}).partial({
+  description: true,
+  theme_prompt: true,
+  is_active: true,
+});
+export type ChallengeInsert = z.infer<typeof ChallengeInsertSchema>;
+
+// --- 20. Challenge Progress ---
+
+export const ChallengeProgressSchema = z.object({
+  id,
+  challenge_id: z.string().uuid(),
+  book_id: z.string().uuid().nullable(),
+  session_id: z.string().uuid().nullable(),
+  value_added: z.number().int().nonnegative(),
+  note: z.string().nullable(),
+  logged_at: timestamp,
+});
+export type ChallengeProgress = z.infer<typeof ChallengeProgressSchema>;
+
+export const ChallengeProgressInsertSchema = ChallengeProgressSchema.omit({
+  id: true,
+  logged_at: true,
+}).partial({
+  book_id: true,
+  session_id: true,
+  note: true,
+});
+export type ChallengeProgressInsert = z.infer<typeof ChallengeProgressInsertSchema>;
+
+// --- 21. Journal Entries ---
+
+export const JournalEntrySchema = z.object({
+  id,
+  title: z.string().nullable(),
+  content: z.string(),
+  content_encrypted: z.number().int().min(0).max(1),
+  encryption_salt: z.string().nullable(),
+  encryption_iv: z.string().nullable(),
+  word_count: z.number().int().nonnegative(),
+  mood: z.string().nullable(),
+  is_favorite: z.number().int().min(0).max(1),
+  created_at: timestamp,
+  updated_at: timestamp,
+});
+export type JournalEntry = z.infer<typeof JournalEntrySchema>;
+
+export const JournalEntryInsertSchema = JournalEntrySchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+}).partial({
+  title: true,
+  content_encrypted: true,
+  encryption_salt: true,
+  encryption_iv: true,
+  word_count: true,
+  mood: true,
+  is_favorite: true,
+});
+export type JournalEntryInsert = z.infer<typeof JournalEntryInsertSchema>;
+
+// --- 22. Journal Photos ---
+
+export const JournalPhotoSchema = z.object({
+  id,
+  entry_id: z.string().uuid(),
+  file_path: z.string().min(1),
+  file_name: z.string().nullable(),
+  width: z.number().int().positive().nullable(),
+  height: z.number().int().positive().nullable(),
+  sort_order: z.number().int().nonnegative(),
+  created_at: timestamp,
+});
+export type JournalPhoto = z.infer<typeof JournalPhotoSchema>;
+
+export const JournalPhotoInsertSchema = JournalPhotoSchema.omit({
+  id: true,
+  created_at: true,
+}).partial({
+  file_name: true,
+  width: true,
+  height: true,
+  sort_order: true,
+});
+export type JournalPhotoInsert = z.infer<typeof JournalPhotoInsertSchema>;
+
+// --- 23. Journal Book Links ---
+
+export const JournalBookLinkSchema = z.object({
+  entry_id: z.string().uuid(),
+  book_id: z.string().uuid(),
+  created_at: timestamp,
+});
+export type JournalBookLink = z.infer<typeof JournalBookLinkSchema>;
+
+export const JournalBookLinkInsertSchema = JournalBookLinkSchema.omit({
+  created_at: true,
+});
+export type JournalBookLinkInsert = z.infer<typeof JournalBookLinkInsertSchema>;

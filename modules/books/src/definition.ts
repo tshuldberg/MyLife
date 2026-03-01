@@ -10,6 +10,20 @@ import {
   CREATE_READER_NOTES,
   CREATE_READER_PREFERENCES,
   CREATE_READER_INDEXES,
+  CREATE_PROGRESS_UPDATES,
+  CREATE_TIMED_SESSIONS,
+  CREATE_SERIES,
+  CREATE_SERIES_BOOKS,
+  CREATE_MOOD_TAGS,
+  CREATE_CONTENT_WARNINGS,
+  CREATE_CHALLENGES,
+  CREATE_CHALLENGE_PROGRESS,
+  CREATE_JOURNAL_ENTRIES,
+  CREATE_JOURNAL_PHOTOS,
+  CREATE_JOURNAL_BOOK_LINKS,
+  CREATE_JOURNAL_FTS,
+  CREATE_JOURNAL_FTS_TRIGGERS,
+  CREATE_FEATURE_INDEXES,
   SEED_SYSTEM_SHELVES,
 } from './db/schema';
 
@@ -67,6 +81,41 @@ const BOOKS_MIGRATION_V3: Migration = {
   ],
 };
 
+const BOOKS_MIGRATION_V4: Migration = {
+  version: 4,
+  description: 'Add reading progress, series, discovery, challenges, and journal tables',
+  up: [
+    CREATE_PROGRESS_UPDATES,
+    CREATE_TIMED_SESSIONS,
+    CREATE_SERIES,
+    CREATE_SERIES_BOOKS,
+    CREATE_MOOD_TAGS,
+    CREATE_CONTENT_WARNINGS,
+    CREATE_CHALLENGES,
+    CREATE_CHALLENGE_PROGRESS,
+    CREATE_JOURNAL_ENTRIES,
+    CREATE_JOURNAL_PHOTOS,
+    CREATE_JOURNAL_BOOK_LINKS,
+    CREATE_JOURNAL_FTS,
+    ...CREATE_JOURNAL_FTS_TRIGGERS,
+    ...CREATE_FEATURE_INDEXES,
+  ],
+  down: [
+    'DROP TABLE IF EXISTS bk_journal_book_links',
+    'DROP TABLE IF EXISTS bk_journal_photos',
+    'DROP TABLE IF EXISTS bk_journal_entries',
+    'DROP TABLE IF EXISTS bk_journal_fts',
+    'DROP TABLE IF EXISTS bk_challenge_progress',
+    'DROP TABLE IF EXISTS bk_challenges',
+    'DROP TABLE IF EXISTS bk_content_warnings',
+    'DROP TABLE IF EXISTS bk_mood_tags',
+    'DROP TABLE IF EXISTS bk_series_books',
+    'DROP TABLE IF EXISTS bk_series',
+    'DROP TABLE IF EXISTS bk_timed_sessions',
+    'DROP TABLE IF EXISTS bk_progress_updates',
+  ],
+};
+
 export const BOOKS_MODULE: ModuleDefinition = {
   id: 'books',
   name: 'MyBooks',
@@ -75,8 +124,8 @@ export const BOOKS_MODULE: ModuleDefinition = {
   accentColor: '#C9894D',
   tier: 'premium',
   storageType: 'sqlite',
-  migrations: [BOOKS_MIGRATION_V1, BOOKS_MIGRATION_V2, BOOKS_MIGRATION_V3],
-  schemaVersion: 3,
+  migrations: [BOOKS_MIGRATION_V1, BOOKS_MIGRATION_V2, BOOKS_MIGRATION_V3, BOOKS_MIGRATION_V4],
+  schemaVersion: 4,
   tablePrefix: 'bk_',
   navigation: {
     tabs: [

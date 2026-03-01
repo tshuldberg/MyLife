@@ -89,6 +89,9 @@ Standalone submodule directories (`MyBooks/`, `MyBudget/`, etc.) inside the MyLi
 - For new or changed functions, scaffold and run the function quality gate before finalizing work:
   - `pnpm scaffold:function-test --file <path> --function <name>`
   - `pnpm gate:function --file <path>`
+- Agent enforcement requirement:
+  - If a change includes function logic in source files, run `pnpm gate:function:changed` before completion.
+  - If no function logic changed, state that explicitly when skipping the gate.
 - The same gate must be applicable to contained standalone apps:
   - `pnpm gate:function --standalone <MyAppName>`
   - `pnpm gate:function --all-standalone`

@@ -12,7 +12,7 @@ vi.mock('@mylife/module-registry', () => ({
   useEnabledModules: () => [],
   MODULE_METADATA: {
     books: { id: 'books', name: 'MyBooks', tagline: 'Books', icon: '📚', accentColor: '#C9894D', tier: 'premium' },
-    recipes: { id: 'recipes', name: 'MyRecipes', tagline: 'Recipes', icon: '🍳', accentColor: '#F97316', tier: 'premium' },
+    recipes: { id: 'recipes', name: 'MyGarden', tagline: 'Grow it, cook it, host it', icon: '🌱', accentColor: '#22C55E', tier: 'premium' },
     habits: { id: 'habits', name: 'MyHabits', tagline: 'Habits', icon: '✅', accentColor: '#8B5CF6', tier: 'premium' },
     words: { id: 'words', name: 'MyWords', tagline: 'Words', icon: '📝', accentColor: '#8B5CF6', tier: 'premium' },
     rsvp: { id: 'rsvp', name: 'MyRSVP', tagline: 'RSVP', icon: '💌', accentColor: '#FB7185', tier: 'premium' },

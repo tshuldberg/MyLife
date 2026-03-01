@@ -2,7 +2,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 
 const ROOT = process.cwd();
 const STANDALONE_PATTERN = /^My[A-Z]/;
@@ -28,6 +28,9 @@ Options:
   --skip-lint            Skip lint
   --skip-typecheck       Skip typecheck
   --help                 Show this message
+
+Runner:
+  Auto-detects pnpm when node is available, otherwise falls back to bun.
 
 Examples:
   pnpm gate:function --file modules/books/src/stats/stats.ts --tests modules/books/src/stats/__tests__/stats.test.ts
@@ -117,10 +120,33 @@ function commandToString(parts) {
 
 function runCommand(parts, cwd = ROOT) {
   console.log(`\n$ ${commandToString(parts)}`);
-  execSync(parts.join(' '), {
+  const [command, ...args] = parts;
+  execFileSync(command, args, {
     cwd,
     stdio: 'inherit',
   });
+}
+
+function commandExists(command) {
+  try {
+    execSync(`command -v ${command}`, {
+      cwd: ROOT,
+      stdio: 'ignore',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function detectRunner() {
+  if (commandExists('pnpm') && commandExists('node')) {
+    return 'pnpm';
+  }
+  if (commandExists('bun')) {
+    return 'bun';
+  }
+  throw new Error('No supported runner found. Require either (node + pnpm) or bun.');
 }
 
 function hasPackageJson(dirPath) {
@@ -219,15 +245,33 @@ function resolveDefaultTests(packageDir, sourceFile) {
     .map((candidate) => toPosix(path.relative(packageDir, candidate)));
 }
 
+function runPackageScript(runner, packageDir, scriptName) {
+  if (runner === 'pnpm') {
+    runCommand(['pnpm', '--dir', toPosix(packageDir), 'run', scriptName]);
+    return;
+  }
+  runCommand(['bun', 'run', scriptName], packageDir);
+}
+
+function runVitestPaths(runner, packageDir, tests) {
+  if (runner === 'pnpm') {
+    runCommand(['pnpm', '--dir', toPosix(packageDir), 'exec', 'vitest', 'run', ...tests]);
+    return;
+  }
+  runCommand(['bun', 'x', 'vitest', 'run', ...tests], packageDir);
+}
+
 function runGateInPackage(packageDir, options) {
   const pkg = readPackageJson(packageDir);
   const scripts = pkg.scripts ?? {};
   const packageLabel = `${pkg.name ?? '(unnamed)'} @ ${toPosix(path.relative(ROOT, packageDir))}`;
   console.log(`\n=== Function Quality Gate: ${packageLabel} ===`);
+  const runner = detectRunner();
+  console.log(`Runner: ${runner}`);
 
   if (!options.skipLint) {
     if (scripts.lint) {
-      runCommand(['pnpm', '--dir', toPosix(packageDir), 'run', 'lint']);
+      runPackageScript(runner, packageDir, 'lint');
     } else {
       console.log('Skipping lint (no lint script).');
     }
@@ -235,7 +279,7 @@ function runGateInPackage(packageDir, options) {
 
   if (!options.skipTypecheck) {
     if (scripts.typecheck) {
-      runCommand(['pnpm', '--dir', toPosix(packageDir), 'run', 'typecheck']);
+      runPackageScript(runner, packageDir, 'typecheck');
     } else {
       console.log('Skipping typecheck (no typecheck script).');
     }
@@ -244,22 +288,21 @@ function runGateInPackage(packageDir, options) {
   if (!options.skipTest) {
     const hasVitest = typeof scripts.test === 'string' && scripts.test.includes('vitest');
     if (options.tests.length > 0 && hasVitest) {
-      const safeTests = options.tests.map((entry) => `"${entry}"`);
-      runCommand(['pnpm', '--dir', toPosix(packageDir), 'exec', 'vitest', 'run', ...safeTests]);
+      runVitestPaths(runner, packageDir, options.tests);
     } else if (options.tests.length > 0 && !hasVitest) {
       console.log('Test paths were provided, but package does not use Vitest test script. Running package test script instead.');
       if (scripts.test) {
-        runCommand(['pnpm', '--dir', toPosix(packageDir), 'run', 'test']);
+        runPackageScript(runner, packageDir, 'test');
       } else if (scripts['test:unit']) {
-        runCommand(['pnpm', '--dir', toPosix(packageDir), 'run', 'test:unit']);
+        runPackageScript(runner, packageDir, 'test:unit');
       } else {
         console.log('Skipping tests (no test script).');
       }
     } else {
       if (scripts.test) {
-        runCommand(['pnpm', '--dir', toPosix(packageDir), 'run', 'test']);
+        runPackageScript(runner, packageDir, 'test');
       } else if (scripts['test:unit']) {
-        runCommand(['pnpm', '--dir', toPosix(packageDir), 'run', 'test:unit']);
+        runPackageScript(runner, packageDir, 'test:unit');
       } else {
         console.log('Skipping tests (no test script).');
       }

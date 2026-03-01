@@ -17,7 +17,7 @@ export default function RecipesLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: 'MyRecipes',
+          title: 'MyGarden',
           headerLeft: () => <BackToHubButton />,
         }}
       />

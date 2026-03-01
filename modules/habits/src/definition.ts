@@ -1,9 +1,16 @@
 import type { ModuleDefinition, Migration } from '@mylife/module-registry';
-import { ALL_TABLES, CREATE_INDEXES, SEED_SETTINGS } from './db/schema';
+import {
+  ALL_TABLES,
+  CREATE_INDEXES,
+  SEED_SETTINGS,
+  ALTER_HABITS_V2,
+  ALL_V2_TABLES,
+  V2_INDEXES,
+} from './db/schema';
 
 const HABITS_MIGRATION_V1: Migration = {
   version: 1,
-  description: 'Initial habits schema — habits, completions, settings + indexes + seeds',
+  description: 'Initial habits schema -- habits, completions, settings + indexes + seeds',
   up: [
     ...ALL_TABLES,
     ...CREATE_INDEXES,
@@ -16,6 +23,26 @@ const HABITS_MIGRATION_V1: Migration = {
   ],
 };
 
+const HABITS_MIGRATION_V2: Migration = {
+  version: 2,
+  description: 'V2 -- habit types, timed sessions, measurements, cycle tracking',
+  up: [
+    ...ALTER_HABITS_V2,
+    ...ALL_V2_TABLES,
+    ...V2_INDEXES,
+  ],
+  down: [
+    'DROP TABLE IF EXISTS cy_settings',
+    'DROP TABLE IF EXISTS cy_predictions',
+    'DROP TABLE IF EXISTS cy_symptoms',
+    'DROP TABLE IF EXISTS cy_periods',
+    'DROP TABLE IF EXISTS hb_measurements',
+    'DROP TABLE IF EXISTS hb_timed_sessions',
+    // Note: SQLite does not support DROP COLUMN, so V2 ALTER columns
+    // remain in the table on rollback. This is acceptable for local-only data.
+  ],
+};
+
 export const HABITS_MODULE: ModuleDefinition = {
   id: 'habits',
   name: 'MyHabits',
@@ -24,8 +51,8 @@ export const HABITS_MODULE: ModuleDefinition = {
   accentColor: '#8B5CF6',
   tier: 'premium',
   storageType: 'sqlite',
-  migrations: [HABITS_MIGRATION_V1],
-  schemaVersion: 1,
+  migrations: [HABITS_MIGRATION_V1, HABITS_MIGRATION_V2],
+  schemaVersion: 2,
   tablePrefix: 'hb_',
   navigation: {
     tabs: [
@@ -38,9 +65,10 @@ export const HABITS_MODULE: ModuleDefinition = {
       { name: 'habit-detail', title: 'Habit' },
       { name: 'add-habit', title: 'New Habit' },
       { name: 'streak-detail', title: 'Streak' },
+      { name: 'cycle-tracker', title: 'Cycle Tracker' },
     ],
   },
   requiresAuth: false,
   requiresNetwork: false,
-  version: '0.1.0',
+  version: '0.2.0',
 };

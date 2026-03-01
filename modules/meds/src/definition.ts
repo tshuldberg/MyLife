@@ -1,9 +1,10 @@
 import type { ModuleDefinition, Migration } from '@mylife/module-registry';
 import { ALL_TABLES, CREATE_INDEXES, SEED_SETTINGS } from './db/schema';
+import { MEDS_MIGRATION_V2 } from './db/migrations';
 
 const MEDS_MIGRATION_V1: Migration = {
   version: 1,
-  description: 'Initial meds schema — medications, doses, settings + indexes + seeds',
+  description: 'Initial meds schema -- medications, doses, settings + indexes + seeds',
   up: [
     ...ALL_TABLES,
     ...CREATE_INDEXES,
@@ -24,23 +25,28 @@ export const MEDS_MODULE: ModuleDefinition = {
   accentColor: '#06B6D4',
   tier: 'premium',
   storageType: 'sqlite',
-  migrations: [MEDS_MIGRATION_V1],
-  schemaVersion: 1,
+  migrations: [MEDS_MIGRATION_V1, MEDS_MIGRATION_V2],
+  schemaVersion: 2,
   tablePrefix: 'md_',
   navigation: {
     tabs: [
       { key: 'today', label: 'Today', icon: 'clock' },
       { key: 'medications', label: 'Medications', icon: 'pill' },
       { key: 'history', label: 'History', icon: 'calendar' },
+      { key: 'mood', label: 'Mood', icon: 'heart' },
       { key: 'settings', label: 'Settings', icon: 'settings' },
     ],
     screens: [
       { name: 'med-detail', title: 'Medication' },
       { name: 'add-med', title: 'Add Medication' },
       { name: 'schedule', title: 'Schedule' },
+      { name: 'mood-check-in', title: 'Mood Check-In' },
+      { name: 'measurement-log', title: 'Log Measurement' },
+      { name: 'correlation', title: 'Correlations' },
+      { name: 'export', title: 'Export Data' },
     ],
   },
   requiresAuth: false,
   requiresNetwork: false,
-  version: '0.1.0',
+  version: '0.2.0',
 };

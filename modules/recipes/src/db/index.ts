@@ -1,4 +1,10 @@
-export { ALL_TABLES, CREATE_INDEXES, SEED_SETTINGS } from './schema';
+export {
+  ALL_TABLES,
+  CREATE_INDEXES,
+  MYGARDEN_INDEXES,
+  MYGARDEN_TABLES,
+  SEED_SETTINGS,
+} from './schema';
 export {
   createRecipe,
   getRecipes,
@@ -16,4 +22,19 @@ export {
   getSetting,
   setSetting,
 } from './crud';
+export {
+  addEventGuest,
+  createEvent,
+  createGardenPlant,
+  detectStepTimerMinutes,
+  generateMealPlanShoppingList,
+  getEventAllergyWarnings,
+  getMealPlanWeek,
+  getNextWateringDate,
+  getRecipesForHarvest,
+  markPlantWatered,
+  respondToInvite,
+  setEventMenu,
+  upsertMealPlanItem,
+} from './mygarden';
 export type { RecipeFilters } from '../types';
