@@ -74,6 +74,10 @@ pnpm check:passthrough-parity # Validate all standalone apps + module passthroug
 pnpm check:workouts-parity # Strict MyWorkouts UI/data parity validation
 pnpm check:parity        # Full parity gate (standalone integrity + module parity + workouts strict parity)
 pnpm test:parity-matrix  # Run standalone↔MyLife parity matrix tests only
+pnpm scaffold:function-test --file <path> --function <name> # Scaffold contract + fuzz + perf test template
+pnpm gate:function --file <path> # Run lint + typecheck + tests for a changed function package
+pnpm gate:function --standalone <MyAppName> # Run same gate for a contained standalone app root
+pnpm gate:function --all-standalone # Run same gate across all contained standalone app roots
 pnpm clean               # Clean build artifacts
 ```
 

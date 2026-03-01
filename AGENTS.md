@@ -83,3 +83,12 @@ Standalone submodule directories (`MyBooks/`, `MyBudget/`, etc.) inside the MyLi
 
 ## Writing Style
 - Do not use em dashes in documents or writing.
+
+## Function Quality Gate
+
+- For new or changed functions, scaffold and run the function quality gate before finalizing work:
+  - `pnpm scaffold:function-test --file <path> --function <name>`
+  - `pnpm gate:function --file <path>`
+- The same gate must be applicable to contained standalone apps:
+  - `pnpm gate:function --standalone <MyAppName>`
+  - `pnpm gate:function --all-standalone`
