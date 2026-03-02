@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { View, StyleSheet, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { CameraView, type BarcodeScanningResult } from 'expo-camera';
@@ -13,6 +13,7 @@ import {
   getBookByISBNLocal,
   addBookToShelf,
 } from '@mylife/books';
+import { getBooksSettings, resolvePreferredShelf } from '../../lib/books/settings';
 
 const BOOKS_ACCENT = colors.modules.books;
 
@@ -30,15 +31,29 @@ export default function ScanScreen() {
   const db = useDatabase();
   const { create } = useBooks();
   const { shelves } = useShelves();
+  const preferredShelf = useMemo(() => {
+    const settings = getBooksSettings(db);
+    return resolvePreferredShelf(shelves, settings.defaultShelfSlug);
+  }, [db, shelves]);
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [permissionError, setPermissionError] = useState(false);
   const [scanState, setScanState] = useState<ScanState>({ type: 'scanning' });
   const [manualISBN, setManualISBN] = useState('');
   const scanLockRef = useRef(false);
 
-  useEffect(() => {
-    requestCameraPermission().then(setHasPermission);
+  const requestPermission = useCallback(() => {
+    setPermissionError(false);
+    let mounted = true;
+    requestCameraPermission()
+      .then((granted) => { if (mounted) setHasPermission(granted); })
+      .catch(() => { if (mounted) setPermissionError(true); });
+    return () => { mounted = false; };
   }, []);
+
+  useEffect(() => {
+    return requestPermission();
+  }, [requestPermission]);
 
   const lookupISBN = useCallback(
     async (isbn: string) => {
@@ -100,16 +115,15 @@ export default function ScanScreen() {
   const handleAddBook = useCallback(
     (bookInsert: ReturnType<typeof olEditionToBook>) => {
       const book = create(bookInsert);
-      const tbrShelf = shelves.find((s) => s.slug === 'want-to-read');
-      if (tbrShelf) {
-        addBookToShelf(db, book.id, tbrShelf.id);
+      if (preferredShelf) {
+        addBookToShelf(db, book.id, preferredShelf.id);
       }
-      Alert.alert('Added!', `"${book.title}" added to Want to Read.`, [
+      Alert.alert('Added!', `"${book.title}" added to ${preferredShelf?.name ?? 'your library'}.`, [
         { text: 'Scan Another', onPress: resetScan },
         { text: 'View Book', onPress: () => router.replace(`/(books)/book/${book.id}`) },
       ]);
     },
-    [create, shelves, db, router],
+    [create, preferredShelf, db, router],
   );
 
   const resetScan = useCallback(() => {
@@ -127,6 +141,21 @@ export default function ScanScreen() {
             Camera permission is required to scan barcodes.
           </Text>
           <Button variant="primary" label="Grant Permission" onPress={() => requestCameraPermission().then(setHasPermission)} />
+          <Button variant="secondary" label="Enter ISBN Manually" onPress={() => setScanState({ type: 'manual' })} />
+        </View>
+      </>
+    );
+  }
+
+  if (permissionError) {
+    return (
+      <>
+        <Stack.Screen options={{ title: 'Scan Barcode' }} />
+        <View style={styles.centered}>
+          <Text variant="body" color={colors.textSecondary} style={styles.centeredText}>
+            Could not access the camera. Please check your device settings.
+          </Text>
+          <Button variant="primary" label="Retry" onPress={requestPermission} />
           <Button variant="secondary" label="Enter ISBN Manually" onPress={() => setScanState({ type: 'manual' })} />
         </View>
       </>
@@ -215,7 +244,11 @@ export default function ScanScreen() {
                   </Text>
                 </View>
               </View>
-              <Button variant="primary" label="Add to Want to Read" onPress={() => handleAddBook(scanState.bookInsert)} />
+              <Button
+                variant="primary"
+                label={`Add to ${preferredShelf?.name ?? 'Library'}`}
+                onPress={() => handleAddBook(scanState.bookInsert)}
+              />
               <Button variant="ghost" label="Scan Another" onPress={resetScan} />
             </Card>
           )}

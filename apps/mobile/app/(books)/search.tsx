@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Text, SearchBar, BookCover, Button, colors, spacing } from '@mylife/ui';
@@ -7,6 +7,7 @@ import { useBooks } from '../../hooks/books/use-books';
 import { useShelves } from '../../hooks/books/use-shelves';
 import { olSearchDocToBook, addBookToShelf, type OLSearchDoc } from '@mylife/books';
 import { useDatabase } from '../../components/DatabaseProvider';
+import { getBooksSettings, resolvePreferredShelf } from '../../lib/books/settings';
 
 const BOOKS_ACCENT = colors.modules.books;
 
@@ -18,21 +19,44 @@ export default function SearchScreen() {
   const router = useRouter();
   const db = useDatabase();
   const [query, setQuery] = useState('');
+  const [addingKeys, setAddingKeys] = useState<Record<string, boolean>>({});
   const { results, loading, error } = useOpenLibrarySearch(query);
   const { create } = useBooks();
   const { shelves } = useShelves();
+  const coverSizeSuffix = useMemo(() => {
+    const quality = getBooksSettings(db).coverImageQuality;
+    if (quality === 'small') return 'S';
+    if (quality === 'large') return 'L';
+    return 'M';
+  }, [db]);
 
   const handleAdd = useCallback(
     (doc: OLSearchDoc) => {
-      const bookInsert = olSearchDocToBook(doc);
-      const book = create(bookInsert);
-      const tbrShelf = shelves.find((s) => s.slug === 'want-to-read');
-      if (tbrShelf) {
-        addBookToShelf(db, book.id, tbrShelf.id);
+      if (addingKeys[doc.key]) {
+        return;
       }
-      Alert.alert('Added', `"${book.title}" added to your library.`);
+      setAddingKeys((current) => ({ ...current, [doc.key]: true }));
+      try {
+        const bookInsert = olSearchDocToBook(doc);
+        const book = create(bookInsert);
+        const settings = getBooksSettings(db);
+        const preferredShelf = resolvePreferredShelf(shelves, settings.defaultShelfSlug);
+        if (preferredShelf) {
+          addBookToShelf(db, book.id, preferredShelf.id);
+        }
+        Alert.alert(
+          'Added',
+          `"${book.title}" added to ${preferredShelf?.name ?? 'your library'}.`,
+        );
+      } finally {
+        setAddingKeys((current) => {
+          const next = { ...current };
+          delete next[doc.key];
+          return next;
+        });
+      }
     },
-    [create, shelves, db],
+    [addingKeys, create, shelves, db],
   );
 
   return (
@@ -77,17 +101,13 @@ export default function SearchScreen() {
         ) : (
           <View style={styles.results}>
             {results.map((doc) => (
-              <Pressable
-                key={doc.key}
-                style={styles.resultRow}
-                onPress={() => handleAdd(doc)}
-              >
+              <View key={doc.key} style={styles.resultRow}>
                 <BookCover
                   coverUrl={
                     doc.cover_edition_key
-                      ? `https://covers.openlibrary.org/b/olid/${doc.cover_edition_key}-M.jpg`
+                      ? `https://covers.openlibrary.org/b/olid/${doc.cover_edition_key}-${coverSizeSuffix}.jpg`
                       : doc.isbn?.[0]
-                        ? `https://covers.openlibrary.org/b/isbn/${doc.isbn[0]}-M.jpg`
+                        ? `https://covers.openlibrary.org/b/isbn/${doc.isbn[0]}-${coverSizeSuffix}.jpg`
                         : null
                   }
                   size="small"
@@ -108,11 +128,12 @@ export default function SearchScreen() {
                 </View>
                 <Button
                   variant="primary"
-                  label="Add"
+                  label={addingKeys[doc.key] ? 'Adding...' : 'Add'}
                   onPress={() => handleAdd(doc)}
+                  disabled={addingKeys[doc.key]}
                   style={styles.addButton}
                 />
-              </Pressable>
+              </View>
             ))}
           </View>
         )}

@@ -1,5 +1,5 @@
-import React, { useState, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, TextInput, Pressable, ActivityIndicator } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, ScrollView, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { Text, Button, Card, SearchBar, BookCover, colors, spacing } from '@mylife/ui';
 import { useOpenLibrarySearch } from '../../../hooks/books/use-search';
@@ -7,6 +7,7 @@ import { useBooks } from '../../../hooks/books/use-books';
 import { useShelves } from '../../../hooks/books/use-shelves';
 import { olSearchDocToBook, addBookToShelf, type OLSearchDoc } from '@mylife/books';
 import { useDatabase } from '../../../components/DatabaseProvider';
+import { getBooksSettings, resolvePreferredShelf } from '../../../lib/books/settings';
 
 const BOOKS_ACCENT = colors.modules.books;
 
@@ -20,22 +21,42 @@ export default function AddBookScreen() {
   const [title, setTitle] = useState('');
   const [author, setAuthor] = useState('');
   const [pages, setPages] = useState('');
+  const [addingKeys, setAddingKeys] = useState<Record<string, boolean>>({});
 
   const { results, loading } = useOpenLibrarySearch(query);
   const { create } = useBooks();
   const { shelves } = useShelves();
+  const coverSizeSuffix = useMemo(() => {
+    const quality = getBooksSettings(db).coverImageQuality;
+    if (quality === 'small') return 'S';
+    if (quality === 'large') return 'L';
+    return 'M';
+  }, [db]);
 
   const handleAddFromSearch = useCallback(
     (doc: OLSearchDoc) => {
-      const bookInsert = olSearchDocToBook(doc);
-      const book = create(bookInsert);
-      const tbrShelf = shelves.find((s) => s.slug === 'want-to-read');
-      if (tbrShelf) {
-        addBookToShelf(db, book.id, tbrShelf.id);
+      if (addingKeys[doc.key]) {
+        return;
       }
-      router.push(`/(books)/book/${book.id}`);
+      setAddingKeys((current) => ({ ...current, [doc.key]: true }));
+      try {
+        const bookInsert = olSearchDocToBook(doc);
+        const book = create(bookInsert);
+        const settings = getBooksSettings(db);
+        const preferredShelf = resolvePreferredShelf(shelves, settings.defaultShelfSlug);
+        if (preferredShelf) {
+          addBookToShelf(db, book.id, preferredShelf.id);
+        }
+        router.push(`/(books)/book/${book.id}`);
+      } finally {
+        setAddingKeys((current) => {
+          const next = { ...current };
+          delete next[doc.key];
+          return next;
+        });
+      }
     },
-    [create, shelves, db, router],
+    [addingKeys, create, shelves, db, router],
   );
 
   const handleAddManual = useCallback(() => {
@@ -46,9 +67,10 @@ export default function AddBookScreen() {
       page_count: pages ? parseInt(pages, 10) : undefined,
       added_source: 'manual',
     });
-    const tbrShelf = shelves.find((s) => s.slug === 'want-to-read');
-    if (tbrShelf) {
-      addBookToShelf(db, book.id, tbrShelf.id);
+    const settings = getBooksSettings(db);
+    const preferredShelf = resolvePreferredShelf(shelves, settings.defaultShelfSlug);
+    if (preferredShelf) {
+      addBookToShelf(db, book.id, preferredShelf.id);
     }
     router.push(`/(books)/book/${book.id}`);
   }, [title, author, pages, create, shelves, db, router]);
@@ -102,17 +124,13 @@ export default function AddBookScreen() {
             ) : (
               <View style={styles.resultsList}>
                 {results.map((doc) => (
-                  <Pressable
-                    key={doc.key}
-                    style={styles.resultRow}
-                    onPress={() => handleAddFromSearch(doc)}
-                  >
+                  <View key={doc.key} style={styles.resultRow}>
                     <BookCover
                       coverUrl={
                         doc.cover_edition_key
-                          ? `https://covers.openlibrary.org/b/olid/${doc.cover_edition_key}-M.jpg`
+                          ? `https://covers.openlibrary.org/b/olid/${doc.cover_edition_key}-${coverSizeSuffix}.jpg`
                           : doc.isbn?.[0]
-                            ? `https://covers.openlibrary.org/b/isbn/${doc.isbn[0]}-M.jpg`
+                            ? `https://covers.openlibrary.org/b/isbn/${doc.isbn[0]}-${coverSizeSuffix}.jpg`
                             : null
                       }
                       size="small"
@@ -133,11 +151,12 @@ export default function AddBookScreen() {
                     </View>
                     <Button
                       variant="primary"
-                      label="Add"
+                      label={addingKeys[doc.key] ? 'Adding...' : 'Add'}
                       onPress={() => handleAddFromSearch(doc)}
+                      disabled={addingKeys[doc.key]}
                       style={styles.addButton}
                     />
-                  </Pressable>
+                  </View>
                 ))}
               </View>
             )}

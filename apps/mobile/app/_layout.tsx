@@ -16,10 +16,16 @@ import { HOMES_MODULE } from '@mylife/homes';
 import { CAR_MODULE } from '@mylife/car';
 import { HABITS_MODULE } from '@mylife/habits';
 import { MEDS_MODULE } from '@mylife/meds';
+import { HEALTH_MODULE } from '@mylife/health';
 import { WORDS_MODULE } from '@mylife/words';
 import { RSVP_MODULE } from '@mylife/rsvp';
 import { colors } from '@mylife/ui';
 import { DatabaseProvider } from '../components/DatabaseProvider';
+import { ModuleErrorBoundary } from '../components/ModuleErrorBoundary';
+
+export const unstable_settings = {
+  initialRouteName: '(hub)',
+};
 
 const RegistryProvider =
   ModuleRegistryContext.Provider as unknown as React.ComponentType<{
@@ -38,54 +44,71 @@ const RegistryProvider =
  * Registry wraps outside DatabaseProvider so DatabaseProvider can read
  * the registry to sync enabled modules from SQLite on init.
  */
+/**
+ * Safely register a module definition. If the definition is malformed
+ * (fails Zod validation), log and skip instead of crashing the app.
+ */
+function safeRegister(r: ModuleRegistry, def: Parameters<ModuleRegistry['register']>[0], label: string): void {
+  try {
+    r.register(def);
+  } catch (err) {
+    console.error(`[MyLife] Failed to register module "${label}":`, err);
+  }
+}
+
 export default function RootLayout() {
   const registry = useMemo(() => {
     const r = new ModuleRegistry();
-    for (const def of Object.values(MODULE_METADATA)) {
-      r.register(def);
+    for (const [key, def] of Object.entries(MODULE_METADATA)) {
+      safeRegister(r, def, key);
     }
     // Override lightweight entries with full module definitions (includes migrations)
-    r.register(BOOKS_MODULE);
-    r.register(FAST_MODULE);
-    r.register(BUDGET_MODULE);
-    r.register(SURF_MODULE);
-    r.register(RECIPES_MODULE);
-    r.register(WORKOUTS_MODULE);
-    r.register(HOMES_MODULE);
-    r.register(CAR_MODULE);
-    r.register(HABITS_MODULE);
-    r.register(MEDS_MODULE);
-    r.register(WORDS_MODULE);
-    r.register(RSVP_MODULE);
+    safeRegister(r, BOOKS_MODULE, 'books');
+    safeRegister(r, FAST_MODULE, 'fast');
+    safeRegister(r, BUDGET_MODULE, 'budget');
+    safeRegister(r, SURF_MODULE, 'surf');
+    safeRegister(r, RECIPES_MODULE, 'recipes');
+    safeRegister(r, WORKOUTS_MODULE, 'workouts');
+    safeRegister(r, HOMES_MODULE, 'homes');
+    safeRegister(r, CAR_MODULE, 'car');
+    safeRegister(r, HABITS_MODULE, 'habits');
+    safeRegister(r, MEDS_MODULE, 'meds');
+    safeRegister(r, HEALTH_MODULE, 'health');
+    safeRegister(r, WORDS_MODULE, 'words');
+    safeRegister(r, RSVP_MODULE, 'rsvp');
     return r;
   }, []);
 
   return (
-    <RegistryProvider value={registry}>
-      <DatabaseProvider registry={registry}>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.background },
-            animation: 'slide_from_right',
-          }}
-        >
-          <Stack.Screen name="(hub)" />
-          <Stack.Screen name="(books)" />
-          <Stack.Screen name="(budget)" />
-          <Stack.Screen name="(surf)" />
-          <Stack.Screen name="(fast)" />
-          <Stack.Screen name="(recipes)" />
-          <Stack.Screen name="(workouts)" />
-          <Stack.Screen name="(homes)" />
-          <Stack.Screen name="(car)" />
-          <Stack.Screen name="(habits)" />
-          <Stack.Screen name="(meds)" />
-          <Stack.Screen name="(words)" />
-          <Stack.Screen name="(rsvp)" />
-        </Stack>
-      </DatabaseProvider>
-    </RegistryProvider>
+    <ModuleErrorBoundary moduleName="MyLife">
+      <RegistryProvider value={registry}>
+        <DatabaseProvider registry={registry}>
+          <StatusBar style="light" />
+          <Stack
+            initialRouteName="(hub)"
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.background },
+              animation: 'slide_from_right',
+            }}
+          >
+            <Stack.Screen name="(hub)" />
+            <Stack.Screen name="(books)" />
+            <Stack.Screen name="(budget)" />
+            <Stack.Screen name="(surf)" />
+            <Stack.Screen name="(fast)" />
+            <Stack.Screen name="(recipes)" />
+            <Stack.Screen name="(workouts)" />
+            <Stack.Screen name="(homes)" />
+            <Stack.Screen name="(car)" />
+            <Stack.Screen name="(habits)" />
+            <Stack.Screen name="(meds)" />
+            <Stack.Screen name="(health)" />
+            <Stack.Screen name="(words)" />
+            <Stack.Screen name="(rsvp)" />
+          </Stack>
+        </DatabaseProvider>
+      </RegistryProvider>
+    </ModuleErrorBoundary>
   );
 }

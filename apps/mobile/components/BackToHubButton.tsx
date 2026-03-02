@@ -13,7 +13,7 @@ export function BackToHubButton() {
   return (
     <TouchableOpacity
       style={styles.button}
-      onPress={() => router.replace('/')}
+      onPress={() => router.replace('/(hub)')}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
     >
       <Text color={colors.textSecondary} style={styles.label}>

@@ -5,6 +5,12 @@ import LibraryScreen from '../library';
 const pushMock = vi.fn();
 const refreshMock = vi.fn();
 const useBooksMock = vi.fn();
+const setBooksDefaultSortMock = vi.fn();
+const dbMock = {
+  id: 'mock-db',
+  query: vi.fn(() => []),
+  execute: vi.fn(),
+};
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({
@@ -18,10 +24,24 @@ vi.mock('../../../hooks/books/use-shelves', () => ({
       {
         id: 'shelf-reading',
         name: 'Reading',
+        slug: 'reading',
         icon: null,
       },
     ],
   }),
+}));
+
+vi.mock('../../../components/DatabaseProvider', () => ({
+  useDatabase: () => dbMock,
+}));
+
+vi.mock('../../../lib/books/settings', () => ({
+  getBooksSettings: () => ({
+    defaultShelfSlug: 'want-to-read',
+    coverImageQuality: 'medium',
+    defaultSort: 'added',
+  }),
+  setBooksDefaultSort: (...args: unknown[]) => setBooksDefaultSortMock(...args),
 }));
 
 vi.mock('../../../hooks/books/use-books', () => ({
@@ -87,7 +107,7 @@ describe('Books mobile LibraryScreen', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reading' }));
 
     await waitFor(() => {
-      expect(useBooksMock).toHaveBeenLastCalledWith({
+      expect(useBooksMock).toHaveBeenCalledWith({
         shelf_id: 'shelf-reading',
       });
     });

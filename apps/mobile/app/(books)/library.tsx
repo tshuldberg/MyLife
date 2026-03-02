@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Text, SearchBar, colors, spacing } from '@mylife/ui';
@@ -8,6 +8,8 @@ import { BookList } from '../../components/books/BookList';
 import { useShelves } from '../../hooks/books/use-shelves';
 import { useBooks } from '../../hooks/books/use-books';
 import type { BookFilters } from '@mylife/books';
+import { useDatabase } from '../../components/DatabaseProvider';
+import { getBooksSettings, setBooksDefaultSort } from '../../lib/books/settings';
 
 const BOOKS_ACCENT = colors.modules.books;
 
@@ -33,6 +35,7 @@ function ratingValue(book: unknown): number {
 
 export default function LibraryScreen() {
   const router = useRouter();
+  const db = useDatabase();
   const [activeShelf, setActiveShelf] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [sortBy, setSortBy] = useState<SortField>('added');
@@ -47,6 +50,12 @@ export default function LibraryScreen() {
   }, [activeShelf]);
 
   const { books, loading, refresh } = useBooks(filters);
+  const { books: allBooks } = useBooks();
+
+  useEffect(() => {
+    const settings = getBooksSettings(db);
+    setSortBy(settings.defaultSort);
+  }, [db]);
 
   const filteredBooks = useMemo(() => {
     if (filterText.length === 0) return books;
@@ -81,6 +90,14 @@ export default function LibraryScreen() {
     }
   }, [refresh]);
 
+  const cycleSort = useCallback(() => {
+    const order: SortField[] = ['added', 'title', 'author', 'rating'];
+    const index = order.indexOf(sortBy);
+    const next = order[(index + 1) % order.length];
+    setSortBy(next);
+    setBooksDefaultSort(db, next);
+  }, [db, sortBy]);
+
   return (
     <View style={styles.container}>
       <View style={styles.filterRow}>
@@ -107,7 +124,7 @@ export default function LibraryScreen() {
               {viewMode === 'grid' ? 'List' : 'Grid'}
             </Text>
           </Pressable>
-          <Pressable onPress={() => setSortBy(sortBy === 'title' ? 'added' : 'title')}>
+          <Pressable onPress={cycleSort}>
             <Text variant="caption" color={BOOKS_ACCENT}>
               Sort: {sortBy}
             </Text>
@@ -135,8 +152,17 @@ export default function LibraryScreen() {
           {sortedBooks.length === 0 ? (
             <View style={styles.empty}>
               <Text variant="body" color={colors.textTertiary}>
-                {activeShelf ? 'No books on this shelf yet.' : 'No books in your library yet.'}
+                {activeShelf
+                  ? (allBooks.length > 0
+                    ? `No books on this shelf yet. ${allBooks.length} books are in other shelves.`
+                    : 'No books on this shelf yet.')
+                  : 'No books in your library yet.'}
               </Text>
+              {activeShelf && allBooks.length > 0 && (
+                <Pressable onPress={() => setActiveShelf(null)} style={styles.emptyAction}>
+                  <Text variant="caption" color={BOOKS_ACCENT}>Show all books</Text>
+                </Pressable>
+              )}
             </View>
           ) : viewMode === 'grid' ? (
             <BookGrid
@@ -190,5 +216,8 @@ const styles = StyleSheet.create({
   empty: {
     alignItems: 'center',
     paddingTop: 80,
+  },
+  emptyAction: {
+    marginTop: spacing.sm,
   },
 });

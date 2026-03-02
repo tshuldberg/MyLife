@@ -37,7 +37,7 @@ vi.mock('expo-router', () => ({
 }));
 
 vi.mock('../../../components/DatabaseProvider', () => ({
-  useDatabase: () => ({ id: 'mock-db' }),
+  useDatabase: () => ({ id: 'mock-db', query: vi.fn(() => []) }),
 }));
 
 vi.mock('../../../hooks/books/use-search', () => ({
@@ -52,8 +52,18 @@ vi.mock('../../../hooks/books/use-books', () => ({
 
 vi.mock('../../../hooks/books/use-shelves', () => ({
   useShelves: () => ({
-    shelves: [{ id: 'shelf-wtr', slug: 'want-to-read' }],
+    shelves: [{ id: 'shelf-wtr', slug: 'want-to-read', name: 'Want to Read' }],
   }),
+}));
+
+vi.mock('../../../lib/books/settings', () => ({
+  getBooksSettings: () => ({
+    defaultShelfSlug: 'want-to-read',
+    coverImageQuality: 'medium',
+    defaultSort: 'added',
+  }),
+  resolvePreferredShelf: (shelves: Array<{ slug: string }>, preferredSlug: string) =>
+    shelves.find((shelf) => shelf.slug === preferredSlug) ?? null,
 }));
 
 vi.mock('@mylife/books', () => ({
@@ -96,13 +106,13 @@ describe('Books SearchScreen (mobile)', () => {
       authors: '["Frank Herbert"]',
     });
     expect(addBookToShelfMock).toHaveBeenCalledWith(
-      { id: 'mock-db' },
+      expect.objectContaining({ id: 'mock-db' }),
       'book-1',
       'shelf-wtr',
     );
     expect(Alert.alert).toHaveBeenCalledWith(
       'Added',
-      '"Dune" added to your library.',
+      '"Dune" added to Want to Read.',
     );
   });
 });
