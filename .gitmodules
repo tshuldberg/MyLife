@@ -73,3 +73,6 @@
 [submodule "MyMail"]
 	path = MyMail
 	url = https://github.com/tshuldberg/MyMail.git
+[submodule "MyHealth"]
+	path = MyHealth
+	url = ./MyHealth

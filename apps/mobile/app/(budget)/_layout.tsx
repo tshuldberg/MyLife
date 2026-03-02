@@ -2,9 +2,11 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import { colors } from '@mylife/ui';
 import { BackToHubButton } from '../../components/BackToHubButton';
+import { ModuleErrorBoundary } from '../../components/ModuleErrorBoundary';
 
 export default function BudgetLayout() {
   return (
+    <ModuleErrorBoundary moduleName="MyBudget">
     <Stack
       screenOptions={{
         contentStyle: { backgroundColor: colors.background },
@@ -88,5 +90,6 @@ export default function BudgetLayout() {
         }}
       />
     </Stack>
+    </ModuleErrorBoundary>
   );
 }

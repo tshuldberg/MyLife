@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Text as RNText } from 'react-native';
 import { colors } from '@mylife/ui';
 import { BackToHubButton } from '../../components/BackToHubButton';
+import { ModuleErrorBoundary } from '../../components/ModuleErrorBoundary';
 
 const BOOKS_ACCENT = colors.modules.books;
 
@@ -15,6 +16,7 @@ function TabIcon({ icon, focused }: { icon: string; focused: boolean }) {
 
 export default function BooksLayout() {
   return (
+    <ModuleErrorBoundary moduleName="MyBooks">
     <Tabs
       screenOptions={{
         tabBarStyle: {
@@ -86,5 +88,6 @@ export default function BooksLayout() {
       <Tabs.Screen name="scan" options={{ href: null }} />
       <Tabs.Screen name="year-review" options={{ href: null }} />
     </Tabs>
+    </ModuleErrorBoundary>
   );
 }

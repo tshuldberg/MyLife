@@ -92,6 +92,13 @@ const standaloneMatrix: StandaloneParitySpec[] = [
     mobileParityMode: 'standalone_only',
   },
   {
+    standalone: 'MyHealth',
+    moduleId: 'health',
+    moduleStatus: 'design_only',
+    webParityMode: 'design_only',
+    mobileParityMode: 'design_only',
+  },
+  {
     standalone: 'MyHabits',
     moduleId: 'habits',
     moduleStatus: 'implemented',

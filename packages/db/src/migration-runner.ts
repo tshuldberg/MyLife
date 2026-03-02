@@ -52,11 +52,11 @@ export function runModuleMigrations(
   moduleId: string,
   migrations: Migration[],
 ): number {
-  // Ensure hub infrastructure tables exist
-  createHubTables(db);
-
-  // Enable foreign keys
+  // Enable foreign keys BEFORE any table creation so constraints are enforced
   db.execute('PRAGMA foreign_keys = ON;');
+
+  // Ensure hub infrastructure tables exist (with FK enforcement active)
+  createHubTables(db);
 
   const currentVersion = getModuleVersion(db, moduleId);
   const pending = migrations.filter((m) => m.version > currentVersion);
@@ -96,9 +96,10 @@ export function initializeHubDatabase(db: DatabaseAdapter): {
     down: [],
   };
 
-  // Ensure hub tables exist first (idempotent)
-  createHubTables(db);
+  // Enable foreign keys BEFORE table creation so constraints are enforced
   db.execute('PRAGMA foreign_keys = ON;');
+  // Ensure hub tables exist (idempotent)
+  createHubTables(db);
 
   const currentVersion = getModuleVersion(db, 'hub');
   if (currentVersion >= 1) {

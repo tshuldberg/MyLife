@@ -2,9 +2,11 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import { colors } from '@mylife/ui';
 import { BackToHubButton } from '../../components/BackToHubButton';
+import { ModuleErrorBoundary } from '../../components/ModuleErrorBoundary';
 
 export default function HabitsLayout() {
   return (
+    <ModuleErrorBoundary moduleName="MyHabits">
     <Stack
       screenOptions={{
         contentStyle: { backgroundColor: colors.background },
@@ -46,5 +48,6 @@ export default function HabitsLayout() {
         options={{ title: 'Settings' }}
       />
     </Stack>
+    </ModuleErrorBoundary>
   );
 }

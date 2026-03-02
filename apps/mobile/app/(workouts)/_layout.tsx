@@ -2,9 +2,11 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import { colors } from '@mylife/ui';
 import { BackToHubButton } from '../../components/BackToHubButton';
+import { ModuleErrorBoundary } from '../../components/ModuleErrorBoundary';
 
 export default function WorkoutsLayout() {
   return (
+    <ModuleErrorBoundary moduleName="MyWorkouts">
     <Stack
       screenOptions={{
         contentStyle: { backgroundColor: colors.background },
@@ -28,5 +30,6 @@ export default function WorkoutsLayout() {
       <Stack.Screen name="recordings" options={{ title: 'Form Recordings' }} />
       <Stack.Screen name="exercise/[id]" options={{ title: 'Exercise Detail' }} />
     </Stack>
+    </ModuleErrorBoundary>
   );
 }

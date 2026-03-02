@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, Text, Pressable, StyleSheet } from 'react-native';
 import {
   openDatabaseSync,
   type SQLiteDatabase,
@@ -23,6 +23,7 @@ import { HOMES_MODULE } from '@mylife/homes';
 import { CAR_MODULE } from '@mylife/car';
 import { HABITS_MODULE } from '@mylife/habits';
 import { MEDS_MODULE } from '@mylife/meds';
+import { HEALTH_MODULE } from '@mylife/health';
 import { RSVP_MODULE } from '@mylife/rsvp';
 import type { ModuleRegistry, ModuleId } from '@mylife/module-registry';
 import { colors } from '@mylife/ui';
@@ -57,6 +58,7 @@ const MODULE_DEFINITIONS_WITH_MIGRATIONS = {
   car: CAR_MODULE,
   habits: HABITS_MODULE,
   meds: MEDS_MODULE,
+  health: HEALTH_MODULE,
   rsvp: RSVP_MODULE,
 } as const;
 
@@ -83,35 +85,97 @@ interface DatabaseProviderProps {
  */
 export function DatabaseProvider({ children, registry }: DatabaseProviderProps) {
   const [adapter, setAdapter] = useState<DatabaseAdapter | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    const db = openDatabaseSync('mylife-hub.db');
-    const dbAdapter = createExpoAdapter(db);
+    try {
+      const db = openDatabaseSync('mylife-hub.db');
+      const dbAdapter = createExpoAdapter(db);
 
-    // 1. Initialize hub tables
-    initializeHubDatabase(dbAdapter);
+      // Enable WAL mode for better concurrent read/write performance
+      db.runSync('PRAGMA journal_mode=WAL;');
 
-    // Ensure a default mode row exists for runtime mode selection.
-    if (!getHubMode(dbAdapter)) {
-      setHubMode(dbAdapter, 'local_only');
-    }
+      // 1. Initialize hub tables
+      initializeHubDatabase(dbAdapter);
 
-    // 2. Sync enabled modules from SQLite into registry
-    const enabledRows = getEnabledModules(dbAdapter);
-    for (const row of enabledRows) {
-      registry.enable(row.module_id as ModuleId);
-    }
-
-    // 3. Run migrations for enabled modules
-    for (const row of enabledRows) {
-      const moduleDef = MODULE_DEFINITIONS_WITH_MIGRATIONS[row.module_id as keyof typeof MODULE_DEFINITIONS_WITH_MIGRATIONS];
-      if (moduleDef?.migrations) {
-        runModuleMigrations(dbAdapter, row.module_id, moduleDef.migrations);
+      // Ensure a default mode row exists for runtime mode selection.
+      if (!getHubMode(dbAdapter)) {
+        setHubMode(dbAdapter, 'local_only');
       }
-    }
 
-    setAdapter(dbAdapter);
-  }, [registry]);
+      // 2. Sync enabled modules from SQLite into registry
+      const enabledRows = getEnabledModules(dbAdapter);
+      for (const row of enabledRows) {
+        registry.enable(row.module_id as ModuleId);
+      }
+
+      // 3. Run migrations for all known module schemas.
+      // This prevents missing-table crashes when a module route loads before enable-state sync.
+      // Each module is wrapped individually so one failure doesn't block others.
+      // If a migration fails, the module is disabled in the registry to prevent routing
+      // to screens that depend on missing tables.
+      const moduleEntries = Object.entries(MODULE_DEFINITIONS_WITH_MIGRATIONS) as Array<[
+        string,
+        { migrations?: { version: number; description: string; up: string[]; down: string[] }[] }
+      ]>;
+      const migrationErrors: string[] = [];
+      for (const [moduleId, moduleDef] of moduleEntries) {
+        if (moduleDef.migrations) {
+          try {
+            runModuleMigrations(dbAdapter, moduleId, moduleDef.migrations);
+          } catch (migErr) {
+            const msg = migErr instanceof Error ? migErr.message : String(migErr);
+            migrationErrors.push(`${moduleId}: ${msg}`);
+            console.error(`[MyLife] Migration failed for module "${moduleId}":`, migErr);
+            // Disable the module so users can't navigate to broken screens
+            registry.disable(moduleId as ModuleId);
+          }
+        }
+      }
+
+      // 4. Run a quick integrity check to detect database corruption early
+      try {
+        const integrityResult = dbAdapter.query<{ integrity_check: string }>(
+          'PRAGMA integrity_check(1)',
+        );
+        const result = integrityResult[0]?.integrity_check;
+        if (result && result !== 'ok') {
+          console.error('[MyLife] Database integrity check failed:', result);
+        }
+      } catch (integrityErr) {
+        console.error('[MyLife] Could not run integrity check:', integrityErr);
+      }
+
+      if (migrationErrors.length > 0) {
+        console.warn(
+          `[MyLife] ${migrationErrors.length} module migration(s) failed. Affected modules have been disabled.`,
+        );
+      }
+
+      setError(null);
+      setAdapter(dbAdapter);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[MyLife] Database initialization failed:', err);
+      setError(msg);
+    }
+  }, [registry, retryCount]);
+
+  if (error) {
+    return (
+      <View style={styles.loading}>
+        <Text style={styles.errorTitle}>Something went wrong</Text>
+        <Text style={styles.errorMessage}>
+          MyLife couldn't open its database. This can happen if your device is low on storage.
+        </Text>
+        <Text style={styles.errorDetail}>{error}</Text>
+        <Pressable style={styles.retryButton} onPress={() => setRetryCount((c) => c + 1)}>
+          <Text style={styles.retryText}>Try Again</Text>
+        </Pressable>
+      </View>
+    );
+  }
 
   if (!adapter) {
     return (
@@ -134,5 +198,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: colors.background,
+    padding: 32,
+  },
+  errorTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    color: colors.textSecondary,
+    fontSize: 15,
+    textAlign: 'center',
+    marginBottom: 12,
+    lineHeight: 22,
+  },
+  errorDetail: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    textAlign: 'center',
+    marginBottom: 24,
+    fontFamily: 'Courier',
+    opacity: 0.7,
+  },
+  retryButton: {
+    backgroundColor: colors.accent,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  retryText: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

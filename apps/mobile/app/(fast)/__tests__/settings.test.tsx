@@ -30,7 +30,7 @@ vi.mock('@mylife/fast', () => ({
   setWaterTarget: (...args: unknown[]) => setWaterTargetMock(...args),
 }));
 
-vi.mock('../../../lib/fast-health-sync', () => ({
+vi.mock('../../../lib/health-sync', () => ({
   getHealthSyncStatus: () => ({
     available: true,
     platform: 'ios',

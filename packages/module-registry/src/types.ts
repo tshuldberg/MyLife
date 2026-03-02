@@ -5,6 +5,7 @@ export type ModuleId =
   | 'books'
   | 'budget'
   | 'fast'
+  | 'health'
   | 'recipes'
   | 'rsvp'
   | 'surf'
@@ -20,6 +21,7 @@ export const ModuleIdSchema = z.enum([
   'books',
   'budget',
   'fast',
+  'health',
   'recipes',
   'rsvp',
   'surf',
@@ -105,6 +107,12 @@ export interface ModuleDefinition {
   requiresNetwork: boolean;
   /** Semantic version string for this module release. */
   version: string;
+  /**
+   * Optional list of tab keys that remain accessible without a subscription,
+   * even when the module's tier is 'premium'. Used by MyHealth to keep the
+   * Fasting tab free while gating other tabs behind MyLife Pro.
+   */
+  freeSections?: string[];
 }
 
 /** Zod schema for validating ModuleDefinition objects at runtime. */
@@ -146,4 +154,5 @@ export const ModuleDefinitionSchema: z.ZodType<ModuleDefinition> = z.object({
   requiresAuth: z.boolean(),
   requiresNetwork: z.boolean(),
   version: z.string(),
+  freeSections: z.array(z.string()).optional(),
 });

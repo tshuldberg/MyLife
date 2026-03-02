@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Text as RNText } from 'react-native';
 import { colors } from '@mylife/ui';
 import { BackToHubButton } from '../../components/BackToHubButton';
+import { ModuleErrorBoundary } from '../../components/ModuleErrorBoundary';
 
 const FAST_ACCENT = colors.modules.fast;
 
@@ -11,6 +12,7 @@ function TabIcon({ icon, focused }: { icon: string; focused: boolean }) {
 
 export default function FastLayout() {
   return (
+    <ModuleErrorBoundary moduleName="MyFast">
     <Tabs
       screenOptions={{
         tabBarStyle: {
@@ -61,5 +63,6 @@ export default function FastLayout() {
         }}
       />
     </Tabs>
+    </ModuleErrorBoundary>
   );
 }

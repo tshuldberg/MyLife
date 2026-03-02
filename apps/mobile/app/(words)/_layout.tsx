@@ -2,9 +2,11 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import { colors } from '@mylife/ui';
 import { BackToHubButton } from '../../components/BackToHubButton';
+import { ModuleErrorBoundary } from '../../components/ModuleErrorBoundary';
 
 export default function WordsLayout() {
   return (
+    <ModuleErrorBoundary moduleName="MyWords">
     <Stack
       screenOptions={{
         contentStyle: { backgroundColor: colors.background },
@@ -22,5 +24,6 @@ export default function WordsLayout() {
         }}
       />
     </Stack>
+    </ModuleErrorBoundary>
   );
 }

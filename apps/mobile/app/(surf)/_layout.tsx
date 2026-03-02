@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Text as RNText } from 'react-native';
 import { colors } from '@mylife/ui';
 import { BackToHubButton } from '../../components/BackToHubButton';
+import { ModuleErrorBoundary } from '../../components/ModuleErrorBoundary';
 
 const SURF_ACCENT = colors.modules.surf;
 
@@ -15,6 +16,7 @@ function TabIcon({ icon, focused }: { icon: string; focused: boolean }) {
 
 export default function SurfLayout() {
   return (
+    <ModuleErrorBoundary moduleName="MySurf">
     <Tabs
       screenOptions={{
         tabBarStyle: {
@@ -73,5 +75,6 @@ export default function SurfLayout() {
       />
       <Tabs.Screen name="spot/[id]" options={{ href: null }} />
     </Tabs>
+    </ModuleErrorBoundary>
   );
 }

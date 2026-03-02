@@ -1,14 +1,19 @@
-import React, { useCallback } from 'react';
-import { SectionList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { Alert, SectionList, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import {
   useModuleRegistry,
   useEnabledModules,
   MODULE_METADATA,
+  FREE_MODULES,
   type ModuleDefinition,
   type ModuleId,
 } from '@mylife/module-registry';
 import { Card, Text, colors, spacing, borderRadius } from '@mylife/ui';
 import { useModuleToggle } from '../../hooks/use-module-toggle';
+import { useDatabase } from '../../components/DatabaseProvider';
+import { getStoredEntitlement } from '../../lib/entitlements';
+import { isEntitlementExpired } from '@mylife/entitlements';
 
 /** Category groupings for module discovery. */
 const MODULE_CATEGORIES: { title: string; moduleIds: ModuleId[] }[] = [
@@ -26,7 +31,7 @@ const MODULE_CATEGORIES: { title: string; moduleIds: ModuleId[] }[] = [
   },
   {
     title: 'Health & Fitness',
-    moduleIds: ['fast', 'workouts', 'meds'],
+    moduleIds: ['health', 'workouts'],
   },
   {
     title: 'Exploration',
@@ -42,30 +47,63 @@ const MODULE_CATEGORIES: { title: string; moduleIds: ModuleId[] }[] = [
 export default function DiscoverScreen() {
   const registry = useModuleRegistry();
   const toggle = useModuleToggle();
+  const db = useDatabase();
+  const router = useRouter();
   // Subscribe to enabled state changes so the list re-renders on toggle
   useEnabledModules();
+
+  const hasEntitlement = useMemo(() => {
+    const ent = getStoredEntitlement(db);
+    return ent != null && !isEntitlementExpired(ent);
+  }, [db]);
 
   const sections = MODULE_CATEGORIES.map((cat) => ({
     title: cat.title,
     data: cat.moduleIds.map((id) => MODULE_METADATA[id]),
   }));
 
+  const handleModulePress = useCallback(
+    (item: ModuleDefinition) => {
+      const isFree = (FREE_MODULES as readonly string[]).includes(item.id);
+      const isPremiumLocked = !isFree && !hasEntitlement;
+
+      if (isPremiumLocked && !registry.isEnabled(item.id)) {
+        // Block enabling premium modules without entitlement
+        Alert.alert(
+          'Premium Module',
+          `${item.name} requires MyLife Pro. Upgrade to unlock all modules.`,
+          [
+            { text: 'Not Now', style: 'cancel' },
+            { text: 'Learn More', onPress: () => router.push('/(hub)/settings' as never) },
+          ],
+        );
+        return;
+      }
+
+      toggle(item.id);
+    },
+    [toggle, hasEntitlement, registry, router],
+  );
+
   const renderModule = useCallback(
     ({ item }: { item: ModuleDefinition }) => {
       const isEnabled = registry.isEnabled(item.id);
-      const isPremium = item.tier === 'premium';
+      const isFree = (FREE_MODULES as readonly string[]).includes(item.id);
+      const isPremiumLocked = !isFree && !hasEntitlement;
 
       return (
         <TouchableOpacity
           activeOpacity={0.7}
           style={styles.moduleRow}
-          onPress={() => toggle(item.id)}
+          onPress={() => handleModulePress(item)}
+          accessibilityLabel={`${item.name}, ${item.tagline}`}
+          accessibilityHint={isPremiumLocked ? 'Premium module, requires subscription' : undefined}
         >
           <Card style={[styles.moduleCard, { borderLeftColor: item.accentColor }]}>
             <View style={styles.moduleContent}>
               <View style={styles.iconWrapper}>
                 <Text style={styles.moduleIcon}>{item.icon}</Text>
-                {isPremium && (
+                {isPremiumLocked && (
                   <View style={styles.lockBadge}>
                     <Text style={styles.lockIcon}>{'\u{1F512}'}</Text>
                   </View>
@@ -77,25 +115,33 @@ export default function DiscoverScreen() {
                   {item.tagline}
                 </Text>
               </View>
-              <View
-                style={[
-                  styles.statusBadge,
-                  isEnabled ? styles.enabledBadge : styles.disabledBadge,
-                ]}
-              >
-                <Text
-                  variant="label"
-                  color={isEnabled ? colors.success : colors.textTertiary}
+              {isPremiumLocked ? (
+                <View style={[styles.statusBadge, styles.premiumBadge]}>
+                  <Text variant="label" color={colors.accent}>
+                    PRO
+                  </Text>
+                </View>
+              ) : (
+                <View
+                  style={[
+                    styles.statusBadge,
+                    isEnabled ? styles.enabledBadge : styles.disabledBadge,
+                  ]}
                 >
-                  {isEnabled ? 'ON' : 'OFF'}
-                </Text>
-              </View>
+                  <Text
+                    variant="label"
+                    color={isEnabled ? colors.success : colors.textTertiary}
+                  >
+                    {isEnabled ? 'ON' : 'OFF'}
+                  </Text>
+                </View>
+              )}
             </View>
           </Card>
         </TouchableOpacity>
       );
     },
-    [registry, toggle],
+    [registry, handleModulePress, hasEntitlement],
   );
 
   return (
@@ -175,5 +221,8 @@ const styles = StyleSheet.create({
   },
   disabledBadge: {
     backgroundColor: 'rgba(107, 97, 85, 0.15)',
+  },
+  premiumBadge: {
+    backgroundColor: 'rgba(201, 137, 77, 0.15)',
   },
 });

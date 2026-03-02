@@ -22,6 +22,7 @@
     "@mylife/car": "workspace:*",
     "@mylife/fast": "workspace:*",
     "@mylife/habits": "workspace:*",
+    "@mylife/health": "workspace:*",
     "@mylife/homes": "workspace:*",
     "@mylife/meds": "workspace:*",
     "@mylife/recipes": "workspace:*",

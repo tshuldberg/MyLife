@@ -9,7 +9,9 @@
     "lint": "eslint app components --ext .ts,.tsx",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@babel/runtime": "^7.28.6",
@@ -21,6 +23,7 @@
     "@mylife/entitlements": "workspace:*",
     "@mylife/fast": "workspace:*",
     "@mylife/habits": "workspace:*",
+    "@mylife/health": "workspace:*",
     "@mylife/homes": "workspace:*",
     "@mylife/meds": "workspace:*",
     "@mylife/module-registry": "workspace:*",

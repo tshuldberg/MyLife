@@ -15,7 +15,7 @@ import {
 import type { NotificationPreferences, Goal, GoalProgress } from '@mylife/fast';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
-import { getHealthSyncStatus, probeHealthSyncStatus, syncHealthData } from '../../lib/fast-health-sync';
+import { getHealthSyncStatus, probeHealthSyncStatus, syncHealthData } from '../../lib/health-sync';
 
 interface WeeklyGoalState {
   goal: Goal | null;

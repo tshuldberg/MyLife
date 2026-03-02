@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Text as RNText } from 'react-native';
 import { colors } from '@mylife/ui';
 import { BackToHubButton } from '../../components/BackToHubButton';
+import { ModuleErrorBoundary } from '../../components/ModuleErrorBoundary';
 
 const ACCENT = colors.modules.meds;
 
@@ -11,6 +12,7 @@ function TabIcon({ icon, focused }: { icon: string; focused: boolean }) {
 
 export default function MedsLayout() {
   return (
+    <ModuleErrorBoundary moduleName="MyMeds">
     <Tabs
       screenOptions={{
         tabBarStyle: {
@@ -71,5 +73,6 @@ export default function MedsLayout() {
       <Tabs.Screen name="add-med" options={{ href: null }} />
       <Tabs.Screen name="mood-check-in" options={{ href: null }} />
     </Tabs>
+    </ModuleErrorBoundary>
   );
 }
