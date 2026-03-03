@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { fetchDashboard, fetchLatestVitals, fetchOverallStats, fetchSleepSessions } from './actions';
+import { fetchDashboard, fetchOverallStats } from './actions';
 
 type DashboardData = Awaited<ReturnType<typeof fetchDashboard>>;
-type VitalsData = Awaited<ReturnType<typeof fetchLatestVitals>>;
 type StatsData = Awaited<ReturnType<typeof fetchOverallStats>>;
 
 const styles: Record<string, React.CSSProperties> = {
@@ -30,13 +29,11 @@ const styles: Record<string, React.CSSProperties> = {
 
 export default function HealthPage() {
   const [data, setData] = useState<DashboardData | null>(null);
-  const [vitals, setVitals] = useState<VitalsData | null>(null);
   const [stats, setStats] = useState<StatsData | null>(null);
 
   const load = useCallback(async () => {
-    const [d, v, s] = await Promise.all([fetchDashboard(), fetchLatestVitals(), fetchOverallStats()]);
+    const [d, s] = await Promise.all([fetchDashboard(), fetchOverallStats()]);
     setData(d);
-    setVitals(v);
     setStats(s);
   }, []);
 

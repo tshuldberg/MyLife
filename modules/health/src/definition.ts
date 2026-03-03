@@ -48,6 +48,8 @@ export const HEALTH_MODULE: ModuleDefinition = {
       // Goals
       { name: 'goal-detail', title: 'Goal' },
       { name: 'add-goal', title: 'New Goal' },
+      // Migration
+      { name: 'migration-prompt', title: 'Welcome to MyHealth' },
     ],
   },
   requiresAuth: false,

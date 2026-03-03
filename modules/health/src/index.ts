@@ -189,3 +189,12 @@ export {
   isHealthSyncEnabled,
   setHealthSyncToggle,
 } from './settings';
+
+// Migration (absorbed module consolidation)
+export {
+  detectAbsorbedModuleData,
+  isAbsorptionMigrated,
+  migrateAbsorbedSettings,
+  disableAbsorbedModules,
+} from './migration/absorb';
+export type { AbsorbedModuleData } from './migration/absorb';

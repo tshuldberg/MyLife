@@ -4,10 +4,8 @@ import { getAdapter, ensureModuleMigrations } from '@/lib/db';
 import {
   // Vitals
   logVital,
-  getVitals,
   getVitalsByType,
   getLatestVital,
-  getVitalAggregates,
   // Sleep
   getSleepSessions,
   getLastNightSleep,
@@ -21,7 +19,6 @@ import {
   // Documents
   getDocuments,
   getStarredDocuments,
-  createDocument,
   deleteDocument,
   // Settings
   getHealthSetting,
@@ -36,14 +33,18 @@ import {
   getLowSupplyAlerts,
   generateDoctorReport,
   generateTherapyReport,
+  // Migration
+  detectAbsorbedModuleData,
+  isAbsorptionMigrated,
+  migrateAbsorbedSettings,
+  disableAbsorbedModules,
 } from '@mylife/health';
 import { getActiveFast, getStreaks } from '@mylife/fast';
-import type { VitalType, GoalDomain, GoalPeriod, GoalDirection, DocumentType, BloodType } from '@mylife/health';
+import type { VitalType, GoalDomain, GoalPeriod, GoalDirection, BloodType } from '@mylife/health';
 
 function db() {
-  const adapter = getAdapter();
-  ensureModuleMigrations(adapter, 'health');
-  return adapter;
+  ensureModuleMigrations('health');
+  return getAdapter();
 }
 
 // --- Dashboard ---
@@ -209,4 +210,20 @@ export async function fetchHealthSetting(key: string) {
 
 export async function doSetHealthSetting(key: string, value: string) {
   setHealthSetting(db(), key, value);
+}
+
+// --- Migration ---
+
+export async function fetchMigrationStatus() {
+  const d = db();
+  return {
+    alreadyMigrated: isAbsorptionMigrated(d),
+    data: detectAbsorbedModuleData(d),
+  };
+}
+
+export async function doAbsorptionMigration() {
+  const d = db();
+  migrateAbsorbedSettings(d);
+  disableAbsorbedModules(d);
 }

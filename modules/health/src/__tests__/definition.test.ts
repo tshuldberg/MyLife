@@ -19,8 +19,8 @@ describe('HEALTH_MODULE definition', () => {
     expect(tabKeys).toEqual(['today', 'fasting', 'vitals', 'insights', 'vault']);
   });
 
-  it('has 20 navigation screens', () => {
-    expect(HEALTH_MODULE.navigation.screens).toHaveLength(20);
+  it('has 21 navigation screens', () => {
+    expect(HEALTH_MODULE.navigation.screens).toHaveLength(21);
   });
 
   it('marks fasting as a free section', () => {
