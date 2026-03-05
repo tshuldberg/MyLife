@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   getHabits,
@@ -112,19 +112,17 @@ export default function AllHabitsScreen() {
         </Pressable>
       </View>
 
-      <FlatList
-        data={activeHabits}
-        keyExtractor={(item) => item.id}
-        scrollEnabled={false}
-        renderItem={renderHabitItem}
-        ListEmptyComponent={
-          <Card style={styles.emptyCard}>
-            <Text variant="body" color={colors.textSecondary}>
-              No habits yet. Tap &quot;+ New Habit&quot; to create one.
-            </Text>
-          </Card>
-        }
-      />
+      {activeHabits.length === 0 ? (
+        <Card style={styles.emptyCard}>
+          <Text variant="body" color={colors.textSecondary}>
+            No habits yet. Tap &quot;+ New Habit&quot; to create one.
+          </Text>
+        </Card>
+      ) : (
+        activeHabits.map((item) => (
+          <React.Fragment key={item.id}>{renderHabitItem({ item })}</React.Fragment>
+        ))
+      )}
 
       <Pressable style={styles.toggleRow} onPress={() => setShowArchived(!showArchived)}>
         <Text variant="label" color={colors.textSecondary}>
@@ -132,14 +130,11 @@ export default function AllHabitsScreen() {
         </Text>
       </Pressable>
 
-      {showArchived && archivedHabits.length > 0 && (
-        <FlatList
-          data={archivedHabits}
-          keyExtractor={(item) => item.id}
-          scrollEnabled={false}
-          renderItem={renderHabitItem}
-        />
-      )}
+      {showArchived && archivedHabits.length > 0 &&
+        archivedHabits.map((item) => (
+          <React.Fragment key={item.id}>{renderHabitItem({ item })}</React.Fragment>
+        ))
+      }
     </ScrollView>
   );
 }

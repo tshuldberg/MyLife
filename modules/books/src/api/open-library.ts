@@ -17,51 +17,184 @@ import type {
 const BASE_URL = 'https://openlibrary.org';
 const COVERS_BASE_URL = 'https://covers.openlibrary.org';
 
-/** Polite delay between requests (ms). Open Library asks for ~100 req/min max. */
-const RATE_LIMIT_MS = 650;
+// --- Concurrent Request Queue ---
+// 3 slots at 220ms interval each = ~13.6 req/s max burst, well under Open Library's 100 req/min.
 
-let lastRequestTime = 0;
+const QUEUE_CONCURRENCY = 3;
+const SLOT_INTERVAL_MS = 220;
+const FETCH_TIMEOUT_MS = 15_000;
+const MAX_RETRIES = 3;
 
-async function politeDelay(): Promise<void> {
-  const now = Date.now();
-  const elapsed = now - lastRequestTime;
-  if (elapsed < RATE_LIMIT_MS) {
-    await new Promise<void>((resolve) => setTimeout(resolve, RATE_LIMIT_MS - elapsed));
-  }
-  lastRequestTime = Date.now();
+interface QueueEntry {
+  execute: () => void;
 }
 
-async function fetchJSON(url: string): Promise<unknown> {
-  await politeDelay();
-  const response = await fetch(url, {
-    headers: { 'User-Agent': 'MyBooks/1.0 (https://github.com/mybooks)' },
+const slotLastUsed: number[] = Array.from({ length: QUEUE_CONCURRENCY }, () => 0);
+let activeCount = 0;
+const pending: QueueEntry[] = [];
+
+function findBestSlot(): { index: number; waitMs: number } {
+  const now = Date.now();
+  let bestIndex = 0;
+  let bestReady = slotLastUsed[0] + SLOT_INTERVAL_MS;
+  for (let i = 1; i < QUEUE_CONCURRENCY; i++) {
+    const ready = slotLastUsed[i] + SLOT_INTERVAL_MS;
+    if (ready < bestReady) {
+      bestReady = ready;
+      bestIndex = i;
+    }
+  }
+  return { index: bestIndex, waitMs: Math.max(0, bestReady - now) };
+}
+
+function drainQueue(): void {
+  while (pending.length > 0 && activeCount < QUEUE_CONCURRENCY) {
+    const entry = pending.shift()!;
+    activeCount++;
+    entry.execute();
+  }
+}
+
+function acquireSlot(): Promise<number> {
+  return new Promise<number>((resolve) => {
+    const execute = (): void => {
+      const { index, waitMs } = findBestSlot();
+      if (waitMs <= 0) {
+        slotLastUsed[index] = Date.now();
+        resolve(index);
+      } else {
+        setTimeout(() => {
+          slotLastUsed[index] = Date.now();
+          resolve(index);
+        }, waitMs);
+      }
+    };
+
+    if (activeCount < QUEUE_CONCURRENCY) {
+      activeCount++;
+      execute();
+    } else {
+      pending.push({ execute });
+    }
   });
+}
+
+function releaseSlot(): void {
+  activeCount--;
+  drainQueue();
+}
+
+// --- In-memory Cache ---
+
+const SEARCH_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const ISBN_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+interface CacheEntry<T> {
+  data: T;
+  expires: number;
+}
+
+const searchCache = new Map<string, CacheEntry<unknown>>();
+const isbnCache = new Map<string, CacheEntry<unknown>>();
+
+function getCached<T>(cache: Map<string, CacheEntry<T>>, key: string): T | undefined {
+  const entry = cache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() > entry.expires) {
+    cache.delete(key);
+    return undefined;
+  }
+  return entry.data;
+}
+
+function setCache<T>(cache: Map<string, CacheEntry<T>>, key: string, data: T, ttlMs: number): void {
+  cache.set(key, { data, expires: Date.now() + ttlMs });
+}
+
+// --- Fetch with Retry + Backoff ---
+
+async function fetchJSON(url: string): Promise<unknown> {
+  await acquireSlot();
+  try {
+    return await fetchWithRetry(url, MAX_RETRIES);
+  } finally {
+    releaseSlot();
+  }
+}
+
+async function fetchWithRetry(url: string, retriesLeft: number): Promise<unknown> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { 'User-Agent': 'MyBooks/1.0 (https://github.com/mybooks)' },
+      signal: controller.signal,
+    });
+  } catch (error: unknown) {
+    clearTimeout(timeout);
+    // Network error or abort: retry once after 1s
+    if (retriesLeft > 0) {
+      await delay(1000);
+      return fetchWithRetry(url, retriesLeft - 1);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (response.status === 429 && retriesLeft > 0) {
+    const retryAfter = response.headers.get('Retry-After');
+    const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : 1000 * 2 ** (MAX_RETRIES - retriesLeft);
+    await delay(waitMs);
+    return fetchWithRetry(url, retriesLeft - 1);
+  }
+
+  if (response.status >= 500 && retriesLeft > 0) {
+    await delay(500);
+    return fetchWithRetry(url, retriesLeft - 1);
+  }
+
   if (!response.ok) {
     throw new Error(`Open Library request failed: ${response.status} ${response.statusText} — ${url}`);
   }
   return response.json();
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Search Open Library for books by title, author, or general query.
- * Returns parsed and validated search results.
+ * Returns parsed and validated search results. Cached for 5 minutes.
  */
 export async function searchBooks(
   query: string,
   limit: number = 20,
 ): Promise<OLSearchResponse> {
+  const cacheKey = `${query}::${limit}`;
+  const cached = getCached<unknown>(searchCache, cacheKey);
+  if (cached !== undefined) return OLSearchResponseSchema.parse(cached);
+
   const url = `${BASE_URL}/search.json?q=${encodeURIComponent(query)}&limit=${limit}`;
   const data = await fetchJSON(url);
+  setCache(searchCache, cacheKey, data, SEARCH_CACHE_TTL_MS);
   return OLSearchResponseSchema.parse(data);
 }
 
 /**
  * Fetch book edition data by ISBN (10 or 13).
- * Returns the edition record with metadata.
+ * Returns the edition record with metadata. Cached for 30 minutes.
  */
 export async function getBookByISBN(isbn: string): Promise<OLBookEdition> {
+  const cached = getCached<unknown>(isbnCache, isbn);
+  if (cached !== undefined) return OLBookEditionSchema.parse(cached);
+
   const url = `${BASE_URL}/isbn/${encodeURIComponent(isbn)}.json`;
   const data = await fetchJSON(url);
+  setCache(isbnCache, isbn, data, ISBN_CACHE_TTL_MS);
   return OLBookEditionSchema.parse(data);
 }
 

@@ -1,6 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
+import { Alert, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import {
   getActiveMedications,
   getMedications,
@@ -19,7 +18,6 @@ const FREQUENCIES: MedFrequency[] = ['daily', 'twice_daily', 'weekly', 'as_neede
 
 export default function MedicationsScreen() {
   const db = useDatabase();
-  const router = useRouter();
   const [tick, setTick] = useState(0);
   const refresh = useCallback(() => setTick((v) => v + 1), []);
 
@@ -79,8 +77,8 @@ export default function MedicationsScreen() {
     ]);
   };
 
-  return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+  const listHeader = (
+    <View style={styles.content}>
       <Card>
         <Text variant="subheading">Add Medication</Text>
         <View style={styles.formGrid}>
@@ -133,51 +131,60 @@ export default function MedicationsScreen() {
 
       <Card>
         <Text variant="subheading">All Medications</Text>
-        <FlatList
-          data={medications}
-          keyExtractor={(item: Medication) => item.id}
-          scrollEnabled={false}
-          style={styles.list}
-          renderItem={({ item }) => {
-            const daysLeft = getDaysRemaining(db, item.id);
-            return (
-              <Card style={styles.innerCard}>
-                <View style={styles.rowBetween}>
-                  <View style={styles.mainCopy}>
-                    <Text variant="body">{item.name}</Text>
-                    <Text variant="caption" color={colors.textSecondary}>
-                      {item.dosage ?? 'dose n/a'} · {item.frequency.replace('_', ' ')}
-                      {item.pillCount != null ? ` · ${item.pillCount} pills` : ''}
-                      {daysLeft != null && daysLeft !== Infinity ? ` · ${daysLeft}d left` : ''}
+      </Card>
+    </View>
+  );
+
+  return (
+    <FlatList
+      style={styles.screen}
+      contentContainerStyle={styles.listContent}
+      data={medications}
+      keyExtractor={(item: Medication) => item.id}
+      removeClippedSubviews={true}
+      maxToRenderPerBatch={10}
+      windowSize={5}
+      ListHeaderComponent={listHeader}
+      renderItem={({ item }) => {
+        const daysLeft = getDaysRemaining(db, item.id);
+        return (
+          <View style={styles.listItemPadding}>
+            <Card style={styles.innerCard}>
+              <View style={styles.rowBetween}>
+                <View style={styles.mainCopy}>
+                  <Text variant="body">{item.name}</Text>
+                  <Text variant="caption" color={colors.textSecondary}>
+                    {item.dosage ?? 'dose n/a'} · {item.frequency.replace('_', ' ')}
+                    {item.pillCount != null ? ` · ${item.pillCount} pills` : ''}
+                    {daysLeft != null && daysLeft !== Infinity ? ` · ${daysLeft}d left` : ''}
+                  </Text>
+                </View>
+                <View style={styles.actions}>
+                  <View
+                    style={[
+                      styles.badge,
+                      { backgroundColor: item.isActive ? ACCENT : colors.textTertiary },
+                    ]}
+                  >
+                    <Text variant="caption" color={colors.background}>
+                      {item.isActive ? 'Active' : 'Inactive'}
                     </Text>
                   </View>
-                  <View style={styles.actions}>
-                    <View
-                      style={[
-                        styles.badge,
-                        { backgroundColor: item.isActive ? ACCENT : colors.textTertiary },
-                      ]}
-                    >
-                      <Text variant="caption" color={colors.background}>
-                        {item.isActive ? 'Active' : 'Inactive'}
-                      </Text>
-                    </View>
-                    <Pressable style={styles.dangerButton} onPress={() => handleDelete(item)}>
-                      <Text variant="label" color={colors.background}>Delete</Text>
-                    </Pressable>
-                  </View>
+                  <Pressable style={styles.dangerButton} onPress={() => handleDelete(item)}>
+                    <Text variant="label" color={colors.background}>Delete</Text>
+                  </Pressable>
                 </View>
-              </Card>
-            );
-          }}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text variant="body" color={colors.textSecondary}>No medications yet.</Text>
-            </View>
-          }
-        />
-      </Card>
-    </ScrollView>
+              </View>
+            </Card>
+          </View>
+        );
+      }}
+      ListEmptyComponent={
+        <View style={styles.emptyState}>
+          <Text variant="body" color={colors.textSecondary}>No medications yet.</Text>
+        </View>
+      }
+    />
   );
 }
 
@@ -185,7 +192,9 @@ const ACCENT = colors.modules.meds;
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.md, paddingBottom: spacing.xxl, gap: spacing.md },
+  content: { padding: spacing.md, paddingBottom: spacing.md, gap: spacing.md },
+  listContent: { paddingBottom: spacing.xxl },
+  listItemPadding: { paddingHorizontal: spacing.md },
   formGrid: { marginTop: spacing.sm, gap: spacing.sm },
   input: {
     borderWidth: 1,

@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   countMedications,
   getActiveMedications,
@@ -100,64 +100,61 @@ export default function TodayScreen() {
 
       <Card>
         <Text variant="subheading">Today's Schedule</Text>
-        <FlatList
-          data={medications}
-          keyExtractor={(item: Medication) => item.id}
-          scrollEnabled={false}
-          style={styles.list}
-          renderItem={({ item }) => {
-            const medDoses = dosesByMedId.get(item.id) ?? [];
-            const taken = medDoses.find((d) => d.status === 'taken' || d.status === 'late');
-            const skipped = !taken && medDoses.find((d) => d.status === 'skipped');
-
-            return (
-              <Card style={styles.innerCard}>
-                <View style={styles.rowBetween}>
-                  <View style={styles.mainCopy}>
-                    <Text variant="body">{item.name}</Text>
-                    <Text variant="caption" color={colors.textSecondary}>
-                      {item.dosage ?? 'dose n/a'} · {item.frequency.replace('_', ' ')}
-                    </Text>
-                  </View>
-                  <View style={styles.actions}>
-                    {!taken && !skipped ? (
-                      <>
-                        <Pressable style={styles.primaryButton} onPress={() => handleTake(item)}>
-                          <Text variant="label" color={colors.background}>Take</Text>
-                        </Pressable>
-                        <Pressable style={styles.secondaryButton} onPress={() => handleSkip(item)}>
-                          <Text variant="label">Skip</Text>
-                        </Pressable>
-                      </>
-                    ) : (
-                      <View style={styles.statusRow}>
-                        <Text
-                          variant="label"
-                          color={taken ? ACCENT : colors.textTertiary}
-                        >
-                          {taken ? 'Taken' : 'Skipped'}
-                        </Text>
-                        <Pressable
-                          onPress={() => {
-                            const dose = taken || skipped;
-                            if (dose) handleUndo(dose.id);
-                          }}
-                        >
-                          <Text variant="caption" color={colors.textSecondary}>Undo</Text>
-                        </Pressable>
-                      </View>
-                    )}
-                  </View>
-                </View>
-              </Card>
-            );
-          }}
-          ListEmptyComponent={
+        <View style={styles.list}>
+          {medications.length === 0 ? (
             <View style={styles.emptyState}>
               <Text variant="body" color={colors.textSecondary}>No active medications.</Text>
             </View>
-          }
-        />
+          ) : (
+            medications.map((item) => {
+              const medDoses = dosesByMedId.get(item.id) ?? [];
+              const taken = medDoses.find((d) => d.status === 'taken' || d.status === 'late');
+              const skipped = !taken && medDoses.find((d) => d.status === 'skipped');
+
+              return (
+                <Card key={item.id} style={styles.innerCard}>
+                  <View style={styles.rowBetween}>
+                    <View style={styles.mainCopy}>
+                      <Text variant="body">{item.name}</Text>
+                      <Text variant="caption" color={colors.textSecondary}>
+                        {item.dosage ?? 'dose n/a'} · {item.frequency.replace('_', ' ')}
+                      </Text>
+                    </View>
+                    <View style={styles.actions}>
+                      {!taken && !skipped ? (
+                        <>
+                          <Pressable style={styles.primaryButton} onPress={() => handleTake(item)}>
+                            <Text variant="label" color={colors.background}>Take</Text>
+                          </Pressable>
+                          <Pressable style={styles.secondaryButton} onPress={() => handleSkip(item)}>
+                            <Text variant="label">Skip</Text>
+                          </Pressable>
+                        </>
+                      ) : (
+                        <View style={styles.statusRow}>
+                          <Text
+                            variant="label"
+                            color={taken ? ACCENT : colors.textTertiary}
+                          >
+                            {taken ? 'Taken' : 'Skipped'}
+                          </Text>
+                          <Pressable
+                            onPress={() => {
+                              const dose = taken || skipped;
+                              if (dose) handleUndo(dose.id);
+                            }}
+                          >
+                            <Text variant="caption" color={colors.textSecondary}>Undo</Text>
+                          </Pressable>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                </Card>
+              );
+            })
+          )}
+        </View>
       </Card>
     </ScrollView>
   );

@@ -6,9 +6,18 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "splash": {
+      "backgroundColor": "#0E0C09",
+      "resizeMode": "contain"
+    },
     "ios": {
       "bundleIdentifier": "com.mylife.app",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "MyBooks uses the camera to scan book barcodes",
+        "NSHealthShareUsageDescription": "MyFast reads health data to sync fasting metrics",
+        "NSHealthUpdateUsageDescription": "MyFast writes fasting data to Apple Health"
+      }
     },
     "android": {
       "package": "com.mylife.app",
@@ -37,7 +46,12 @@
           "healthUpdatePermission": "Allow MyLife Fast to write fasting sessions to Apple Health."
         }
       ],
-      "expo-health-connect"
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "MyBooks uses the camera to scan book barcodes"
+        }
+      ]
     ]
   }
 }

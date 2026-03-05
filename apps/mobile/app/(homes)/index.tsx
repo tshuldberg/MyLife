@@ -1,12 +1,11 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import {
   createListing,
   deleteListing,
   getHomeMarketMetrics,
   getListings,
   toggleListingSaved,
-  type HomeListing,
 } from '@mylife/homes';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
@@ -94,49 +93,46 @@ export default function HomesScreen() {
 
       <Card>
         <Text variant="subheading">Listing Feed</Text>
-        <FlatList
-          data={listings}
-          keyExtractor={(item: HomeListing) => item.id}
-          scrollEnabled={false}
-          style={styles.list}
-          renderItem={({ item }) => (
-            <Card style={styles.innerCard}>
-              <View style={styles.rowBetween}>
-                <View style={styles.mainCopy}>
-                  <Text variant="body">{item.address}</Text>
-                  <Text variant="caption" color={colors.textSecondary}>
-                    {item.city}, {item.state} · ${Math.round(item.priceCents / 100).toLocaleString()}
-                  </Text>
-                </View>
-                <View style={styles.actions}>
-                  <Pressable
-                    style={styles.secondaryButton}
-                    onPress={() => {
-                      toggleListingSaved(db, item.id);
-                      refresh();
-                    }}
-                  >
-                    <Text variant="label">{item.isSaved ? 'Saved' : 'Save'}</Text>
-                  </Pressable>
-                  <Pressable
-                    style={styles.dangerButton}
-                    onPress={() => {
-                      deleteListing(db, item.id);
-                      refresh();
-                    }}
-                  >
-                    <Text variant="label" color={colors.background}>Delete</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </Card>
-          )}
-          ListEmptyComponent={
+        <View style={styles.list}>
+          {listings.length === 0 ? (
             <View style={styles.emptyState}>
               <Text variant="body" color={colors.textSecondary}>No listings yet.</Text>
             </View>
-          }
-        />
+          ) : (
+            listings.map((item) => (
+              <Card key={item.id} style={styles.innerCard}>
+                <View style={styles.rowBetween}>
+                  <View style={styles.mainCopy}>
+                    <Text variant="body">{item.address}</Text>
+                    <Text variant="caption" color={colors.textSecondary}>
+                      {item.city}, {item.state} · ${Math.round(item.priceCents / 100).toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.actions}>
+                    <Pressable
+                      style={styles.secondaryButton}
+                      onPress={() => {
+                        toggleListingSaved(db, item.id);
+                        refresh();
+                      }}
+                    >
+                      <Text variant="label">{item.isSaved ? 'Saved' : 'Save'}</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.dangerButton}
+                      onPress={() => {
+                        deleteListing(db, item.id);
+                        refresh();
+                      }}
+                    >
+                      <Text variant="label" color={colors.background}>Delete</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </Card>
+            ))
+          )}
+        </View>
       </Card>
     </ScrollView>
   );

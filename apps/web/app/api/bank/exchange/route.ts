@@ -6,6 +6,9 @@ import {
 } from '@mylife/budget';
 import { getBankApiRuntime } from '../_lib/runtime';
 
+/** Enable after security hardening (webhook JWT, auth guards, encrypted tokens, idempotency) */
+const BANK_SYNC_ENABLED = false;
+
 export const runtime = 'nodejs';
 
 function parseProvider(value: unknown): {
@@ -54,6 +57,13 @@ function toErrorResponse(error: unknown, fallback: string): NextResponse {
 }
 
 export async function POST(request: NextRequest) {
+  if (!BANK_SYNC_ENABLED) {
+    return NextResponse.json(
+      { error: 'Bank sync is disabled. It will be available in a future release.' },
+      { status: 503 },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();

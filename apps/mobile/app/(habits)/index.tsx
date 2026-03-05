@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useMemo, useState, useRef, useEffect } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   getHabits,
@@ -127,31 +127,28 @@ export default function TodayScreen() {
 
       <Card>
         <Text variant="subheading">Today&apos;s Habits</Text>
-        <FlatList
-          data={dueHabits}
-          keyExtractor={(item: Habit) => item.id}
-          scrollEnabled={false}
-          style={styles.list}
-          renderItem={({ item }) => (
-            <HabitRow
-              habit={item}
-              completions={completionsByHabitId.get(item.id) ?? []}
-              measurements={measurementsByHabitId.get(item.id) ?? []}
-              sessions={sessionsByHabitId.get(item.id) ?? []}
-              db={db}
-              today={today}
-              refresh={refresh}
-              onPress={() => router.push(`/(habits)/${item.id}`)}
-            />
-          )}
-          ListEmptyComponent={
+        <View style={styles.list}>
+          {dueHabits.length === 0 ? (
             <View style={styles.emptyState}>
               <Text variant="body" color={colors.textSecondary}>
                 No habits due today. Add some from the Habits tab!
               </Text>
             </View>
-          }
-        />
+          ) : (
+            dueHabits.map((item) => (
+              <HabitRow
+                key={item.id}
+                habit={item}
+                completions={completionsByHabitId.get(item.id) ?? []}
+                measurements={measurementsByHabitId.get(item.id) ?? []}
+                sessions={sessionsByHabitId.get(item.id) ?? []}
+                db={db}
+                refresh={refresh}
+                onPress={() => router.push(`/(habits)/${item.id}`)}
+              />
+            ))
+          )}
+        </View>
       </Card>
     </ScrollView>
   );
@@ -163,7 +160,6 @@ function HabitRow({
   measurements: habitMeasurements,
   sessions: habitSessions,
   db,
-  today,
   refresh,
   onPress,
 }: {
@@ -172,7 +168,6 @@ function HabitRow({
   measurements: Measurement[];
   sessions: TimedSession[];
   db: ReturnType<typeof useDatabase>;
-  today: string;
   refresh: () => void;
   onPress: () => void;
 }) {

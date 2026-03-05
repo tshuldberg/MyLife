@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import {
   countVehicles,
   createFuelLog,
@@ -11,9 +11,6 @@ import {
   getFuelLogsByVehicle,
   getMaintenanceByVehicle,
   getVehicles,
-  type FuelLog,
-  type Maintenance,
-  type Vehicle,
 } from '@mylife/car';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
@@ -148,42 +145,39 @@ export default function CarScreen() {
 
       <Card>
         <Text variant="subheading">Vehicles</Text>
-        <FlatList
-          data={vehicles}
-          keyExtractor={(item: Vehicle) => item.id}
-          scrollEnabled={false}
-          style={styles.list}
-          renderItem={({ item }) => {
-            const selected = selectedVehicle?.id === item.id;
-            return (
-              <Card style={[styles.innerCard, selected ? styles.innerCardSelected : null]}>
-                <View style={styles.rowBetween}>
-                  <Pressable style={styles.mainCopy} onPress={() => setSelectedVehicleId(item.id)}>
-                    <Text variant="body">{item.name}</Text>
-                    <Text variant="caption" color={colors.textSecondary}>
-                      {item.year} {item.make} {item.model} · {item.odometer} mi
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={styles.dangerButton}
-                    onPress={() => {
-                      deleteVehicle(db, item.id);
-                      if (selectedVehicle?.id === item.id) setSelectedVehicleId(null);
-                      refresh();
-                    }}
-                  >
-                    <Text variant="label" color={colors.background}>Delete</Text>
-                  </Pressable>
-                </View>
-              </Card>
-            );
-          }}
-          ListEmptyComponent={
+        <View style={styles.list}>
+          {vehicles.length === 0 ? (
             <View style={styles.emptyState}>
               <Text variant="body" color={colors.textSecondary}>No vehicles yet.</Text>
             </View>
-          }
-        />
+          ) : (
+            vehicles.map((item) => {
+              const selected = selectedVehicle?.id === item.id;
+              return (
+                <Card key={item.id} style={[styles.innerCard, selected ? styles.innerCardSelected : null]}>
+                  <View style={styles.rowBetween}>
+                    <Pressable style={styles.mainCopy} onPress={() => setSelectedVehicleId(item.id)}>
+                      <Text variant="body">{item.name}</Text>
+                      <Text variant="caption" color={colors.textSecondary}>
+                        {item.year} {item.make} {item.model} · {item.odometer} mi
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.dangerButton}
+                      onPress={() => {
+                        deleteVehicle(db, item.id);
+                        if (selectedVehicle?.id === item.id) setSelectedVehicleId(null);
+                        refresh();
+                      }}
+                    >
+                      <Text variant="label" color={colors.background}>Delete</Text>
+                    </Pressable>
+                  </View>
+                </Card>
+              );
+            })
+          )}
+        </View>
       </Card>
 
       {selectedVehicle ? (
@@ -221,34 +215,31 @@ export default function CarScreen() {
               </Pressable>
             </View>
 
-            <FlatList
-              data={maintenance}
-              keyExtractor={(item: Maintenance) => item.id}
-              scrollEnabled={false}
-              style={styles.list}
-              renderItem={({ item }) => (
-                <View style={styles.rowBetween}>
-                  <View style={styles.mainCopy}>
-                    <Text variant="body">{item.type}</Text>
-                    <Text variant="caption" color={colors.textSecondary}>
-                      {new Date(item.performedAt).toLocaleDateString()} · {formatCurrency(item.costCents)}
-                    </Text>
-                  </View>
-                  <Pressable
-                    style={styles.dangerButton}
-                    onPress={() => {
-                      deleteMaintenance(db, item.id);
-                      refresh();
-                    }}
-                  >
-                    <Text variant="label" color={colors.background}>Delete</Text>
-                  </Pressable>
-                </View>
-              )}
-              ListEmptyComponent={
+            <View style={styles.list}>
+              {maintenance.length === 0 ? (
                 <Text variant="caption" color={colors.textSecondary}>No maintenance records yet.</Text>
-              }
-            />
+              ) : (
+                maintenance.map((item) => (
+                  <View key={item.id} style={styles.rowBetween}>
+                    <View style={styles.mainCopy}>
+                      <Text variant="body">{item.type}</Text>
+                      <Text variant="caption" color={colors.textSecondary}>
+                        {new Date(item.performedAt).toLocaleDateString()} · {formatCurrency(item.costCents)}
+                      </Text>
+                    </View>
+                    <Pressable
+                      style={styles.dangerButton}
+                      onPress={() => {
+                        deleteMaintenance(db, item.id);
+                        refresh();
+                      }}
+                    >
+                      <Text variant="label" color={colors.background}>Delete</Text>
+                    </Pressable>
+                  </View>
+                ))
+              )}
+            </View>
           </Card>
 
           <Card>
@@ -285,34 +276,31 @@ export default function CarScreen() {
               </Pressable>
             </View>
 
-            <FlatList
-              data={fuelLogs}
-              keyExtractor={(item: FuelLog) => item.id}
-              scrollEnabled={false}
-              style={styles.list}
-              renderItem={({ item }) => (
-                <View style={styles.rowBetween}>
-                  <View style={styles.mainCopy}>
-                    <Text variant="body">{item.gallons.toFixed(1)} gal</Text>
-                    <Text variant="caption" color={colors.textSecondary}>
-                      {new Date(item.loggedAt).toLocaleDateString()} · {formatCurrency(item.costCents)} · {item.odometerAt} mi
-                    </Text>
-                  </View>
-                  <Pressable
-                    style={styles.dangerButton}
-                    onPress={() => {
-                      deleteFuelLog(db, item.id);
-                      refresh();
-                    }}
-                  >
-                    <Text variant="label" color={colors.background}>Delete</Text>
-                  </Pressable>
-                </View>
-              )}
-              ListEmptyComponent={
+            <View style={styles.list}>
+              {fuelLogs.length === 0 ? (
                 <Text variant="caption" color={colors.textSecondary}>No fuel logs yet.</Text>
-              }
-            />
+              ) : (
+                fuelLogs.map((item) => (
+                  <View key={item.id} style={styles.rowBetween}>
+                    <View style={styles.mainCopy}>
+                      <Text variant="body">{item.gallons.toFixed(1)} gal</Text>
+                      <Text variant="caption" color={colors.textSecondary}>
+                        {new Date(item.loggedAt).toLocaleDateString()} · {formatCurrency(item.costCents)} · {item.odometerAt} mi
+                      </Text>
+                    </View>
+                    <Pressable
+                      style={styles.dangerButton}
+                      onPress={() => {
+                        deleteFuelLog(db, item.id);
+                        refresh();
+                      }}
+                    >
+                      <Text variant="label" color={colors.background}>Delete</Text>
+                    </Pressable>
+                  </View>
+                ))
+              )}
+            </View>
           </Card>
         </>
       ) : null}

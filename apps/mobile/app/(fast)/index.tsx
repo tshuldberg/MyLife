@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   computeTimerState,
@@ -66,6 +66,7 @@ function primaryGoalProgress(db: ReturnType<typeof useDatabase>): GoalProgressDi
 
 export default function FastTimerScreen() {
   const db = useDatabase();
+  const dbRef = useRef(db);
   const [timerState, setTimerState] = useState(() => computeTimerState(null, new Date()));
   const [protocols, setProtocols] = useState<ProtocolRow[]>([]);
   const [selectedProtocol, setSelectedProtocol] = useState('16:8');
@@ -98,15 +99,19 @@ export default function FastTimerScreen() {
   }, [load]);
 
   useEffect(() => {
+    dbRef.current = db;
+  }, [db]);
+
+  useEffect(() => {
     if (timerState.state !== 'fasting') return;
 
     const interval = setInterval(() => {
-      const active = getActiveFast(db);
+      const active = getActiveFast(dbRef.current);
       setTimerState(computeTimerState(active, new Date()));
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [db, timerState.state]);
+  }, [timerState.state]);
 
   const activeProtocol = useMemo(
     () => protocols.find((protocol) => protocol.id === selectedProtocol) ?? protocols[0],

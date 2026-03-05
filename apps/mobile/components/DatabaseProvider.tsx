@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { View, ActivityIndicator, Text, Pressable, StyleSheet } from 'react-native';
+import { AppState, type AppStateStatus, View, ActivityIndicator, Text, Pressable, StyleSheet } from 'react-native';
 import {
   openDatabaseSync,
   type SQLiteDatabase,
@@ -161,6 +161,21 @@ export function DatabaseProvider({ children, registry }: DatabaseProviderProps) 
       setError(msg);
     }
   }, [registry, retryCount]);
+
+  // Test DB connection on foreground resume to detect stale connections
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
+      if (nextState === 'active' && adapter) {
+        try {
+          adapter.query('SELECT 1');
+        } catch (err) {
+          console.error('[MyLife] DB connection stale after resume:', err);
+          setRetryCount((c) => c + 1);
+        }
+      }
+    });
+    return () => subscription.remove();
+  }, [adapter]);
 
   if (error) {
     return (
