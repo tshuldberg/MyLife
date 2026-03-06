@@ -92,6 +92,7 @@ export default function RootLayout() {
               animation: 'slide_from_right',
             }}
           >
+            <Stack.Screen name="(auth)" />
             <Stack.Screen name="(hub)" />
             <Stack.Screen name="(books)" />
             <Stack.Screen name="(budget)" />

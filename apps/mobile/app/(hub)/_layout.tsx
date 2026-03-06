@@ -36,6 +36,13 @@ export default function HubLayout() {
         }}
       />
       <Stack.Screen
+        name="onboarding-privacy"
+        options={{
+          title: '',
+          headerShown: false,
+        }}
+      />
+      <Stack.Screen
         name="onboarding-mode"
         options={{
           title: 'Mode',

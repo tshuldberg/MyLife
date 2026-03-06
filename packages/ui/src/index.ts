@@ -13,6 +13,17 @@ export { Button } from './components/Button';
 export { Text } from './components/Text';
 export { ModuleThemeProvider, useModuleTheme } from './components/ModuleThemeProvider';
 
+// Auth-domain components
+export { PasswordStrengthMeter } from './components/PasswordStrengthMeter';
+export { PasswordInput } from './components/PasswordInput';
+export { PassphraseRecommendation } from './components/PassphraseRecommendation';
+export { AuthForm } from './components/AuthForm';
+export { ModuleAuthPicker } from './components/ModuleAuthPicker';
+
+// Onboarding components
+export { OnboardingPage, OnboardingFeatureRow } from './components/OnboardingPage';
+export { OnboardingFlow } from './components/OnboardingFlow';
+
 // Books-domain components
 export { BookCover } from './components/BookCover';
 export { StarRating } from './components/StarRating';

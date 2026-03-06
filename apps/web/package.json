@@ -29,6 +29,7 @@
     "@mylife/rsvp": "workspace:*",
     "@mylife/surf": "workspace:*",
     "@mylife/words": "workspace:*",
+    "@mylife/auth": "workspace:*",
     "@mylife/ui": "workspace:*",
     "@mylife/module-registry": "workspace:*",
     "@mylife/db": "workspace:*",

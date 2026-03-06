@@ -16,6 +16,7 @@
   "dependencies": {
     "@babel/runtime": "^7.28.6",
     "@mylife/billing-config": "workspace:*",
+    "@mylife/auth": "workspace:*",
     "@mylife/books": "workspace:*",
     "@mylife/budget": "workspace:*",
     "@mylife/car": "workspace:*",
