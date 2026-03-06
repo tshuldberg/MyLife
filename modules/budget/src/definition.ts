@@ -7,6 +7,8 @@ import {
   SEED_DEFAULT_ACCOUNTS,
   SEED_DEFAULT_ENVELOPES,
   SEED_SETTINGS,
+  SUBSCRIPTION_TABLES,
+  SUBSCRIPTION_INDEXES,
 } from './db/schema';
 
 const BUDGET_MIGRATION_V1: Migration = {
@@ -45,6 +47,18 @@ const BUDGET_MIGRATION_V2: Migration = {
   ],
 };
 
+const BUDGET_MIGRATION_V3: Migration = {
+  version: 3,
+  description: 'Add subscriptions table and indexes',
+  up: [
+    ...SUBSCRIPTION_TABLES,
+    ...SUBSCRIPTION_INDEXES,
+  ],
+  down: [
+    'DROP TABLE IF EXISTS bg_subscriptions',
+  ],
+};
+
 export const BUDGET_MODULE: ModuleDefinition = {
   id: 'budget',
   name: 'MyBudget',
@@ -53,8 +67,8 @@ export const BUDGET_MODULE: ModuleDefinition = {
   accentColor: '#22C55E',
   tier: 'premium',
   storageType: 'sqlite',
-  migrations: [BUDGET_MIGRATION_V1, BUDGET_MIGRATION_V2],
-  schemaVersion: 2,
+  migrations: [BUDGET_MIGRATION_V1, BUDGET_MIGRATION_V2, BUDGET_MIGRATION_V3],
+  schemaVersion: 3,
   tablePrefix: 'bg_',
   navigation: {
     tabs: [

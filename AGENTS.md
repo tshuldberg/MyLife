@@ -96,6 +96,12 @@ Standalone submodule directories (`MyBooks/`, `MyBudget/`, etc.) inside the MyLi
   - `pnpm gate:function --standalone <MyAppName>`
   - `pnpm gate:function --all-standalone`
 
+## Performance Artifact Policy
+
+- Large generated performance outputs must not be committed under `docs/performance/`.
+- Generated outputs from `pnpm audit:functions` must be written to `artifacts/perf-audit/`.
+- Keep `docs/performance/` focused on curated docs and small examples only.
+- Before merge, run `pnpm check:generated-artifacts` to block forbidden generated files and oversized tracked files.
 
 ### Code Intelligence
 

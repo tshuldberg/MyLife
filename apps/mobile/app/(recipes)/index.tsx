@@ -1,350 +1,224 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import {
   countRecipes,
-  createRecipe,
-  deleteRecipe,
   getRecipes,
-  updateRecipe,
-  type Difficulty,
+  getMealPlanWeek,
   type Recipe,
+  type MealPlanItem,
 } from '@mylife/recipes';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
-import { uuid } from '../../lib/uuid';
 
-function stars(rating: number): string {
-  return '★'.repeat(Math.max(0, Math.min(5, rating))) || '☆☆☆☆☆';
+const ACCENT = colors.modules.recipes;
+
+function todayWeekStart(): string {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = (day + 6) % 7;
+  d.setDate(d.getDate() - diff);
+  return d.toISOString().slice(0, 10);
 }
 
-export default function RecipesScreen() {
+const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+export default function RecipesHomeScreen() {
   const db = useDatabase();
+  const router = useRouter();
 
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const [title, setTitle] = useState('');
-  const [difficulty, setDifficulty] = useState<Difficulty | ''>('');
-  const [search, setSearch] = useState('');
-
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState('');
-  const [editDifficulty, setEditDifficulty] = useState<Difficulty | ''>('');
+  const [totalRecipes, setTotalRecipes] = useState(0);
+  const [favorites, setFavorites] = useState(0);
+  const [recentRecipes, setRecentRecipes] = useState<Recipe[]>([]);
+  const [todayMeals, setTodayMeals] = useState<
+    Array<MealPlanItem & { recipe_title: string; recipe_image_uri: string | null }>
+  >([]);
 
   const load = useCallback(() => {
-    setLoading(true);
-    try {
-      setRecipes(getRecipes(db, search.trim() ? { search: search.trim() } : undefined));
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [db, search]);
+    setTotalRecipes(countRecipes(db));
+    setFavorites(countRecipes(db, { is_favorite: true }));
+    setRecentRecipes(getRecipes(db, { limit: 5 }));
+
+    const weekStart = todayWeekStart();
+    const weekItems = getMealPlanWeek(db, weekStart);
+    const todayDow = (new Date().getDay() + 6) % 7;
+    setTodayMeals(weekItems.filter((item) => item.day_of_week === todayDow));
+  }, [db]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const totals = useMemo(() => ({
-    recipes: countRecipes(db),
-    favorites: recipes.filter((recipe) => recipe.is_favorite === 1).length,
-  }), [db, recipes]);
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    load();
-  };
-
-  const onCreate = () => {
-    const clean = title.trim();
-    if (!clean) return;
-    createRecipe(db, uuid(), {
-      title: clean,
-      difficulty: difficulty || null,
-      rating: 0,
-      is_favorite: 0,
-    });
-    setTitle('');
-    setDifficulty('');
-    load();
-  };
-
-  const startEdit = (recipe: Recipe) => {
-    setEditingId(recipe.id);
-    setEditTitle(recipe.title);
-    setEditDifficulty(recipe.difficulty ?? '');
-  };
-
-  const saveEdit = () => {
-    if (!editingId) return;
-    updateRecipe(db, editingId, {
-      title: editTitle.trim() || 'Untitled',
-      difficulty: editDifficulty || null,
-    });
-    setEditingId(null);
-    load();
-  };
-
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={recipes}
-        keyExtractor={(item) => item.id}
-        style={styles.list}
-        contentContainerStyle={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.modules.recipes}
-            colors={[colors.modules.recipes]}
-          />
-        }
-        ListHeaderComponent={
-          <>
-            <Card style={styles.summaryCard}>
-              <Text variant="subheading">Recipe Library</Text>
-              <Text variant="caption" color={colors.textSecondary}>
-                {totals.recipes} recipes · {totals.favorites} favorites
-              </Text>
-            </Card>
+    <ScrollView style={styles.screen} contentContainerStyle={styles.container}>
+      <View style={styles.metricsGrid}>
+        <Card style={styles.metricCard}>
+          <Text variant="caption" color={colors.textSecondary}>Recipes</Text>
+          <Text style={styles.metricValue}>{totalRecipes}</Text>
+        </Card>
+        <Card style={styles.metricCard}>
+          <Text variant="caption" color={colors.textSecondary}>Favorites</Text>
+          <Text style={styles.metricValue}>{favorites}</Text>
+        </Card>
+      </View>
 
-            <Card>
-              <Text variant="subheading">Add Recipe</Text>
-              <View style={styles.formGrid}>
-                <TextInput
-                  style={styles.input}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Recipe title"
-                  placeholderTextColor={colors.textTertiary}
-                />
-                <View style={styles.row}>
-                  {(['easy', 'medium', 'hard'] as Difficulty[]).map((value) => {
-                    const selected = difficulty === value;
-                    return (
-                      <Pressable
-                        key={value}
-                        onPress={() => setDifficulty(selected ? '' : value)}
-                        style={[styles.chip, selected ? styles.chipSelected : null]}
-                      >
-                        <Text
-                          variant="caption"
-                          color={selected ? colors.background : colors.textSecondary}
-                        >
-                          {value}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-                <Pressable style={styles.primaryButton} onPress={onCreate}>
-                  <Text variant="label" color={colors.background}>Create</Text>
-                </Pressable>
+      {todayMeals.length > 0 ? (
+        <Card>
+          <Text variant="subheading">Today's Meals</Text>
+          {todayMeals.map((meal) => (
+            <Pressable
+              key={meal.id}
+              style={styles.mealRow}
+              onPress={() => router.push(`/(recipes)/recipe/${meal.recipe_id}`)}
+            >
+              <Text variant="caption" color={ACCENT} style={styles.mealSlot}>
+                {meal.meal_slot}
+              </Text>
+              <Text variant="body" style={styles.flex1}>{meal.recipe_title}</Text>
+            </Pressable>
+          ))}
+        </Card>
+      ) : (
+        <Card>
+          <Text variant="subheading">Today's Meals</Text>
+          <Text variant="caption" color={colors.textSecondary}>
+            No meals planned for today.
+          </Text>
+          <Pressable
+            style={styles.linkButton}
+            onPress={() => router.push('/(recipes)/meal-plan')}
+          >
+            <Text variant="label" color={ACCENT}>Plan meals</Text>
+          </Pressable>
+        </Card>
+      )}
+
+      <Card>
+        <View style={styles.rowBetween}>
+          <Text variant="subheading">Recent Recipes</Text>
+          <Pressable onPress={() => router.push('/(recipes)/recipes-tab')}>
+            <Text variant="caption" color={ACCENT}>See all</Text>
+          </Pressable>
+        </View>
+        {recentRecipes.length > 0 ? (
+          recentRecipes.map((recipe) => (
+            <Pressable
+              key={recipe.id}
+              style={styles.recipeRow}
+              onPress={() => router.push(`/(recipes)/recipe/${recipe.id}`)}
+            >
+              <View style={styles.recipeThumb}>
+                <Text style={styles.thumbText}>{recipe.title.charAt(0).toUpperCase()}</Text>
               </View>
-            </Card>
+              <View style={styles.flex1}>
+                <Text variant="body">{recipe.title}</Text>
+                <Text variant="caption" color={colors.textSecondary}>
+                  {recipe.difficulty ?? 'unset'}{recipe.total_time_mins ? ` \u00B7 ${recipe.total_time_mins}min` : ''}
+                </Text>
+              </View>
+              {recipe.is_favorite ? (
+                <Text color={ACCENT}>{'\u2605'}</Text>
+              ) : null}
+            </Pressable>
+          ))
+        ) : (
+          <Text variant="caption" color={colors.textSecondary}>
+            No recipes yet. Add your first one!
+          </Text>
+        )}
+      </Card>
 
-            <Card>
-              <Text variant="caption" color={colors.textSecondary}>Search</Text>
-              <TextInput
-                style={styles.input}
-                value={search}
-                onChangeText={setSearch}
-                placeholder="Find recipes"
-                placeholderTextColor={colors.textTertiary}
-              />
-              <Pressable style={styles.secondaryButton} onPress={load}>
-                <Text variant="label">Apply</Text>
-              </Pressable>
-            </Card>
-          </>
-        }
-        renderItem={({ item }) => {
-          const editing = editingId === item.id;
-          return (
-            <Card>
-              {editing ? (
-                <View style={styles.formGrid}>
-                  <TextInput
-                    style={styles.input}
-                    value={editTitle}
-                    onChangeText={setEditTitle}
-                    placeholder="Title"
-                    placeholderTextColor={colors.textTertiary}
-                  />
-                  <View style={styles.row}>
-                    {(['easy', 'medium', 'hard'] as Difficulty[]).map((value) => {
-                      const selected = editDifficulty === value;
-                      return (
-                        <Pressable
-                          key={value}
-                          onPress={() => setEditDifficulty(selected ? '' : value)}
-                          style={[styles.chip, selected ? styles.chipSelected : null]}
-                        >
-                          <Text
-                            variant="caption"
-                            color={selected ? colors.background : colors.textSecondary}
-                          >
-                            {value}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                  <View style={styles.rowBetween}>
-                    <Pressable style={styles.primaryButton} onPress={saveEdit}>
-                      <Text variant="label" color={colors.background}>Save</Text>
-                    </Pressable>
-                    <Pressable style={styles.secondaryButton} onPress={() => setEditingId(null)}>
-                      <Text variant="label">Cancel</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              ) : (
-                <>
-                  <View style={styles.rowBetween}>
-                    <View style={styles.mainCopy}>
-                      <Text variant="body">{item.title}</Text>
-                      <Text variant="caption" color={colors.textSecondary}>
-                        {item.difficulty ?? 'unspecified'} · {stars(item.rating)}
-                      </Text>
-                    </View>
-                    <Pressable
-                      onPress={() => {
-                        updateRecipe(db, item.id, { is_favorite: item.is_favorite ? 0 : 1 });
-                        load();
-                      }}
-                    >
-                      <Text variant="label" color={item.is_favorite ? colors.modules.recipes : colors.textSecondary}>
-                        {item.is_favorite ? '★' : '☆'}
-                      </Text>
-                    </Pressable>
-                  </View>
-                  <View style={styles.rowBetween}>
-                    <Pressable style={styles.secondaryButton} onPress={() => startEdit(item)}>
-                      <Text variant="label">Edit</Text>
-                    </Pressable>
-                    <Pressable
-                      style={styles.dangerButton}
-                      onPress={() => {
-                        deleteRecipe(db, item.id);
-                        load();
-                      }}
-                    >
-                      <Text variant="label" color={colors.background}>Delete</Text>
-                    </Pressable>
-                  </View>
-                </>
-              )}
-            </Card>
-          );
-        }}
-        ListEmptyComponent={
-          !loading ? (
-            <View style={styles.emptyState}>
-              <Text variant="body" color={colors.textSecondary}>
-                No recipes yet.
-              </Text>
-            </View>
-          ) : null
-        }
-      />
-    </View>
+      <Pressable
+        style={styles.addButton}
+        onPress={() => router.push('/(recipes)/add-recipe')}
+      >
+        <Text variant="label" color={colors.background}>Add Recipe</Text>
+      </Pressable>
+
+      <Pressable
+        style={styles.settingsLink}
+        onPress={() => router.push('/(recipes)/settings')}
+      >
+        <Text variant="caption" color={colors.textSecondary}>Settings</Text>
+      </Pressable>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  list: {
-    flex: 1,
-  },
-  content: {
+  container: {
     padding: spacing.md,
     paddingBottom: spacing.xxl,
-    gap: spacing.sm,
+    gap: spacing.md,
   },
-  summaryCard: {
-    gap: spacing.xs,
-  },
-  formGrid: {
-    marginTop: spacing.sm,
-    gap: spacing.sm,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    color: colors.text,
-    backgroundColor: colors.surfaceElevated,
-  },
-  row: {
+  metricsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  metricCard: {
+    flex: 1,
     gap: spacing.xs,
+  },
+  metricValue: {
+    color: ACCENT,
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  mealRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  mealSlot: {
+    textTransform: 'capitalize',
+    width: 70,
+    fontWeight: '600',
+  },
+  flex1: {
+    flex: 1,
   },
   rowBetween: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  recipeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
-    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
   },
-  chip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 999,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    backgroundColor: colors.surface,
-  },
-  chipSelected: {
-    borderColor: colors.modules.recipes,
-    backgroundColor: colors.modules.recipes,
-  },
-  primaryButton: {
+  recipeThumb: {
+    width: 40,
+    height: 40,
     borderRadius: 8,
-    backgroundColor: colors.modules.recipes,
-    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surfaceElevated,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbText: {
+    color: ACCENT,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  addButton: {
+    borderRadius: 10,
+    backgroundColor: ACCENT,
     paddingVertical: spacing.sm,
     alignItems: 'center',
-    minWidth: 80,
   },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    paddingHorizontal: spacing.md,
+  settingsLink: {
+    alignItems: 'center',
     paddingVertical: spacing.sm,
-    alignItems: 'center',
-    minWidth: 80,
   },
-  dangerButton: {
-    borderRadius: 8,
-    backgroundColor: colors.danger,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-    minWidth: 80,
-  },
-  mainCopy: {
-    flex: 1,
-    gap: 2,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
+  linkButton: {
+    marginTop: spacing.xs,
   },
 });

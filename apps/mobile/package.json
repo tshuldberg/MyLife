@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.28.6",
+    "@mylife/auth": "workspace:*",
     "@mylife/billing-config": "workspace:*",
     "@mylife/auth": "workspace:*",
     "@mylife/books": "workspace:*",
@@ -30,7 +31,9 @@
     "@mylife/module-registry": "workspace:*",
     "@mylife/recipes": "workspace:*",
     "@mylife/rsvp": "workspace:*",
+    "@mylife/subscription": "workspace:*",
     "@mylife/surf": "workspace:*",
+    "@mylife/sync": "workspace:*",
     "@mylife/ui": "workspace:*",
     "@mylife/words": "workspace:*",
     "@mylife/workouts": "workspace:*",

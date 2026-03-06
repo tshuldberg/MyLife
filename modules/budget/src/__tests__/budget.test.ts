@@ -26,6 +26,14 @@ import {
   deleteGoal,
   getSetting,
   setSetting,
+  createSubscription,
+  getSubscriptionById,
+  getSubscriptions,
+  updateSubscription,
+  deleteSubscription,
+  pauseSubscription,
+  cancelSubscription,
+  resumeSubscription,
 } from '../db/crud';
 
 describe('@mylife/budget', () => {
@@ -48,8 +56,8 @@ describe('@mylife/budget', () => {
       expect(BUDGET_MODULE.tier).toBe('premium');
       expect(BUDGET_MODULE.storageType).toBe('sqlite');
       expect(BUDGET_MODULE.tablePrefix).toBe('bg_');
-      expect(BUDGET_MODULE.schemaVersion).toBe(2);
-      expect(BUDGET_MODULE.migrations).toHaveLength(2);
+      expect(BUDGET_MODULE.schemaVersion).toBe(3);
+      expect(BUDGET_MODULE.migrations).toHaveLength(3);
     });
 
     it('has 5 navigation tabs', () => {
@@ -215,6 +223,101 @@ describe('@mylife/budget', () => {
     it('updates a setting', () => {
       setSetting(adapter, 'currency', 'EUR');
       expect(getSetting(adapter, 'currency')).toBe('EUR');
+    });
+  });
+
+  describe('subscriptions', () => {
+    it('creates and retrieves a subscription', () => {
+      const sub = createSubscription(adapter, 's1', {
+        name: 'Netflix',
+        price: 1599,
+        billing_cycle: 'monthly',
+        status: 'active',
+        start_date: '2026-01-01',
+        next_renewal: '2026-02-01',
+      });
+      expect(sub.name).toBe('Netflix');
+      expect(sub.price).toBe(1599);
+      expect(sub.billing_cycle).toBe('monthly');
+      expect(sub.status).toBe('active');
+
+      const found = getSubscriptionById(adapter, 's1');
+      expect(found).not.toBeNull();
+      expect(found!.name).toBe('Netflix');
+    });
+
+    it('lists subscriptions with optional status filter', () => {
+      createSubscription(adapter, 's1', {
+        name: 'Netflix', price: 1599, billing_cycle: 'monthly',
+        status: 'active', start_date: '2026-01-01', next_renewal: '2026-02-01',
+      });
+      createSubscription(adapter, 's2', {
+        name: 'Old Service', price: 999, billing_cycle: 'monthly',
+        status: 'cancelled', start_date: '2025-01-01', next_renewal: '2025-02-01',
+      });
+
+      expect(getSubscriptions(adapter)).toHaveLength(2);
+      expect(getSubscriptions(adapter, { status: 'active' })).toHaveLength(1);
+      expect(getSubscriptions(adapter, { status: 'cancelled' })).toHaveLength(1);
+    });
+
+    it('updates a subscription', () => {
+      createSubscription(adapter, 's1', {
+        name: 'Netflix', price: 1599, billing_cycle: 'monthly',
+        status: 'active', start_date: '2026-01-01', next_renewal: '2026-02-01',
+      });
+      updateSubscription(adapter, 's1', { price: 2299 });
+      expect(getSubscriptionById(adapter, 's1')!.price).toBe(2299);
+    });
+
+    it('pauses an active subscription', () => {
+      createSubscription(adapter, 's1', {
+        name: 'Netflix', price: 1599, billing_cycle: 'monthly',
+        status: 'active', start_date: '2026-01-01', next_renewal: '2026-02-01',
+      });
+      pauseSubscription(adapter, 's1');
+      expect(getSubscriptionById(adapter, 's1')!.status).toBe('paused');
+    });
+
+    it('resumes a paused subscription', () => {
+      createSubscription(adapter, 's1', {
+        name: 'Netflix', price: 1599, billing_cycle: 'monthly',
+        status: 'paused', start_date: '2026-01-01', next_renewal: '2026-02-01',
+      });
+      resumeSubscription(adapter, 's1');
+      expect(getSubscriptionById(adapter, 's1')!.status).toBe('active');
+    });
+
+    it('cancels a subscription', () => {
+      createSubscription(adapter, 's1', {
+        name: 'Netflix', price: 1599, billing_cycle: 'monthly',
+        status: 'active', start_date: '2026-01-01', next_renewal: '2026-02-01',
+      });
+      cancelSubscription(adapter, 's1');
+      const sub = getSubscriptionById(adapter, 's1')!;
+      expect(sub.status).toBe('cancelled');
+      expect(sub.cancelled_date).not.toBeNull();
+    });
+
+    it('deletes a subscription', () => {
+      createSubscription(adapter, 's1', {
+        name: 'Netflix', price: 1599, billing_cycle: 'monthly',
+        status: 'active', start_date: '2026-01-01', next_renewal: '2026-02-01',
+      });
+      deleteSubscription(adapter, 's1');
+      expect(getSubscriptionById(adapter, 's1')).toBeNull();
+    });
+
+    it('creates subscription table and indexes via V3 migration', () => {
+      const tables = adapter.query<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'bg_subscriptions'`,
+      );
+      expect(tables).toHaveLength(1);
+
+      const indexes = adapter.query<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'bg_subscriptions_%'`,
+      );
+      expect(indexes.length).toBeGreaterThanOrEqual(3);
     });
   });
 });

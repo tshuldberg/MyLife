@@ -2,22 +2,35 @@
  * @mylife/auth -- Shared auth package.
  *
  * Dual-auth model: local (SQLite) is the default,
- * cloud (Supabase/Clerk) is opt-in per module.
+ * cloud (Supabase) is opt-in for sync users.
  */
 
-// Types
+// Types -- shared
 export type {
   AuthMode,
   CloudProvider,
   PerModuleAuthConfig,
-  AuthUser,
-  AuthSession,
-  AuthState,
+  AuthRequiredMode,
+  PlanMode,
   PasswordStrength,
   PasswordValidationResult,
-  AuthResult,
 } from './types';
 export { EmailSchema, DisplayNameSchema } from './types';
+
+// Types -- local auth (SQLite-backed)
+export type {
+  LocalAuthUser,
+  LocalAuthSession,
+  LocalAuthState,
+  LocalAuthResult,
+} from './types';
+
+// Types -- cloud auth (Supabase-backed)
+export type {
+  AuthState,
+  AuthResult,
+  TokenStorage,
+} from './types';
 
 // Password validation
 export {
@@ -26,7 +39,7 @@ export {
   generatePassphraseSuggestion,
 } from './password-validation';
 
-// Local auth service
+// Local auth service (SQLite)
 export {
   CREATE_HUB_AUTH_USERS,
   CREATE_HUB_AUTH_SESSIONS,
@@ -40,3 +53,14 @@ export {
   updatePassword,
   deleteAccount,
 } from './local-auth';
+
+// Cloud auth client (Supabase)
+export { getSupabaseClient, resetSupabaseClient } from './client';
+export type { SupabaseClientOptions } from './client';
+
+// Cloud auth service
+export { AuthService, requiresAuth, INITIAL_AUTH_STATE, UNAUTHENTICATED_STATE } from './service';
+
+// React integration
+export { AuthProvider, useAuth } from './provider';
+export type { AuthProviderProps, UseAuthReturn } from './provider';

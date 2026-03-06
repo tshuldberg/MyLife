@@ -9,7 +9,7 @@
 import { hashSync, compareSync } from 'bcryptjs';
 
 import type { DatabaseAdapter } from '@mylife/db';
-import type { AuthResult, AuthSession, AuthUser } from './types';
+import type { LocalAuthResult as AuthResult, LocalAuthSession as AuthSession, LocalAuthUser as AuthUser } from './types';
 import { EmailSchema, DisplayNameSchema } from './types';
 import { validatePassword } from './password-validation';
 

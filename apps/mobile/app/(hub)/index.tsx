@@ -7,10 +7,12 @@ import {
 } from '@mylife/module-registry';
 import { Text, colors, spacing } from '@mylife/ui';
 import { ModuleCard } from '../../components/ModuleCard';
+import { UpdatePrompt } from '../../components/UpdatePrompt';
 
 /**
  * App selector home screen for MyLife mobile.
  * Shows all module experiences in a single place for quick switching.
+ * Includes an update prompt banner when the update entitlement has expired.
  */
 export default function AppSelectorScreen() {
   const modules = MODULE_IDS.map((id) => MODULE_METADATA[id]);
@@ -22,14 +24,19 @@ export default function AppSelectorScreen() {
       numColumns={2}
       contentContainerStyle={styles.grid}
       ListHeaderComponent={
-        <View style={styles.header}>
-          <Text style={styles.welcomeIcon}>{'\u{1F331}'}</Text>
-          <Text variant="heading" style={styles.welcomeTitle}>
-            MyLife
-          </Text>
-          <Text variant="body" color={colors.textSecondary} style={styles.welcomeBody}>
-            Choose an app to open.
-          </Text>
+        <View>
+          <View style={styles.header}>
+            <Text style={styles.welcomeIcon}>{'\u{1F331}'}</Text>
+            <Text variant="heading" style={styles.welcomeTitle}>
+              MyLife
+            </Text>
+            <Text variant="body" color={colors.textSecondary} style={styles.welcomeBody}>
+              Choose an app to open.
+            </Text>
+          </View>
+          <View style={styles.promptContainer}>
+            <UpdatePrompt />
+          </View>
         </View>
       }
       renderItem={({ item }) => <ModuleCard module={item} />}
@@ -59,5 +66,9 @@ const styles = StyleSheet.create({
   welcomeBody: {
     textAlign: 'center',
     lineHeight: 20,
+  },
+  promptContainer: {
+    paddingHorizontal: spacing.xs,
+    marginBottom: spacing.sm,
   },
 });

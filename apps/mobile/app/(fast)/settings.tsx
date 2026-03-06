@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Share, StyleSheet, Switch, TextInput, View } from 'react-native';
 import {
   getSetting,
   setSetting,
@@ -11,6 +11,8 @@ import {
   upsertGoal,
   refreshGoalProgress,
   setWaterTarget,
+  exportFastsCSV,
+  exportWeightCSV,
 } from '@mylife/fast';
 import type { NotificationPreferences, Goal, GoalProgress } from '@mylife/fast';
 import { Card, Text, colors, spacing } from '@mylife/ui';
@@ -126,6 +128,39 @@ export default function FastSettingsScreen() {
 
     Alert.alert('Health Sync', result.message);
   }, [db, healthReadWeight, healthSyncEnabled, healthWriteFasts]);
+
+  const handleExport = useCallback(() => {
+    const fastsCSV = exportFastsCSV(db);
+    const weightCSV = exportWeightCSV(db);
+    const combined = `=== Fasts ===\n${fastsCSV}\n=== Weight Entries ===\n${weightCSV}`;
+    void Share.share({ message: combined, title: 'MyFast Export' });
+  }, [db]);
+
+  const handleEraseData = useCallback(() => {
+    Alert.alert(
+      'Erase All Data',
+      'This will permanently delete all fasts, water logs, goals, and settings. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Erase Everything',
+          style: 'destructive',
+          onPress: () => {
+            db.execute('DELETE FROM ft_fasts');
+            db.execute('DELETE FROM ft_active_fast');
+            db.execute('DELETE FROM ft_weight_entries');
+            db.execute('DELETE FROM ft_water_intake');
+            db.execute('DELETE FROM ft_goals');
+            db.execute('DELETE FROM ft_goal_progress');
+            db.execute('DELETE FROM ft_notifications_config');
+            db.execute('DELETE FROM ft_streak_cache');
+            db.execute('DELETE FROM ft_settings');
+            Alert.alert('Done', 'All MyFast data has been erased.');
+          },
+        },
+      ],
+    );
+  }, [db]);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -255,6 +290,29 @@ export default function FastSettingsScreen() {
       <Pressable style={styles.primaryButton} onPress={save}>
         <Text variant="label" color={colors.background}>Save Settings</Text>
       </Pressable>
+
+      <Card>
+        <Text variant="subheading">Data</Text>
+        <Pressable style={[styles.primaryButton, { marginTop: spacing.sm }]} onPress={handleExport}>
+          <Text variant="label" color={colors.background}>Export as CSV</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.dangerButton, { marginTop: spacing.sm }]}
+          onPress={handleEraseData}
+        >
+          <Text variant="label" color={colors.background}>Erase All Data</Text>
+        </Pressable>
+      </Card>
+
+      <Card>
+        <Text variant="subheading">About</Text>
+        <Text variant="caption" color={colors.textSecondary} style={{ marginTop: spacing.xs }}>
+          MyFast v0.1.0
+        </Text>
+        <Text variant="caption" color={colors.textTertiary} style={{ marginTop: spacing.xs }}>
+          All data stored locally on your device. No accounts, no servers, no tracking.
+        </Text>
+      </Card>
     </ScrollView>
   );
 }
@@ -343,6 +401,12 @@ const styles = StyleSheet.create({
   primaryButton: {
     borderRadius: 10,
     backgroundColor: colors.modules.fast,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+  },
+  dangerButton: {
+    borderRadius: 10,
+    backgroundColor: '#E8725C',
     paddingVertical: spacing.sm,
     alignItems: 'center',
   },

@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@mylife/module-registry": "workspace:*",
     "zod": "^3.24.0"
   },
   "devDependencies": {

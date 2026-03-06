@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Card, Text, colors, spacing, borderRadius } from '@mylife/ui';
-import type { PlanMode } from '@mylife/entitlements';
+import type { HubPlanMode } from '@mylife/db';
 import { incrementAggregateEventCounter } from '@mylife/db';
 import { useDatabase } from '../../components/DatabaseProvider';
 import { saveModeConfig } from '../../lib/entitlements';
@@ -12,7 +12,7 @@ export default function OnboardingModeScreen() {
   const db = useDatabase();
   const [selfHostUrl, setSelfHostUrl] = useState('');
 
-  const chooseMode = (mode: PlanMode) => {
+  const chooseMode = (mode: HubPlanMode) => {
     const serverUrl = mode === 'self_host' ? selfHostUrl || null : null;
     saveModeConfig(db, mode, serverUrl);
     incrementAggregateEventCounter(db, `mode_selected:${mode}`);

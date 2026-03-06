@@ -1,19 +1,29 @@
-export type { PlanMode, Entitlements, UnsignedEntitlements } from './types';
+export type {
+  HubUnlockProduct,
+  StandaloneProduct,
+  AnnualUpdateProduct,
+  StorageTierProduct,
+  ProductId,
+  StorageTier,
+  Purchase,
+  EntitlementState,
+} from './types';
 
 export {
-  PlanModeSchema,
-  UnsignedEntitlementsSchema,
-  EntitlementsSchema,
+  HubUnlockProductSchema,
+  StandaloneProductSchema,
+  AnnualUpdateProductSchema,
+  StorageTierProductSchema,
+  ProductIdSchema,
+  StorageTierSchema,
+  PurchaseSchema,
 } from './schema';
 
 export {
-  isEntitlementExpired,
-  canUseHosted,
-  canUseSelfHost,
-  canUseUpdatePack,
+  isModuleUnlocked,
+  getUnlockedModules,
+  isHubUnlocked,
+  getStorageTier,
+  isUpdateEntitled,
+  resolveEntitlements,
 } from './gates';
-
-export {
-  createEntitlementSignature,
-  verifyEntitlementSignature,
-} from './verify';

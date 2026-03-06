@@ -5,6 +5,7 @@ export {
   CREATE_TRANSACTIONS,
   CREATE_GOALS,
   CREATE_SETTINGS,
+  CREATE_SUBSCRIPTIONS,
   CREATE_BANK_CONNECTIONS,
   CREATE_BANK_ACCOUNTS,
   CREATE_BANK_TRANSACTIONS_RAW,
@@ -12,6 +13,8 @@ export {
   CREATE_BANK_WEBHOOK_EVENTS,
   CORE_TABLES,
   BANK_SYNC_TABLES,
+  SUBSCRIPTION_TABLES,
+  SUBSCRIPTION_INDEXES,
   CORE_INDEXES,
   BANK_SYNC_INDEXES,
   CREATE_INDEXES,
@@ -56,4 +59,13 @@ export {
   // Settings
   getSetting,
   setSetting,
+  // Subscriptions
+  createSubscription,
+  getSubscriptionById,
+  getSubscriptions,
+  updateSubscription,
+  deleteSubscription,
+  pauseSubscription,
+  cancelSubscription,
+  resumeSubscription,
 } from './crud';

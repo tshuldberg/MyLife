@@ -1,27 +1,88 @@
 import { z } from 'zod';
+import type { ModuleId } from '@mylife/module-registry';
 
-export const BILLING_SKUS = {
-  hostedMonthly: 'mylife_hosted_monthly_v1',
-  hostedYearly: 'mylife_hosted_yearly_v1',
-  selfHostLifetime: 'mylife_self_host_lifetime_v1',
-  updatePack2026: 'mylife_update_pack_2026_v1',
+// ---------------------------------------------------------------------------
+// Product types
+// ---------------------------------------------------------------------------
+
+export type ProductType = 'one_time' | 'annual' | 'monthly';
+
+export interface ProductConfig {
+  id: string;
+  price: number;
+  type: ProductType;
+}
+
+export interface StorageTierConfig {
+  id: string;
+  price: number;
+  storageGB: number;
+}
+
+export interface StandaloneModuleConfig {
+  id: string;
+  price: number;
+}
+
+// ---------------------------------------------------------------------------
+// Product catalog
+// ---------------------------------------------------------------------------
+
+export const PRODUCTS = {
+  hubUnlock: {
+    id: 'mylife_hub_unlock',
+    price: 19.99,
+    type: 'one_time' as const,
+  },
+  annualUpdate: {
+    id: 'mylife_annual_update',
+    price: 9.99,
+    type: 'annual' as const,
+  },
+  storageTiers: {
+    free: { id: 'free', price: 0, storageGB: 1 },
+    starter: { id: 'mylife_storage_starter', price: 2.99, storageGB: 5 },
+    power: { id: 'mylife_storage_power', price: 5.99, storageGB: 25 },
+  },
+  standaloneModules: {
+    books: { id: 'mylife_books_unlock', price: 4.99 },
+    budget: { id: 'mylife_budget_unlock', price: 4.99 },
+    car: { id: 'mylife_car_unlock', price: 4.99 },
+    habits: { id: 'mylife_habits_unlock', price: 4.99 },
+    homes: { id: 'mylife_homes_unlock', price: 4.99 },
+    meds: { id: 'mylife_meds_unlock', price: 4.99 },
+    recipes: { id: 'mylife_recipes_unlock', price: 4.99 },
+    rsvp: { id: 'mylife_rsvp_unlock', price: 4.99 },
+    surf: { id: 'mylife_surf_unlock', price: 4.99 },
+    words: { id: 'mylife_words_unlock', price: 4.99 },
+    workouts: { id: 'mylife_workouts_unlock', price: 4.99 },
+  } satisfies Record<Exclude<ModuleId, 'fast'>, StandaloneModuleConfig>,
 } as const;
 
-export const BillingSkuSchema = z.enum([
-  BILLING_SKUS.hostedMonthly,
-  BILLING_SKUS.hostedYearly,
-  BILLING_SKUS.selfHostLifetime,
-  BILLING_SKUS.updatePack2026,
-]);
+// ---------------------------------------------------------------------------
+// All purchasable product IDs (flat list for validation)
+// ---------------------------------------------------------------------------
 
-export type BillingSku = z.infer<typeof BillingSkuSchema>;
+export const ALL_PRODUCT_IDS = [
+  PRODUCTS.hubUnlock.id,
+  PRODUCTS.annualUpdate.id,
+  PRODUCTS.storageTiers.starter.id,
+  PRODUCTS.storageTiers.power.id,
+  ...Object.values(PRODUCTS.standaloneModules).map((m) => m.id),
+] as const;
+
+export const ProductIdSchema = z.enum(ALL_PRODUCT_IDS as unknown as [string, ...string[]]);
+
+// ---------------------------------------------------------------------------
+// Billing event types (webhooks from RevenueCat / Stripe)
+// ---------------------------------------------------------------------------
 
 export const BILLING_EVENT_TYPES = {
   purchaseCreated: 'purchase.created',
   purchaseRenewed: 'purchase.renewed',
   purchaseCanceled: 'purchase.canceled',
   purchaseRefunded: 'purchase.refunded',
-  purchaseDisputed: 'purchase.disputed',
+  purchaseExpired: 'purchase.expired',
 } as const;
 
 export const BillingEventTypeSchema = z.enum([
@@ -29,41 +90,7 @@ export const BillingEventTypeSchema = z.enum([
   BILLING_EVENT_TYPES.purchaseRenewed,
   BILLING_EVENT_TYPES.purchaseCanceled,
   BILLING_EVENT_TYPES.purchaseRefunded,
-  BILLING_EVENT_TYPES.purchaseDisputed,
+  BILLING_EVENT_TYPES.purchaseExpired,
 ]);
 
 export type BillingEventType = z.infer<typeof BillingEventTypeSchema>;
-
-export interface SkuEntitlementDefaults {
-  hostedActive: boolean;
-  selfHostLicense: boolean;
-  modeDefault: 'hosted' | 'self_host' | 'local_only' | 'unchanged';
-  updatePackYear: number | null;
-}
-
-export const SKU_ENTITLEMENT_DEFAULTS: Record<BillingSku, SkuEntitlementDefaults> = {
-  [BILLING_SKUS.hostedMonthly]: {
-    hostedActive: true,
-    selfHostLicense: false,
-    modeDefault: 'hosted',
-    updatePackYear: null,
-  },
-  [BILLING_SKUS.hostedYearly]: {
-    hostedActive: true,
-    selfHostLicense: false,
-    modeDefault: 'hosted',
-    updatePackYear: null,
-  },
-  [BILLING_SKUS.selfHostLifetime]: {
-    hostedActive: false,
-    selfHostLicense: true,
-    modeDefault: 'self_host',
-    updatePackYear: null,
-  },
-  [BILLING_SKUS.updatePack2026]: {
-    hostedActive: false,
-    selfHostLicense: false,
-    modeDefault: 'unchanged',
-    updatePackYear: 2026,
-  },
-};

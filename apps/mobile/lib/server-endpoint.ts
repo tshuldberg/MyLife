@@ -1,4 +1,4 @@
-import type { PlanMode } from '@mylife/entitlements';
+import type { HubPlanMode } from '@mylife/db';
 
 export type ApiBaseUrlReason =
   | 'missing_hosted_url'
@@ -51,7 +51,7 @@ export function normalizeServerUrl(value: string | null | undefined): string | n
 }
 
 export function resolveApiBaseUrl(
-  mode: PlanMode,
+  mode: HubPlanMode,
   serverUrl: string | null,
 ): ResolvedApiBaseUrl {
   if (mode === 'local_only') {

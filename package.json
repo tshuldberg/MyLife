@@ -13,6 +13,7 @@
     "check:module-parity": "bash scripts/perf-audit/run-js.sh scripts/check-module-parity.mjs",
     "check:passthrough-parity": "pnpm --filter @mylife/web test:parity",
     "check:workouts-parity": "bash scripts/perf-audit/run-js.sh scripts/check-workouts-parity.mjs",
+    "check:generated-artifacts": "bash scripts/perf-audit/run-js.sh scripts/perf-audit/check-generated-artifacts.mjs",
     "check:parity": "pnpm check:standalone && pnpm check:module-parity && pnpm check:passthrough-parity && pnpm check:workouts-parity",
     "audit:functions": "bash scripts/perf-audit/run-js.sh scripts/perf-audit/generate-function-performance-report.mjs",
     "scaffold:function-test": "bash scripts/perf-audit/run-js.sh scripts/perf-audit/scaffold-function-quality-test.mjs",

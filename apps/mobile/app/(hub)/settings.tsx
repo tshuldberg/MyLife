@@ -162,13 +162,17 @@ export default function SettingsScreen() {
         </Card>
       </View>
 
-      {/* Data */}
+      {/* Data & Sync */}
       <View style={styles.section}>
         <Text variant="label" color={colors.textSecondary} style={styles.sectionTitle}>
-          Data
+          Data & Sync
         </Text>
         <Card>
-          <View style={styles.row}>
+          <Pressable style={styles.row} onPress={() => router.push('/(hub)/data-sync')}>
+            <Text variant="body">Data & Sync Settings</Text>
+            <Text variant="caption" color={colors.textTertiary}>{'>'}</Text>
+          </Pressable>
+          <View style={[styles.row, styles.rowBorder]}>
             <Text variant="body">Export Data</Text>
             <Text variant="caption" color={colors.textTertiary}>
               Coming soon

@@ -186,3 +186,109 @@ export const BudgetSettingSchema = z.object({
 });
 export type BudgetSetting = z.infer<typeof BudgetSettingSchema>;
 
+// --- Subscriptions ---
+
+export const BillingCycle = z.enum([
+  'weekly',
+  'monthly',
+  'quarterly',
+  'semi_annual',
+  'annual',
+  'custom',
+]);
+export type BillingCycle = z.infer<typeof BillingCycle>;
+
+export const SubscriptionStatus = z.enum(['active', 'paused', 'cancelled', 'trial']);
+export type SubscriptionStatus = z.infer<typeof SubscriptionStatus>;
+
+export const BudgetSubscriptionSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1).max(200),
+  price: z.number().int(),
+  currency: z.string().length(3),
+  billing_cycle: BillingCycle,
+  custom_days: z.number().int().positive().nullable(),
+  status: SubscriptionStatus,
+  start_date: z.string(),
+  next_renewal: z.string(),
+  trial_end_date: z.string().nullable(),
+  cancelled_date: z.string().nullable(),
+  notes: z.string().nullable(),
+  url: z.string().nullable(),
+  icon: z.string().nullable(),
+  color: z.string().nullable(),
+  notify_days: z.number().int().nonnegative(),
+  catalog_id: z.string().nullable(),
+  sort_order: z.number().int().nonnegative(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type BudgetSubscription = z.infer<typeof BudgetSubscriptionSchema>;
+
+export const BudgetSubscriptionInsertSchema = BudgetSubscriptionSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+}).partial({
+  currency: true,
+  custom_days: true,
+  trial_end_date: true,
+  cancelled_date: true,
+  notes: true,
+  url: true,
+  icon: true,
+  color: true,
+  notify_days: true,
+  catalog_id: true,
+  sort_order: true,
+});
+export type BudgetSubscriptionInsert = z.infer<typeof BudgetSubscriptionInsertSchema>;
+
+export const BudgetSubscriptionUpdateSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  price: z.number().int().optional(),
+  currency: z.string().length(3).optional(),
+  billing_cycle: BillingCycle.optional(),
+  custom_days: z.number().int().positive().nullable().optional(),
+  status: SubscriptionStatus.optional(),
+  start_date: z.string().optional(),
+  next_renewal: z.string().optional(),
+  trial_end_date: z.string().nullable().optional(),
+  cancelled_date: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  url: z.string().nullable().optional(),
+  icon: z.string().nullable().optional(),
+  color: z.string().nullable().optional(),
+  notify_days: z.number().int().nonnegative().optional(),
+  sort_order: z.number().int().nonnegative().optional(),
+});
+export type BudgetSubscriptionUpdate = z.infer<typeof BudgetSubscriptionUpdateSchema>;
+
+export const BudgetSubscriptionFilterSchema = z.object({
+  status: SubscriptionStatus.optional(),
+  billing_cycle: BillingCycle.optional(),
+});
+export type BudgetSubscriptionFilter = z.infer<typeof BudgetSubscriptionFilterSchema>;
+
+// --- Catalog ---
+
+export const CatalogCategorySchema = z.enum([
+  'entertainment',
+  'productivity',
+  'health',
+  'shopping',
+  'news',
+  'finance',
+  'utilities',
+  'other',
+]);
+export type CatalogCategory = z.infer<typeof CatalogCategorySchema>;
+
+export interface CatalogEntry {
+  id: string;
+  name: string;
+  defaultPrice: number;
+  billingCycle: BillingCycle;
+  category: CatalogCategory;
+}
+
