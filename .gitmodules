@@ -75,4 +75,4 @@
 	url = https://github.com/tshuldberg/MyMail.git
 [submodule "MyHealth"]
 	path = MyHealth
-	url = ./MyHealth
+	url = https://github.com/tshuldberg/MyHealth.git
