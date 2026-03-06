@@ -108,6 +108,20 @@ export default function BudgetHomeScreen() {
           onPress={() => router.push('/(budget)/goals')}
           style={styles.actionButton}
         />
+        <Button
+          variant="secondary"
+          label="Subscriptions"
+          onPress={() => router.push('/(budget)/subscriptions')}
+          style={styles.actionButton}
+        />
+      </View>
+      <View style={styles.actionsRow}>
+        <Button
+          variant="secondary"
+          label="Reports"
+          onPress={() => router.push('/(budget)/reports')}
+          style={styles.actionButton}
+        />
       </View>
 
       {error ? (

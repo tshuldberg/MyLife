@@ -1,7 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import type { ModuleDefinition } from '@mylife/module-registry';
+import { isModuleUnlocked } from '@mylife/entitlements';
+import { useEntitlements } from './EntitlementsProvider';
+import { PurchaseGate } from './PurchaseGate';
 
 interface ModuleCardProps {
   module: ModuleDefinition;
@@ -9,7 +13,70 @@ interface ModuleCardProps {
 }
 
 export function ModuleCard({ module, enabled }: ModuleCardProps) {
+  const entitlements = useEntitlements();
+  const unlocked = isModuleUnlocked(module.id, entitlements);
+  const isPremium = module.tier === 'premium';
+  const [showGate, setShowGate] = useState(false);
+
   const route = `/${module.id}`;
+
+  if (!unlocked) {
+    return (
+      <>
+        <button
+          style={styles.card}
+          onClick={() => setShowGate(true)}
+          type="button"
+        >
+          <div
+            style={{
+              ...styles.accentBorder,
+              backgroundColor: module.accentColor,
+            }}
+          />
+          <div style={styles.content}>
+            <div style={styles.header}>
+              <span style={styles.icon}>{module.icon}</span>
+              <div style={{ flex: 1 }}>
+                <h3 style={styles.name}>{module.name}</h3>
+                <p style={styles.tagline}>{module.tagline}</p>
+              </div>
+            </div>
+            <div style={styles.footer}>
+              <span style={styles.lockBadge}>Locked</span>
+              <span
+                style={{
+                  ...styles.proBadge,
+                  color: module.accentColor,
+                  borderColor: module.accentColor,
+                }}
+              >
+                PRO
+              </span>
+            </div>
+          </div>
+          {/* Lock overlay */}
+          <div style={styles.lockOverlay}>
+            <span style={styles.lockIcon}>{'\u{1F512}'}</span>
+          </div>
+        </button>
+
+        {showGate && (
+          <div style={styles.modal} onClick={() => setShowGate(false)}>
+            <div onClick={(e) => e.stopPropagation()}>
+              <PurchaseGate
+                moduleId={module.id}
+                moduleName={module.name}
+                moduleIcon={module.icon}
+                accentColor={module.accentColor}
+                onPurchaseComplete={() => setShowGate(false)}
+              />
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <Link href={route} style={styles.card}>
@@ -37,14 +104,27 @@ export function ModuleCard({ module, enabled }: ModuleCardProps) {
           >
             {enabled ? 'Enabled' : 'Disabled'}
           </span>
-          <span
-            style={{
-              ...styles.tierBadge,
-              color: module.tier === 'free' ? 'var(--success)' : module.accentColor,
-            }}
-          >
-            {module.tier === 'free' ? 'Free' : 'Premium'}
-          </span>
+          {isPremium && (
+            <span
+              style={{
+                ...styles.proBadge,
+                color: module.accentColor,
+                borderColor: module.accentColor,
+              }}
+            >
+              PRO
+            </span>
+          )}
+          {!isPremium && (
+            <span
+              style={{
+                ...styles.tierBadge,
+                color: 'var(--success)',
+              }}
+            >
+              Free
+            </span>
+          )}
         </div>
       </div>
     </Link>
@@ -62,6 +142,11 @@ const styles: Record<string, React.CSSProperties> = {
     textDecoration: 'none',
     transition: 'background-color 0.15s, border-color 0.15s',
     cursor: 'pointer',
+    position: 'relative',
+    width: '100%',
+    textAlign: 'left',
+    font: 'inherit',
+    color: 'inherit',
   },
   accentBorder: {
     width: '4px',
@@ -109,8 +194,55 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 'var(--radius-sm)',
     border: '1px solid',
   },
+  lockBadge: {
+    fontSize: '12px',
+    fontWeight: 600,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.5px',
+    padding: '2px 8px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--border)',
+    color: 'var(--text-tertiary)',
+  },
+  proBadge: {
+    fontSize: '11px',
+    fontWeight: 700,
+    letterSpacing: '0.5px',
+    padding: '2px 6px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid',
+  },
   tierBadge: {
     fontSize: '12px',
     fontWeight: 500,
+  },
+  lockOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(14, 12, 9, 0.4)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 'var(--radius-lg)',
+    pointerEvents: 'none',
+  },
+  lockIcon: {
+    fontSize: '28px',
+    opacity: 0.7,
+  },
+  modal: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
   },
 };

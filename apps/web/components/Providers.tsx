@@ -20,6 +20,9 @@ import { WORKOUTS_MODULE } from '@mylife/workouts';
 import { HOMES_MODULE } from '@mylife/homes';
 import { WORDS_MODULE } from '@mylife/words';
 import { RSVP_MODULE } from '@mylife/rsvp';
+import { createPaymentService } from '@mylife/subscription';
+import type { PaymentService } from '@mylife/subscription';
+import { EntitlementsProvider } from './EntitlementsProvider';
 
 const RegistryProvider =
   ModuleRegistryContext.Provider as unknown as React.ComponentType<{
@@ -58,9 +61,19 @@ export function Providers({ children, initialEnabledIds }: ProvidersProps) {
     return reg;
   }, [initialEnabledIds]);
 
+  const paymentService = useMemo<PaymentService | null>(() => {
+    try {
+      return createPaymentService({ platform: 'web' });
+    } catch {
+      return null;
+    }
+  }, []);
+
   return (
     <RegistryProvider value={registry}>
-      {children as unknown as React.ReactNode}
+      <EntitlementsProvider paymentService={paymentService}>
+        {children as unknown as React.ReactNode}
+      </EntitlementsProvider>
     </RegistryProvider>
   );
 }

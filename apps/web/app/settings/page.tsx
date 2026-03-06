@@ -96,10 +96,16 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* Data & Privacy */}
+      {/* Data & Sync */}
       <section style={styles.section}>
-        <h2 style={styles.sectionTitle}>Data &amp; Privacy</h2>
+        <h2 style={styles.sectionTitle}>Data &amp; Sync</h2>
         <div style={styles.card}>
+          <div style={styles.row}>
+            <span style={styles.planLabel}>Sync Settings</span>
+            <Link href="/settings/data-sync" style={styles.linkButton}>
+              Open Data &amp; Sync
+            </Link>
+          </div>
           <p style={styles.privacyText}>
             All your data is stored locally on this device. MyLife does not
             collect analytics, telemetry, or crash reports. Modules using cloud

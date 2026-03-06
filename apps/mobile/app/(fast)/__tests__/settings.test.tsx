@@ -14,6 +14,8 @@ const createGoalMock = vi.fn();
 const upsertGoalMock = vi.fn();
 const refreshGoalProgressMock = vi.fn();
 const setWaterTargetMock = vi.fn();
+const exportFastsCSVMock = vi.fn();
+const exportWeightCSVMock = vi.fn();
 const probeHealthSyncStatusMock = vi.fn();
 const syncHealthDataMock = vi.fn();
 
@@ -28,6 +30,8 @@ vi.mock('@mylife/fast', () => ({
   upsertGoal: (...args: unknown[]) => upsertGoalMock(...args),
   refreshGoalProgress: (...args: unknown[]) => refreshGoalProgressMock(...args),
   setWaterTarget: (...args: unknown[]) => setWaterTargetMock(...args),
+  exportFastsCSV: (...args: unknown[]) => exportFastsCSVMock(...args),
+  exportWeightCSV: (...args: unknown[]) => exportWeightCSVMock(...args),
 }));
 
 vi.mock('../../../lib/fast-health-sync', () => ({
@@ -76,6 +80,8 @@ describe('FastSettingsScreen (mobile)', () => {
       exportedFasts: 0,
       message: 'Synced.',
     });
+    exportFastsCSVMock.mockReturnValue('id,protocol\n');
+    exportWeightCSVMock.mockReturnValue('id,weight_value\n');
   });
 
   it('saves updated protocol, notification, goal, and health settings', () => {
@@ -106,5 +112,24 @@ describe('FastSettingsScreen (mobile)', () => {
     );
     expect(refreshGoalProgressMock).toHaveBeenCalledWith(mockDb);
     expect(upsertGoalMock).not.toHaveBeenCalled();
+  });
+
+  it('renders data export and about sections', () => {
+    render(<FastSettingsScreen />);
+
+    expect(screen.getByText('Data')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Export as CSV' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Erase All Data' })).toBeInTheDocument();
+    expect(screen.getByText('About')).toBeInTheDocument();
+    expect(screen.getByText('MyFast v0.1.0')).toBeInTheDocument();
+  });
+
+  it('calls export functions when Export as CSV is pressed', () => {
+    render(<FastSettingsScreen />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export as CSV' }));
+
+    expect(exportFastsCSVMock).toHaveBeenCalledWith(mockDb);
+    expect(exportWeightCSVMock).toHaveBeenCalledWith(mockDb);
   });
 });

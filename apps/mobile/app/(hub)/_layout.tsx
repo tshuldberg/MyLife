@@ -36,6 +36,12 @@ export default function HubLayout() {
         }}
       />
       <Stack.Screen
+        name="data-sync"
+        options={{
+          title: 'Data & Sync',
+        }}
+      />
+      <Stack.Screen
         name="onboarding-mode"
         options={{
           title: 'Mode',

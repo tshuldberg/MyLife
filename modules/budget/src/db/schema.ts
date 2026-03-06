@@ -212,9 +212,45 @@ export const CORE_TABLES = [
   CREATE_SETTINGS,
 ];
 
+// -- 11. Subscriptions --
+export const CREATE_SUBSCRIPTIONS = `
+CREATE TABLE IF NOT EXISTS bg_subscriptions (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    price INTEGER NOT NULL,
+    currency TEXT NOT NULL DEFAULT 'USD',
+    billing_cycle TEXT NOT NULL
+      CHECK (billing_cycle IN ('weekly', 'monthly', 'quarterly', 'semi_annual', 'annual', 'custom')),
+    custom_days INTEGER,
+    status TEXT NOT NULL DEFAULT 'active'
+      CHECK (status IN ('active', 'paused', 'cancelled', 'trial')),
+    start_date TEXT NOT NULL,
+    next_renewal TEXT NOT NULL,
+    trial_end_date TEXT,
+    cancelled_date TEXT,
+    notes TEXT,
+    url TEXT,
+    icon TEXT,
+    color TEXT,
+    notify_days INTEGER NOT NULL DEFAULT 1,
+    catalog_id TEXT,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const SUBSCRIPTION_TABLES = [CREATE_SUBSCRIPTIONS];
+
+export const SUBSCRIPTION_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS bg_subscriptions_status_idx ON bg_subscriptions(status)`,
+  `CREATE INDEX IF NOT EXISTS bg_subscriptions_next_renewal_idx ON bg_subscriptions(next_renewal)`,
+  `CREATE INDEX IF NOT EXISTS bg_subscriptions_catalog_idx ON bg_subscriptions(catalog_id)`,
+];
+
 export const ALL_TABLES = [
   ...CORE_TABLES,
   ...BANK_SYNC_TABLES,
+  ...SUBSCRIPTION_TABLES,
 ];
 
 /** Seed SQL for default settings. */

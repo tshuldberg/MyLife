@@ -1,4 +1,4 @@
-import type { DatabaseAdapter } from '@mylife/db';
+import type { DatabaseAdapter, HubPlanMode } from '@mylife/db';
 import {
   getHubEntitlement,
   setHubEntitlement,
@@ -6,15 +6,55 @@ import {
   getHubMode,
   setHubMode,
 } from '@mylife/db';
-import {
-  EntitlementsSchema,
-  type Entitlements,
-  type PlanMode,
-} from '@mylife/entitlements';
 import { resolveApiBaseUrl } from './server-endpoint';
 
+/**
+ * Server entitlement payload shape (camelCase, validated before DB persist).
+ * This is the legacy server-token model used by hub mode/self-host entitlement sync.
+ */
+interface ServerEntitlement {
+  appId: string;
+  mode: HubPlanMode;
+  hostedActive: boolean;
+  selfHostLicense: boolean;
+  updatePackYear?: number;
+  features: string[];
+  issuedAt: string;
+  expiresAt?: string;
+  signature: string;
+}
+
+const VALID_MODES: ReadonlySet<string> = new Set(['hosted', 'self_host', 'local_only']);
+
+function parseServerEntitlement(value: unknown): ServerEntitlement | null {
+  if (typeof value !== 'object' || value === null) return null;
+  const obj = value as Record<string, unknown>;
+
+  if (typeof obj.appId !== 'string') return null;
+  if (typeof obj.mode !== 'string' || !VALID_MODES.has(obj.mode)) return null;
+  if (typeof obj.hostedActive !== 'boolean') return null;
+  if (typeof obj.selfHostLicense !== 'boolean') return null;
+  if (obj.updatePackYear !== undefined && typeof obj.updatePackYear !== 'number') return null;
+  if (!Array.isArray(obj.features) || !obj.features.every((f) => typeof f === 'string')) return null;
+  if (typeof obj.issuedAt !== 'string') return null;
+  if (obj.expiresAt !== undefined && typeof obj.expiresAt !== 'string') return null;
+  if (typeof obj.signature !== 'string') return null;
+
+  return {
+    appId: obj.appId,
+    mode: obj.mode as HubPlanMode,
+    hostedActive: obj.hostedActive,
+    selfHostLicense: obj.selfHostLicense,
+    updatePackYear: obj.updatePackYear as number | undefined,
+    features: obj.features as string[],
+    issuedAt: obj.issuedAt,
+    expiresAt: obj.expiresAt as string | undefined,
+    signature: obj.signature,
+  };
+}
+
 export interface ModeConfig {
-  mode: PlanMode;
+  mode: HubPlanMode;
   serverUrl: string | null;
 }
 
@@ -50,14 +90,14 @@ export function getModeConfig(db: DatabaseAdapter): ModeConfig {
 /** Persists selected runtime mode and optional server URL. */
 export function saveModeConfig(
   db: DatabaseAdapter,
-  mode: PlanMode,
+  mode: HubPlanMode,
   serverUrl?: string | null,
 ): void {
   setHubMode(db, mode, serverUrl ?? null);
 }
 
 /** Returns locally cached entitlement payload if one exists. */
-export function getStoredEntitlement(db: DatabaseAdapter): Entitlements | null {
+export function getStoredEntitlement(db: DatabaseAdapter): ServerEntitlement | null {
   const cached = getHubEntitlement(db);
   if (!cached) return null;
 
@@ -83,22 +123,22 @@ export function saveEntitlement(
   rawToken: string,
   payload: unknown,
 ): SaveEntitlementResult {
-  const parsed = EntitlementsSchema.safeParse(payload);
-  if (!parsed.success) {
+  const parsed = parseServerEntitlement(payload);
+  if (!parsed) {
     return { ok: false, reason: 'invalid_shape' };
   }
 
   setHubEntitlement(db, {
     raw_token: rawToken,
-    app_id: parsed.data.appId,
-    mode: parsed.data.mode,
-    hosted_active: parsed.data.hostedActive,
-    self_host_license: parsed.data.selfHostLicense,
-    update_pack_year: parsed.data.updatePackYear,
-    features: parsed.data.features,
-    issued_at: parsed.data.issuedAt,
-    expires_at: parsed.data.expiresAt,
-    signature: parsed.data.signature,
+    app_id: parsed.appId,
+    mode: parsed.mode,
+    hosted_active: parsed.hostedActive,
+    self_host_license: parsed.selfHostLicense,
+    update_pack_year: parsed.updatePackYear,
+    features: parsed.features,
+    issued_at: parsed.issuedAt,
+    expires_at: parsed.expiresAt,
+    signature: parsed.signature,
   });
 
   return { ok: true };

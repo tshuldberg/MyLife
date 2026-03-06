@@ -21,6 +21,13 @@ export {
   BudgetGoalInsertSchema,
   BudgetGoalUpdateSchema,
   BudgetSettingSchema,
+  BillingCycle,
+  SubscriptionStatus,
+  BudgetSubscriptionSchema,
+  BudgetSubscriptionInsertSchema,
+  BudgetSubscriptionUpdateSchema,
+  BudgetSubscriptionFilterSchema,
+  CatalogCategorySchema,
 } from './types';
 
 // Bank sync contract
@@ -40,6 +47,12 @@ export type {
   BudgetGoalInsert,
   BudgetGoalUpdate,
   BudgetSetting,
+  BudgetSubscription,
+  BudgetSubscriptionInsert,
+  BudgetSubscriptionUpdate,
+  BudgetSubscriptionFilter,
+  CatalogEntry,
+  CatalogCategory,
 } from './types';
 
 // Database operations
@@ -50,6 +63,7 @@ export {
   CREATE_TRANSACTIONS,
   CREATE_GOALS,
   CREATE_SETTINGS,
+  CREATE_SUBSCRIPTIONS,
   CREATE_BANK_CONNECTIONS,
   CREATE_BANK_ACCOUNTS,
   CREATE_BANK_TRANSACTIONS_RAW,
@@ -57,6 +71,8 @@ export {
   CREATE_BANK_WEBHOOK_EVENTS,
   CORE_TABLES,
   BANK_SYNC_TABLES,
+  SUBSCRIPTION_TABLES,
+  SUBSCRIPTION_INDEXES,
   CORE_INDEXES,
   BANK_SYNC_INDEXES,
   CREATE_INDEXES,
@@ -85,4 +101,22 @@ export {
   deleteGoal,
   getSetting,
   setSetting,
+  createSubscription,
+  getSubscriptionById,
+  getSubscriptions,
+  updateSubscription,
+  deleteSubscription,
+  pauseSubscription,
+  cancelSubscription,
+  resumeSubscription,
 } from './db';
+
+// Subscription catalog
+export {
+  SUBSCRIPTION_CATALOG,
+  searchCatalog,
+  getPopularEntries,
+  normalizeToMonthly,
+  normalizeToAnnual,
+  calculateNextRenewal,
+} from './db/subscription-catalog';

@@ -13,6 +13,10 @@ import type {
   BudgetGoal,
   BudgetGoalInsert,
   BudgetGoalUpdate,
+  BudgetSubscription,
+  BudgetSubscriptionFilter,
+  BudgetSubscriptionInsert,
+  BudgetSubscriptionUpdate,
   BudgetTransaction,
   BudgetTransactionFilter,
   BudgetTransactionInsert,
@@ -480,5 +484,149 @@ export function setSetting(db: DatabaseAdapter, key: string, value: string): voi
   db.execute(
     `INSERT OR REPLACE INTO bg_settings (key, value) VALUES (?, ?)`,
     [key, value],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Subscriptions
+// ---------------------------------------------------------------------------
+
+export function createSubscription(
+  db: DatabaseAdapter,
+  id: string,
+  input: BudgetSubscriptionInsert,
+): BudgetSubscription {
+  const now = new Date().toISOString();
+  const sub: BudgetSubscription = {
+    id,
+    name: input.name,
+    price: input.price,
+    currency: input.currency ?? 'USD',
+    billing_cycle: input.billing_cycle,
+    custom_days: input.custom_days ?? null,
+    status: input.status,
+    start_date: input.start_date,
+    next_renewal: input.next_renewal,
+    trial_end_date: input.trial_end_date ?? null,
+    cancelled_date: input.cancelled_date ?? null,
+    notes: input.notes ?? null,
+    url: input.url ?? null,
+    icon: input.icon ?? null,
+    color: input.color ?? null,
+    notify_days: input.notify_days ?? 1,
+    catalog_id: input.catalog_id ?? null,
+    sort_order: input.sort_order ?? 0,
+    created_at: now,
+    updated_at: now,
+  };
+
+  db.execute(
+    `INSERT INTO bg_subscriptions
+      (id, name, price, currency, billing_cycle, custom_days, status,
+       start_date, next_renewal, trial_end_date, cancelled_date,
+       notes, url, icon, color, notify_days, catalog_id, sort_order,
+       created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      sub.id, sub.name, sub.price, sub.currency, sub.billing_cycle,
+      sub.custom_days, sub.status, sub.start_date, sub.next_renewal,
+      sub.trial_end_date, sub.cancelled_date, sub.notes, sub.url,
+      sub.icon, sub.color, sub.notify_days, sub.catalog_id,
+      sub.sort_order, sub.created_at, sub.updated_at,
+    ],
+  );
+
+  return sub;
+}
+
+export function getSubscriptionById(
+  db: DatabaseAdapter,
+  id: string,
+): BudgetSubscription | null {
+  const rows = db.query<BudgetSubscription>(
+    `SELECT * FROM bg_subscriptions WHERE id = ?`,
+    [id],
+  );
+  return rows[0] ?? null;
+}
+
+export function getSubscriptions(
+  db: DatabaseAdapter,
+  filters?: BudgetSubscriptionFilter,
+): BudgetSubscription[] {
+  const where: string[] = [];
+  const params: unknown[] = [];
+
+  if (filters?.status) {
+    where.push('status = ?');
+    params.push(filters.status);
+  }
+  if (filters?.billing_cycle) {
+    where.push('billing_cycle = ?');
+    params.push(filters.billing_cycle);
+  }
+
+  let sql = 'SELECT * FROM bg_subscriptions';
+  if (where.length > 0) {
+    sql += ` WHERE ${where.join(' AND ')}`;
+  }
+  sql += ' ORDER BY sort_order ASC, name ASC';
+
+  return db.query<BudgetSubscription>(sql, params);
+}
+
+export function updateSubscription(
+  db: DatabaseAdapter,
+  id: string,
+  updates: BudgetSubscriptionUpdate,
+): void {
+  const fields: string[] = [];
+  const values: unknown[] = [];
+
+  for (const [key, value] of Object.entries(updates)) {
+    if (value !== undefined) {
+      fields.push(`${key} = ?`);
+      values.push(value);
+    }
+  }
+
+  if (fields.length === 0) return;
+
+  fields.push('updated_at = ?');
+  values.push(new Date().toISOString());
+  values.push(id);
+
+  db.execute(
+    `UPDATE bg_subscriptions SET ${fields.join(', ')} WHERE id = ?`,
+    values,
+  );
+}
+
+export function deleteSubscription(db: DatabaseAdapter, id: string): void {
+  db.execute(`DELETE FROM bg_subscriptions WHERE id = ?`, [id]);
+}
+
+export function pauseSubscription(db: DatabaseAdapter, id: string): void {
+  const now = new Date().toISOString();
+  db.execute(
+    `UPDATE bg_subscriptions SET status = 'paused', updated_at = ? WHERE id = ? AND status = 'active'`,
+    [now, id],
+  );
+}
+
+export function cancelSubscription(db: DatabaseAdapter, id: string): void {
+  const now = new Date().toISOString();
+  const today = now.slice(0, 10);
+  db.execute(
+    `UPDATE bg_subscriptions SET status = 'cancelled', cancelled_date = ?, updated_at = ? WHERE id = ? AND status != 'cancelled'`,
+    [today, now, id],
+  );
+}
+
+export function resumeSubscription(db: DatabaseAdapter, id: string): void {
+  const now = new Date().toISOString();
+  db.execute(
+    `UPDATE bg_subscriptions SET status = 'active', updated_at = ? WHERE id = ? AND status = 'paused'`,
+    [now, id],
   );
 }

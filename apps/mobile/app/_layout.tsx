@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -19,7 +20,11 @@ import { MEDS_MODULE } from '@mylife/meds';
 import { WORDS_MODULE } from '@mylife/words';
 import { RSVP_MODULE } from '@mylife/rsvp';
 import { colors } from '@mylife/ui';
+import { createPaymentService } from '@mylife/subscription';
+import type { PaymentService } from '@mylife/subscription';
+import { AuthProvider } from '@mylife/auth';
 import { DatabaseProvider } from '../components/DatabaseProvider';
+import { EntitlementsProvider } from '../components/EntitlementsProvider';
 
 const RegistryProvider =
   ModuleRegistryContext.Provider as unknown as React.ComponentType<{
@@ -31,12 +36,11 @@ const RegistryProvider =
  * Root layout for the MyLife app.
  *
  * Wraps the entire tree with:
- * 1. ModuleRegistryContext — provides the module registry to all screens
- * 2. DatabaseProvider — opens hub SQLite, syncs enabled state, runs migrations
- * 3. Stack navigator — renders (hub) group and per-module groups
- *
- * Registry wraps outside DatabaseProvider so DatabaseProvider can read
- * the registry to sync enabled modules from SQLite on init.
+ * 1. ModuleRegistryContext -- provides the module registry to all screens
+ * 2. DatabaseProvider -- opens hub SQLite, syncs enabled state, runs migrations
+ * 3. AuthProvider -- optional Supabase Auth (null for local/P2P users)
+ * 4. EntitlementsProvider -- resolves purchases into entitlement state
+ * 5. Stack navigator -- renders (hub) group and per-module groups
  */
 export default function RootLayout() {
   const registry = useMemo(() => {
@@ -60,31 +64,45 @@ export default function RootLayout() {
     return r;
   }, []);
 
+  const paymentService = useMemo<PaymentService | null>(() => {
+    // Payment service will be fully configured once RevenueCat API keys
+    // are set via environment variables. For now create with mobile platform.
+    try {
+      return createPaymentService({ platform: 'mobile' });
+    } catch {
+      return null;
+    }
+  }, []);
+
   return (
     <RegistryProvider value={registry}>
       <DatabaseProvider registry={registry}>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.background },
-            animation: 'slide_from_right',
-          }}
-        >
-          <Stack.Screen name="(hub)" />
-          <Stack.Screen name="(books)" />
-          <Stack.Screen name="(budget)" />
-          <Stack.Screen name="(surf)" />
-          <Stack.Screen name="(fast)" />
-          <Stack.Screen name="(recipes)" />
-          <Stack.Screen name="(workouts)" />
-          <Stack.Screen name="(homes)" />
-          <Stack.Screen name="(car)" />
-          <Stack.Screen name="(habits)" />
-          <Stack.Screen name="(meds)" />
-          <Stack.Screen name="(words)" />
-          <Stack.Screen name="(rsvp)" />
-        </Stack>
+        <AuthProvider service={null}>
+          <EntitlementsProvider paymentService={paymentService}>
+            <StatusBar style="light" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background },
+                animation: 'slide_from_right',
+              }}
+            >
+              <Stack.Screen name="(hub)" />
+              <Stack.Screen name="(books)" />
+              <Stack.Screen name="(budget)" />
+              <Stack.Screen name="(surf)" />
+              <Stack.Screen name="(fast)" />
+              <Stack.Screen name="(recipes)" />
+              <Stack.Screen name="(workouts)" />
+              <Stack.Screen name="(homes)" />
+              <Stack.Screen name="(car)" />
+              <Stack.Screen name="(habits)" />
+              <Stack.Screen name="(meds)" />
+              <Stack.Screen name="(words)" />
+              <Stack.Screen name="(rsvp)" />
+            </Stack>
+          </EntitlementsProvider>
+        </AuthProvider>
       </DatabaseProvider>
     </RegistryProvider>
   );

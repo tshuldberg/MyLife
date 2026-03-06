@@ -2,6 +2,7 @@
 
 import { useEnabledModules } from '@mylife/module-registry';
 import { ModuleCard } from '@/components/ModuleCard';
+import { UpdatePrompt } from '@/components/UpdatePrompt';
 import Link from 'next/link';
 import { isWebSupportedModuleId } from '@/lib/modules';
 
@@ -16,6 +17,8 @@ export default function HubDashboard() {
           {enabled.length} module{enabled.length !== 1 ? 's' : ''} active
         </p>
       </div>
+
+      <UpdatePrompt />
 
       {enabled.length > 0 ? (
         <div style={styles.grid}>

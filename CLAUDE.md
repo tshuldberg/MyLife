@@ -88,6 +88,13 @@ pnpm clean               # Clean build artifacts
 - If no function logic changed, state that explicitly when skipping this gate.
 - This requirement applies to both hub code and contained standalone apps.
 
+## Performance Artifact Policy
+
+- Large generated performance outputs must not be committed under `docs/performance/`.
+- Generated outputs from `pnpm audit:functions` must be written to `artifacts/perf-audit/`.
+- Keep `docs/performance/` focused on curated docs and small examples only.
+- Before merge, run `pnpm check:generated-artifacts` to block forbidden generated files and oversized tracked files.
+
 ## Architecture
 
 ```

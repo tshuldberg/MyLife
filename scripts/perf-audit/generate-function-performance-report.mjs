@@ -6,7 +6,7 @@ import { execSync } from "node:child_process";
 import ts from "typescript";
 
 const ROOT = process.cwd();
-const OUTPUT_DIR = path.join(ROOT, "docs", "performance");
+const OUTPUT_DIR = path.join(ROOT, "artifacts", "perf-audit");
 
 const SOURCE_EXTENSIONS = new Set([
   ".ts",

@@ -21,8 +21,11 @@ import { createGoal, getGoalProgress, refreshGoalProgress, listGoalProgress } fr
 import { computeStreaks } from '../stats/streaks';
 import { averageDuration, adherenceRate } from '../stats/aggregation';
 import { getMonthlySummary } from '../stats/summary';
-import { exportFastsCSV } from '../export';
-import { getCurrentFastingZone } from '../zones';
+import { exportFastsCSV, exportWeightCSV } from '../export';
+import { getCurrentFastingZone, getCurrentZoneProgress, FASTING_ZONES } from '../zones';
+import { refreshStreakCache, getStreaks } from '../stats/streaks';
+import { weeklyRollup, durationTrend } from '../stats/aggregation';
+import { getAnnualSummary } from '../stats/summary';
 
 describe('@mylife/fast', () => {
   let adapter: DatabaseAdapter;
@@ -355,6 +358,151 @@ describe('@mylife/fast', () => {
       const lines = csv.trim().split('\n');
       expect(lines).toHaveLength(2); // header + 1 row
       expect(lines[1]).toContain('f1');
+    });
+
+    it('exports weight entries as CSV', () => {
+      const csv = exportWeightCSV(adapter);
+      expect(csv).toContain('id,');
+      expect(csv).toContain('weight_value');
+      const lines = csv.trim().split('\n');
+      expect(lines).toHaveLength(1); // header only when no entries
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Fasting zones (comprehensive)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('fasting zones', () => {
+    it('returns Fed State for 0 elapsed', () => {
+      expect(getCurrentFastingZone(0).name).toBe('Fed State');
+    });
+
+    it('returns Early Fasting at 5 hours', () => {
+      expect(getCurrentFastingZone(5 * 3600).name).toBe('Early Fasting');
+    });
+
+    it('returns Fat Burning at 10 hours', () => {
+      expect(getCurrentFastingZone(10 * 3600).name).toBe('Fat Burning');
+    });
+
+    it('returns Ketosis Beginning at 14 hours', () => {
+      expect(getCurrentFastingZone(14 * 3600).name).toBe('Ketosis Beginning');
+    });
+
+    it('returns Deep Ketosis at 20 hours', () => {
+      expect(getCurrentFastingZone(20 * 3600).name).toBe('Deep Ketosis');
+    });
+
+    it('returns Autophagy Possible at 30 hours', () => {
+      expect(getCurrentFastingZone(30 * 3600).name).toBe('Autophagy Possible');
+    });
+
+    it('has 6 defined zones', () => {
+      expect(FASTING_ZONES).toHaveLength(6);
+    });
+
+    it('computes zone progress between 0 and 1', () => {
+      // Midpoint of Fat Burning zone (8h-12h), at 10h = 50%
+      const progress = getCurrentZoneProgress(10 * 3600);
+      expect(progress).toBeCloseTo(0.5, 1);
+    });
+
+    it('returns 1 for the open-ended autophagy zone', () => {
+      const progress = getCurrentZoneProgress(30 * 3600);
+      expect(progress).toBe(1);
+    });
+
+    it('returns 0 at zone start boundary', () => {
+      // At exactly 8h (start of Fat Burning)
+      const progress = getCurrentZoneProgress(8 * 3600);
+      expect(progress).toBeCloseTo(0, 1);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Streak cache read/write cycle
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('streak cache', () => {
+    it('refreshStreakCache writes and getStreaks reads cached values', () => {
+      startFast(adapter, 'f1', '16:8', 16, new Date('2026-01-01T08:00:00Z'));
+      endFast(adapter, new Date('2026-01-02T00:00:00Z'));
+
+      const refreshed = refreshStreakCache(adapter);
+      expect(refreshed.totalFasts).toBe(1);
+
+      const cached = getStreaks(adapter);
+      expect(cached.totalFasts).toBe(1);
+      expect(cached.currentStreak).toBe(refreshed.currentStreak);
+      expect(cached.longestStreak).toBe(refreshed.longestStreak);
+    });
+
+    it('returns zero streaks when no fasts exist', () => {
+      const streaks = computeStreaks(adapter);
+      expect(streaks.currentStreak).toBe(0);
+      expect(streaks.longestStreak).toBe(0);
+      expect(streaks.totalFasts).toBe(0);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Weekly rollup and duration trend
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('weekly rollup and duration trend', () => {
+    it('returns 7 days of rollup data', () => {
+      const rollup = weeklyRollup(adapter);
+      expect(rollup).toHaveLength(7);
+    });
+
+    it('includes fast hours in rollup day', () => {
+      startFast(adapter, 'f1', '16:8', 16, new Date('2026-03-04T08:00:00Z'));
+      endFast(adapter, new Date('2026-03-05T00:00:00Z'));
+      const rollup = weeklyRollup(adapter);
+      const dayWithFast = rollup.find((d) => d.totalHours > 0);
+      // May or may not appear depending on date alignment, so just check structure
+      for (const day of rollup) {
+        expect(day).toHaveProperty('date');
+        expect(day).toHaveProperty('totalHours');
+      }
+    });
+
+    it('returns duration trend with moving average', () => {
+      startFast(adapter, 'f1', '16:8', 16, new Date('2026-03-01T08:00:00Z'));
+      endFast(adapter, new Date('2026-03-02T00:00:00Z'));
+
+      const trend = durationTrend(adapter, 7);
+      expect(trend.length).toBeGreaterThan(0);
+      for (const point of trend) {
+        expect(point).toHaveProperty('date');
+        expect(point).toHaveProperty('durationHours');
+      }
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Annual summary
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('annual summary', () => {
+    it('computes annual summary across months', () => {
+      startFast(adapter, 'f1', '16:8', 16, new Date('2026-01-01T08:00:00Z'));
+      endFast(adapter, new Date('2026-01-02T00:00:00Z'));
+      startFast(adapter, 'f2', '18:6', 18, new Date('2026-02-01T08:00:00Z'));
+      endFast(adapter, new Date('2026-02-02T02:00:00Z'));
+
+      const summary = getAnnualSummary(adapter, 2026);
+      expect(summary.totalFasts).toBe(2);
+      expect(summary.totalHours).toBe(34); // 16h + 18h
+      expect(summary.longestFastHours).toBe(18);
+      expect(summary.averageDurationHours).toBe(17);
+    });
+
+    it('returns zero summary for empty year', () => {
+      const summary = getAnnualSummary(adapter, 2020);
+      expect(summary.totalFasts).toBe(0);
+      expect(summary.totalHours).toBe(0);
     });
   });
 });

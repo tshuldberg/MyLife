@@ -87,6 +87,30 @@ export default function BudgetLayout() {
           title: 'Goal',
         }}
       />
+      <Stack.Screen
+        name="subscriptions"
+        options={{
+          title: 'Subscriptions',
+        }}
+      />
+      <Stack.Screen
+        name="subscription/add"
+        options={{
+          title: 'Add Subscription',
+        }}
+      />
+      <Stack.Screen
+        name="subscription/[id]"
+        options={{
+          title: 'Subscription',
+        }}
+      />
+      <Stack.Screen
+        name="reports"
+        options={{
+          title: 'Reports',
+        }}
+      />
     </Stack>
   );
 }
