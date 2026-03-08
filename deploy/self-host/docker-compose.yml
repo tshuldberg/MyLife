@@ -22,7 +22,8 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?MINIO_ROOT_USER must be set}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set}
     ports:
-      - '${MINIO_API_PORT:-9000}:9000'
+      # S3 API bound to localhost only — the API container reaches MinIO via Docker internal networking
+      - '127.0.0.1:${MINIO_API_PORT:-9000}:9000'
       # Console port bound to localhost only — do not expose on untrusted networks
       - '127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001'
     volumes:

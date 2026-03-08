@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import cors from 'cors';
 import express from 'express';
+import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import pg from 'pg';
 
@@ -121,6 +122,13 @@ const app = express();
 const pool = new Pool({
   connectionString: DATABASE_URL,
 });
+
+// Security headers — must be first middleware
+app.use(helmet({
+  // CSP is handled by the reverse proxy / client; disable helmet's default CSP
+  // so it doesn't conflict with custom per-route policies.
+  contentSecurityPolicy: false,
+}));
 
 app.use(cors({
   origin: allowedOrigins,
@@ -2009,8 +2017,12 @@ app.use((error, _req, res, _next) => {
 
 // Hash the admin password before accepting connections.
 hashAdminPassword().then(() => {
+  if (FEDERATION_ALLOW_INSECURE_HTTP) {
+    console.warn('[SECURITY WARNING] MYLIFE_FEDERATION_ALLOW_INSECURE_HTTP is enabled. ' +
+      'Federation requests will use plain HTTP. Never enable this in production.');
+  }
   app.listen(PORT, () => {
-    console.log(`MyLife self-host API listening on ${PORT}`);
+    console.log(`MyLife self-host API listening on port ${PORT}`);
   });
 }).catch((err) => {
   console.error('Failed to initialize:', err.message);
