@@ -2,15 +2,16 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-type ModuleStatus = 'implemented' | 'design_only' | 'standalone_only';
-type ParityMode = 'passthrough' | 'adapter' | 'design_only' | 'standalone_only';
+type ModuleStatus = 'implemented' | 'design_only' | 'scaffolded' | 'archived';
+type ParityMode = 'passthrough' | 'adapter' | 'design_only' | 'scaffolded' | 'archived';
 
 interface StandaloneParitySpec {
   standalone: string;
-  moduleId: string | null;
+  moduleId: string;
   moduleStatus: ModuleStatus;
   webParityMode: ParityMode;
   mobileParityMode: ParityMode;
+  archiveRoot?: string;
   standaloneWebRoots?: string[];
   standaloneMobileRoots?: string[];
 }
@@ -30,18 +31,20 @@ const standaloneMatrix: StandaloneParitySpec[] = [
   {
     standalone: 'MyBooks',
     moduleId: 'books',
-    moduleStatus: 'implemented',
-    webParityMode: 'passthrough',
-    mobileParityMode: 'adapter',
+    moduleStatus: 'archived',
+    webParityMode: 'archived',
+    mobileParityMode: 'archived',
+    archiveRoot: 'archive/MyBooks',
     standaloneWebRoots: ['MyBooks/apps/web/app'],
     standaloneMobileRoots: ['MyBooks/apps/mobile/app'],
   },
   {
     standalone: 'MyBudget',
     moduleId: 'budget',
-    moduleStatus: 'implemented',
-    webParityMode: 'passthrough',
-    mobileParityMode: 'adapter',
+    moduleStatus: 'archived',
+    webParityMode: 'archived',
+    mobileParityMode: 'archived',
+    archiveRoot: 'archive/MyBudget',
     standaloneWebRoots: ['MyBudget/apps/web/app'],
     standaloneMobileRoots: ['MyBudget/apps/mobile/app'],
   },
@@ -56,17 +59,17 @@ const standaloneMatrix: StandaloneParitySpec[] = [
   },
   {
     standalone: 'MyCloset',
-    moduleId: null,
-    moduleStatus: 'standalone_only',
-    webParityMode: 'standalone_only',
-    mobileParityMode: 'standalone_only',
+    moduleId: 'closet',
+    moduleStatus: 'design_only',
+    webParityMode: 'design_only',
+    mobileParityMode: 'design_only',
   },
   {
     standalone: 'MyCycle',
-    moduleId: null,
-    moduleStatus: 'standalone_only',
-    webParityMode: 'standalone_only',
-    mobileParityMode: 'standalone_only',
+    moduleId: 'cycle',
+    moduleStatus: 'design_only',
+    webParityMode: 'design_only',
+    mobileParityMode: 'design_only',
   },
   {
     standalone: 'MyFast',
@@ -79,17 +82,17 @@ const standaloneMatrix: StandaloneParitySpec[] = [
   },
   {
     standalone: 'MyFlash',
-    moduleId: null,
-    moduleStatus: 'standalone_only',
-    webParityMode: 'standalone_only',
-    mobileParityMode: 'standalone_only',
+    moduleId: 'flash',
+    moduleStatus: 'design_only',
+    webParityMode: 'design_only',
+    mobileParityMode: 'design_only',
   },
   {
     standalone: 'MyGarden',
-    moduleId: null,
-    moduleStatus: 'standalone_only',
-    webParityMode: 'standalone_only',
-    mobileParityMode: 'standalone_only',
+    moduleId: 'garden',
+    moduleStatus: 'design_only',
+    webParityMode: 'design_only',
+    mobileParityMode: 'design_only',
   },
   {
     standalone: 'MyHealth',
@@ -118,17 +121,17 @@ const standaloneMatrix: StandaloneParitySpec[] = [
   },
   {
     standalone: 'MyJournal',
-    moduleId: null,
-    moduleStatus: 'standalone_only',
-    webParityMode: 'standalone_only',
-    mobileParityMode: 'standalone_only',
+    moduleId: 'journal',
+    moduleStatus: 'design_only',
+    webParityMode: 'design_only',
+    mobileParityMode: 'design_only',
   },
   {
     standalone: 'MyMail',
-    moduleId: null,
-    moduleStatus: 'standalone_only',
-    webParityMode: 'standalone_only',
-    mobileParityMode: 'standalone_only',
+    moduleId: 'mail',
+    moduleStatus: 'design_only',
+    webParityMode: 'design_only',
+    mobileParityMode: 'design_only',
   },
   {
     standalone: 'MyMeds',
@@ -139,31 +142,32 @@ const standaloneMatrix: StandaloneParitySpec[] = [
   },
   {
     standalone: 'MyMood',
-    moduleId: null,
-    moduleStatus: 'standalone_only',
-    webParityMode: 'standalone_only',
-    mobileParityMode: 'standalone_only',
+    moduleId: 'mood',
+    moduleStatus: 'design_only',
+    webParityMode: 'design_only',
+    mobileParityMode: 'design_only',
   },
   {
     standalone: 'MyNotes',
-    moduleId: null,
-    moduleStatus: 'standalone_only',
-    webParityMode: 'standalone_only',
-    mobileParityMode: 'standalone_only',
+    moduleId: 'notes',
+    moduleStatus: 'design_only',
+    webParityMode: 'design_only',
+    mobileParityMode: 'design_only',
   },
   {
     standalone: 'MyPets',
-    moduleId: null,
-    moduleStatus: 'standalone_only',
-    webParityMode: 'standalone_only',
-    mobileParityMode: 'standalone_only',
+    moduleId: 'pets',
+    moduleStatus: 'design_only',
+    webParityMode: 'design_only',
+    mobileParityMode: 'design_only',
   },
   {
     standalone: 'MyRecipes',
     moduleId: 'recipes',
-    moduleStatus: 'implemented',
-    webParityMode: 'passthrough',
-    mobileParityMode: 'adapter',
+    moduleStatus: 'archived',
+    webParityMode: 'archived',
+    mobileParityMode: 'archived',
+    archiveRoot: 'archive/MyRecipes',
     standaloneWebRoots: ['MyRecipes/apps/web/app'],
     standaloneMobileRoots: ['MyRecipes/apps/mobile/app'],
   },
@@ -178,17 +182,17 @@ const standaloneMatrix: StandaloneParitySpec[] = [
   },
   {
     standalone: 'MyStars',
-    moduleId: null,
-    moduleStatus: 'standalone_only',
-    webParityMode: 'standalone_only',
-    mobileParityMode: 'standalone_only',
+    moduleId: 'stars',
+    moduleStatus: 'design_only',
+    webParityMode: 'design_only',
+    mobileParityMode: 'design_only',
   },
   {
     standalone: 'MySubs',
-    moduleId: null,
-    moduleStatus: 'standalone_only',
-    webParityMode: 'standalone_only',
-    mobileParityMode: 'standalone_only',
+    moduleId: 'subs',
+    moduleStatus: 'scaffolded',
+    webParityMode: 'scaffolded',
+    mobileParityMode: 'scaffolded',
   },
   {
     standalone: 'MySurf',
@@ -201,17 +205,17 @@ const standaloneMatrix: StandaloneParitySpec[] = [
   },
   {
     standalone: 'MyTrails',
-    moduleId: null,
-    moduleStatus: 'standalone_only',
-    webParityMode: 'standalone_only',
-    mobileParityMode: 'standalone_only',
+    moduleId: 'trails',
+    moduleStatus: 'design_only',
+    webParityMode: 'design_only',
+    mobileParityMode: 'design_only',
   },
   {
     standalone: 'MyVoice',
-    moduleId: null,
-    moduleStatus: 'standalone_only',
-    webParityMode: 'standalone_only',
-    mobileParityMode: 'standalone_only',
+    moduleId: 'voice',
+    moduleStatus: 'design_only',
+    webParityMode: 'design_only',
+    mobileParityMode: 'design_only',
   },
   {
     standalone: 'MyWords',
@@ -225,11 +229,10 @@ const standaloneMatrix: StandaloneParitySpec[] = [
   {
     standalone: 'MyWorkouts',
     moduleId: 'workouts',
-    moduleStatus: 'implemented',
-    webParityMode: 'passthrough',
-    mobileParityMode: 'adapter',
-    standaloneWebRoots: ['MyWorkouts/apps/web/app'],
-    standaloneMobileRoots: ['MyWorkouts/apps/mobile/app'],
+    moduleStatus: 'archived',
+    webParityMode: 'archived',
+    mobileParityMode: 'archived',
+    archiveRoot: 'archive/MyWorkouts',
   },
 ];
 
@@ -537,79 +540,6 @@ const surfWrappers: Array<{ hub: string; expected: string; standalone: string }>
   },
 ];
 
-const workoutsWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
-  {
-    hub: 'apps/web/app/workouts/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/page';",
-    standalone: 'MyWorkouts/apps/web/app/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/exercise/[id]/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/exercise/[id]/page';",
-    standalone: 'MyWorkouts/apps/web/app/exercise/[id]/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/explore/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/explore/page';",
-    standalone: 'MyWorkouts/apps/web/app/explore/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/plans/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/plans/page';",
-    standalone: 'MyWorkouts/apps/web/app/plans/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/plans/[id]/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/plans/[id]/page';",
-    standalone: 'MyWorkouts/apps/web/app/plans/[id]/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/plans/builder/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/plans/builder/page';",
-    standalone: 'MyWorkouts/apps/web/app/plans/builder/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/pricing/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/pricing/page';",
-    standalone: 'MyWorkouts/apps/web/app/pricing/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/profile/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/profile/page';",
-    standalone: 'MyWorkouts/apps/web/app/profile/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/progress/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/progress/page';",
-    standalone: 'MyWorkouts/apps/web/app/progress/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/recordings/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/recordings/page';",
-    standalone: 'MyWorkouts/apps/web/app/recordings/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/recordings/[id]/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/recordings/[id]/page';",
-    standalone: 'MyWorkouts/apps/web/app/recordings/[id]/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/workout/[id]/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/workout/[id]/page';",
-    standalone: 'MyWorkouts/apps/web/app/workout/[id]/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/workouts/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/workouts/page';",
-    standalone: 'MyWorkouts/apps/web/app/workouts/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/workouts/workouts/builder/page.tsx',
-    expected: "export { default } from '@myworkouts-web/app/workouts/builder/page';",
-    standalone: 'MyWorkouts/apps/web/app/workouts/builder/page.tsx',
-  },
-];
-
 const carWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
   {
     hub: 'apps/web/app/car/page.tsx',
@@ -702,10 +632,6 @@ function listRouteTsx(dirPath: string): string[] {
   return out.sort();
 }
 
-function inferModuleId(standalone: string): string {
-  return standalone.replace(/^My/, '').toLowerCase();
-}
-
 describe('standalone parity matrix', () => {
   const gitmodulePaths = parseGitmodulePaths();
   const webPackage = readJson<PackageJsonLike>('apps/web/package.json');
@@ -714,38 +640,55 @@ describe('standalone parity matrix', () => {
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .sort();
+  const hubOnlyModules = ['nutrition'].sort();
 
-  it('defines explicit coverage for every standalone repo from .gitmodules', () => {
-    expect(standaloneMatrix.map((spec) => spec.standalone).sort()).toEqual(gitmodulePaths);
+  it('defines explicit coverage for every active standalone repo from .gitmodules', () => {
+    const activeStandalones = standaloneMatrix
+      .filter((spec) => spec.moduleStatus !== 'archived')
+      .map((spec) => spec.standalone)
+      .sort();
+    expect(activeStandalones).toEqual(gitmodulePaths);
   });
 
-  it('maps every MyLife module directory to exactly one standalone source', () => {
-    const integratedModules = standaloneMatrix
-      .map((spec) => spec.moduleId)
-      .filter((id): id is string => id !== null)
+  it('tracks archived standalone repos explicitly', () => {
+    const archivedStandalones = standaloneMatrix
+      .filter((spec) => spec.moduleStatus === 'archived')
+      .map((spec) => spec.standalone)
       .sort();
-    expect(integratedModules).toEqual(moduleDirs);
+    expect(archivedStandalones).toEqual(['MyBooks', 'MyBudget', 'MyRecipes', 'MyWorkouts']);
+  });
+
+  it('maps every MyLife module directory to either a standalone source or an explicit hub-only exception', () => {
+    const integratedModules = standaloneMatrix.map((spec) => spec.moduleId).sort();
+    expect(moduleDirs).toEqual([...integratedModules, ...hubOnlyModules].sort());
   });
 
   for (const spec of standaloneMatrix) {
-    const inferredModule = inferModuleId(spec.standalone);
-    const moduleId = spec.moduleId ?? inferredModule;
+    const moduleId = spec.moduleId;
     const moduleName = `@mylife/${moduleId}`;
     const moduleRoot = `modules/${moduleId}`;
     const hubWebRoot = `apps/web/app/${moduleId}`;
     const hubMobileRoot = `apps/mobile/app/(${moduleId})`;
 
-    it(`${spec.standalone}: local standalone repo exists and has git metadata`, () => {
-      expect(existsSync(repoPath(spec.standalone))).toBe(true);
-      expect(existsSync(repoPath(`${spec.standalone}/.git`))).toBe(true);
-    });
+    if (spec.moduleStatus === 'archived') {
+      it(`${spec.standalone}: archived standalone is represented by an archive placeholder`, () => {
+        expect(existsSync(repoPath(spec.standalone))).toBe(false);
+        expect(spec.archiveRoot).toBeTruthy();
+        expect(existsSync(repoPath(spec.archiveRoot!))).toBe(true);
+      });
+    } else {
+      it(`${spec.standalone}: local standalone repo exists and has git metadata`, () => {
+        expect(existsSync(repoPath(spec.standalone))).toBe(true);
+        expect(existsSync(repoPath(`${spec.standalone}/.git`))).toBe(true);
+      });
+    }
 
-    if (spec.moduleId === null) {
-      it(`${spec.standalone}: explicitly marked standalone-only (no MyLife module wiring yet)`, () => {
-        expect(spec.moduleStatus).toBe('standalone_only');
-        expect(spec.webParityMode).toBe('standalone_only');
-        expect(spec.mobileParityMode).toBe('standalone_only');
-        expect(existsSync(repoPath(moduleRoot))).toBe(false);
+    if (spec.moduleStatus === 'scaffolded') {
+      it(`${moduleName}: scaffolded module exists without active host-app wiring yet`, () => {
+        expect(spec.webParityMode).toBe('scaffolded');
+        expect(spec.mobileParityMode).toBe('scaffolded');
+        expect(existsSync(repoPath(`${moduleRoot}/package.json`))).toBe(true);
+        expect(existsSync(repoPath(`${moduleRoot}/src/definition.ts`))).toBe(true);
         expect(existsSync(repoPath(hubWebRoot))).toBe(false);
         expect(existsSync(repoPath(hubMobileRoot))).toBe(false);
         expect(webPackage.dependencies?.[moduleName]).toBeUndefined();
@@ -765,8 +708,8 @@ describe('standalone parity matrix', () => {
     });
 
     it(`${moduleName}: parity mode is explicit for web and mobile`, () => {
-      expect(['passthrough', 'adapter', 'design_only']).toContain(spec.webParityMode);
-      expect(['passthrough', 'adapter', 'design_only']).toContain(spec.mobileParityMode);
+      expect(['passthrough', 'adapter', 'design_only', 'archived']).toContain(spec.webParityMode);
+      expect(['passthrough', 'adapter', 'design_only', 'archived']).toContain(spec.mobileParityMode);
     });
 
     if (spec.moduleStatus === 'design_only') {
@@ -776,6 +719,10 @@ describe('standalone parity matrix', () => {
         expect(spec.mobileParityMode).toBe('design_only');
       });
 
+      continue;
+    }
+
+    if (spec.moduleStatus === 'archived') {
       continue;
     }
 
@@ -795,78 +742,19 @@ describe('standalone parity matrix', () => {
   }
 });
 
-describe('books web passthrough enforcement', () => {
-  it('all books hub web routes are thin passthrough wrappers to standalone pages', () => {
-    const expectedFiles = booksWrappers.map((wrapper) => wrapper.hub).sort();
-    const actualFiles = listRouteTsx('apps/web/app/books');
-
-    expect(actualFiles).toEqual(expectedFiles);
-
-    for (const wrapper of booksWrappers) {
-      expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
-      expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
-    }
-
-    expect(existsSync(repoPath('MyBooks/apps/web/app/books/layout.tsx'))).toBe(true);
-    expect(read('apps/web/app/books/layout.tsx').trim()).toBe(
-      "export { default } from '@mybooks-web/app/books/layout';",
-    );
-  });
-
-  it('MyLife web host wiring supports standalone books passthrough', () => {
-    const tsconfig = readJson<TsConfigLike>('apps/web/tsconfig.json');
-    expect(tsconfig.compilerOptions?.paths?.['@mybooks-web/*']).toContain(
-      '../../MyBooks/apps/web/*',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@mybooks/shared']).toContain(
-      '../../MyBooks/packages/shared/src/index.ts',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@mybooks/shared/*']).toContain(
-      '../../MyBooks/packages/shared/src/*',
-    );
-
-    const nextConfig = read('apps/web/next.config.ts');
-    expect(nextConfig).toContain('externalDir: true');
-    expect(nextConfig).toContain("'@mybooks/shared'");
-    expect(nextConfig).toContain("'@mybooks/ui'");
+describe('books web parity after archive', () => {
+  it('books standalone remains archived while hub routes stay in MyLife', () => {
+    expect(existsSync(repoPath('MyBooks'))).toBe(false);
+    expect(existsSync(repoPath('archive/MyBooks'))).toBe(true);
+    expect(listRouteTsx('apps/web/app/books')).not.toHaveLength(0);
   });
 });
 
-describe('budget web passthrough enforcement', () => {
-  it('all budget hub web routes are thin passthrough wrappers to standalone pages', () => {
-    const expectedFiles = budgetWrappers.map((wrapper) => wrapper.hub).sort();
-    const actualFiles = listRouteTsx('apps/web/app/budget');
-
-    expect(actualFiles).toEqual(expectedFiles);
-
-    for (const wrapper of budgetWrappers) {
-      expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
-      expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
-    }
-  });
-
-  it('MyLife web host wiring supports standalone budget passthrough', () => {
-    const tsconfig = readJson<TsConfigLike>('apps/web/tsconfig.json');
-    expect(tsconfig.compilerOptions?.paths?.['@mybudget-web/*']).toContain(
-      '../../MyBudget/apps/web/*',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@mybudget/shared']).toContain(
-      '../../MyBudget/packages/shared/src/index.ts',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@mybudget/shared/*']).toContain(
-      '../../MyBudget/packages/shared/src/*',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@mybudget/ui']).toContain(
-      '../../MyBudget/packages/ui/src/index.ts',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@mybudget/ui/*']).toContain(
-      '../../MyBudget/packages/ui/src/*',
-    );
-
-    const nextConfig = read('apps/web/next.config.ts');
-    expect(nextConfig).toContain('externalDir: true');
-    expect(nextConfig).toContain("'@mybudget/shared'");
-    expect(nextConfig).toContain("'@mybudget/ui'");
+describe('budget web parity after archive', () => {
+  it('budget standalone remains archived while hub routes stay in MyLife', () => {
+    expect(existsSync(repoPath('MyBudget'))).toBe(false);
+    expect(existsSync(repoPath('archive/MyBudget'))).toBe(true);
+    expect(listRouteTsx('apps/web/app/budget')).not.toHaveLength(0);
   });
 });
 
@@ -915,41 +803,11 @@ describe('habits web passthrough enforcement', () => {
   });
 });
 
-describe('recipes web passthrough enforcement', () => {
-  it('all recipes hub web routes are thin passthrough wrappers to standalone pages', () => {
-    const expectedFiles = recipesWrappers.map((wrapper) => wrapper.hub).sort();
-    const actualFiles = listRouteTsx('apps/web/app/recipes');
-
-    expect(actualFiles).toEqual(expectedFiles);
-
-    for (const wrapper of recipesWrappers) {
-      expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
-      expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
-    }
-  });
-
-  it('MyLife web host wiring supports standalone recipes passthrough', () => {
-    const tsconfig = readJson<TsConfigLike>('apps/web/tsconfig.json');
-    expect(tsconfig.compilerOptions?.paths?.['@myrecipes-web/*']).toContain(
-      '../../MyRecipes/apps/web/*',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@myrecipes/shared']).toContain(
-      '../../MyRecipes/packages/shared/src/index.ts',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@myrecipes/shared/*']).toContain(
-      '../../MyRecipes/packages/shared/src/*',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@myrecipes/ui']).toContain(
-      '../../MyRecipes/packages/ui/src/index.ts',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@myrecipes/ui/*']).toContain(
-      '../../MyRecipes/packages/ui/src/*',
-    );
-
-    const nextConfig = read('apps/web/next.config.ts');
-    expect(nextConfig).toContain('externalDir: true');
-    expect(nextConfig).toContain("'@myrecipes/shared'");
-    expect(nextConfig).toContain("'@myrecipes/ui'");
+describe('recipes web parity after archive', () => {
+  it('recipes standalone remains archived while hub routes stay in MyLife', () => {
+    expect(existsSync(repoPath('MyRecipes'))).toBe(false);
+    expect(existsSync(repoPath('archive/MyRecipes'))).toBe(true);
+    expect(listRouteTsx('apps/web/app/recipes')).not.toHaveLength(0);
   });
 });
 
@@ -1070,45 +928,11 @@ describe('car web passthrough enforcement', () => {
   });
 });
 
-describe('workouts web passthrough enforcement', () => {
-  it('all workouts hub web routes are thin passthrough wrappers to standalone pages', () => {
-    const expectedFiles = workoutsWrappers.map((wrapper) => wrapper.hub).sort();
-    const actualFiles = listRouteTsx('apps/web/app/workouts');
-
-    expect(actualFiles).toEqual(expectedFiles);
-
-    for (const wrapper of workoutsWrappers) {
-      expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
-      expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
-    }
-  });
-
-  it('MyLife web host wiring supports standalone workouts passthrough', () => {
-    const tsconfig = readJson<TsConfigLike>('apps/web/tsconfig.json');
-    expect(tsconfig.compilerOptions?.paths?.['@myworkouts-web/*']).toContain(
-      '../../MyWorkouts/apps/web/*',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@myworkouts/shared']).toContain(
-      '../../MyWorkouts/packages/shared/src/index.ts',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@myworkouts/shared/*']).toContain(
-      '../../MyWorkouts/packages/shared/src/*',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@myworkouts/ui']).toContain(
-      '../../MyWorkouts/packages/ui/src/index.ts',
-    );
-    expect(tsconfig.compilerOptions?.paths?.['@myworkouts/ui/*']).toContain(
-      '../../MyWorkouts/packages/ui/src/*',
-    );
-
-    const nextConfig = read('apps/web/next.config.ts');
-    expect(nextConfig).toContain('externalDir: true');
-    expect(nextConfig).toContain("'@myworkouts/shared'");
-    expect(nextConfig).toContain("'@myworkouts/ui'");
-    expect(nextConfig).toContain("NEXT_PUBLIC_WORKOUTS_BASE_PATH");
-
-    const tailwindConfig = read('apps/web/tailwind.config.ts');
-    expect(tailwindConfig).toContain('../../MyWorkouts/apps/web/app/**/*.{ts,tsx}');
+describe('workouts web parity after archive', () => {
+  it('workouts standalone remains archived while hub routes stay in MyLife', () => {
+    expect(existsSync(repoPath('MyWorkouts'))).toBe(false);
+    expect(existsSync(repoPath('archive/MyWorkouts'))).toBe(true);
+    expect(listRouteTsx('apps/web/app/workouts')).not.toHaveLength(0);
   });
 });
 

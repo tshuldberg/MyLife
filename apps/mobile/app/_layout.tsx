@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -9,17 +8,23 @@ import {
 } from '@mylife/module-registry';
 import { BOOKS_MODULE } from '@mylife/books';
 import { FAST_MODULE } from '@mylife/fast';
+import { FLASH_MODULE } from '@mylife/flash';
 import { BUDGET_MODULE } from '@mylife/budget';
 import { SURF_MODULE } from '@mylife/surf';
 import { RECIPES_MODULE } from '@mylife/recipes';
 import { WORKOUTS_MODULE } from '@mylife/workouts';
 import { HOMES_MODULE } from '@mylife/homes';
 import { CAR_MODULE } from '@mylife/car';
+import { CLOSET_MODULE } from '@mylife/closet';
 import { HABITS_MODULE } from '@mylife/habits';
 import { MEDS_MODULE } from '@mylife/meds';
 import { HEALTH_MODULE } from '@mylife/health';
 import { WORDS_MODULE } from '@mylife/words';
+import { NUTRITION_MODULE } from '@mylife/nutrition';
+import { JOURNAL_MODULE } from '@mylife/journal';
+import { PETS_MODULE } from '@mylife/pets';
 import { RSVP_MODULE } from '@mylife/rsvp';
+import { TRAILS_MODULE } from '@mylife/trails';
 import { colors } from '@mylife/ui';
 import { createPaymentService } from '@mylife/subscription';
 import type { PaymentService } from '@mylife/subscription';
@@ -70,17 +75,23 @@ export default function RootLayout() {
     // Override lightweight entries with full module definitions (includes migrations)
     safeRegister(r, BOOKS_MODULE, 'books');
     safeRegister(r, FAST_MODULE, 'fast');
+    safeRegister(r, FLASH_MODULE, 'flash');
     safeRegister(r, BUDGET_MODULE, 'budget');
     safeRegister(r, SURF_MODULE, 'surf');
     safeRegister(r, RECIPES_MODULE, 'recipes');
     safeRegister(r, WORKOUTS_MODULE, 'workouts');
     safeRegister(r, HOMES_MODULE, 'homes');
     safeRegister(r, CAR_MODULE, 'car');
+    safeRegister(r, CLOSET_MODULE, 'closet');
     safeRegister(r, HABITS_MODULE, 'habits');
     safeRegister(r, MEDS_MODULE, 'meds');
     safeRegister(r, HEALTH_MODULE, 'health');
     safeRegister(r, WORDS_MODULE, 'words');
+    safeRegister(r, NUTRITION_MODULE, 'nutrition');
+    safeRegister(r, JOURNAL_MODULE, 'journal');
+    safeRegister(r, PETS_MODULE, 'pets');
     safeRegister(r, RSVP_MODULE, 'rsvp');
+    safeRegister(r, TRAILS_MODULE, 'trails');
     return r;
   }, []);
 
@@ -115,15 +126,22 @@ export default function RootLayout() {
                 <Stack.Screen name="(budget)" />
                 <Stack.Screen name="(surf)" />
                 <Stack.Screen name="(fast)" />
+                <Stack.Screen name="(flash)" />
                 <Stack.Screen name="(recipes)" />
                 <Stack.Screen name="(workouts)" />
                 <Stack.Screen name="(homes)" />
                 <Stack.Screen name="(car)" />
+                <Stack.Screen name="(closet)" />
                 <Stack.Screen name="(habits)" />
                 <Stack.Screen name="(meds)" />
                 <Stack.Screen name="(health)" />
                 <Stack.Screen name="(words)" />
+                <Stack.Screen name="(nutrition)" />
+                <Stack.Screen name="(journal)" />
+                <Stack.Screen name="(pets)" />
                 <Stack.Screen name="(rsvp)" />
+                <Stack.Screen name="(trails)" />
+                <Stack.Screen name="(social)" />
               </Stack>
             </EntitlementsProvider>
           </AuthProvider>
