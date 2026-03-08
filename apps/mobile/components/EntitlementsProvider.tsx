@@ -1,7 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
 import type { EntitlementState, Purchase } from '@mylife/entitlements';
-import { resolveEntitlements } from '@mylife/entitlements';
+import { resolveEntitlements, isModuleUnlocked } from '@mylife/entitlements';
+import type { ModuleId } from '@mylife/module-registry';
 import type { PaymentService } from '@mylife/subscription';
 
 // ---------------------------------------------------------------------------
@@ -115,6 +116,26 @@ export function useEntitlements(): EntitlementState {
   }
 
   return useSyncExternalStore(ctx.subscribe, ctx.getState, ctx.getState);
+}
+
+/**
+ * Returns whether a specific module is unlocked for the current user.
+ *
+ * Scoped to a single boolean — React will bail out of re-render for this
+ * component if the boolean didn't change, even if other entitlement state did.
+ * Use this in ModuleCard and PurchaseGate instead of useEntitlements() to
+ * prevent the full hub list from re-rendering on every purchase event.
+ */
+export function useModuleUnlocked(moduleId: ModuleId): boolean {
+  const ctx = useContext(EntitlementsContext);
+  if (!ctx) {
+    throw new Error('useModuleUnlocked must be used within an EntitlementsProvider');
+  }
+  return useSyncExternalStore(
+    ctx.subscribe,
+    () => isModuleUnlocked(moduleId, ctx.getState()),
+    () => isModuleUnlocked(moduleId, ctx.getState()),
+  );
 }
 
 /**

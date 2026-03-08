@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { memo, useState } from 'react';
 import { Modal, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import type { ModuleDefinition } from '@mylife/module-registry';
-import { isModuleUnlocked } from '@mylife/entitlements';
 import { Card, Text, colors, spacing, borderRadius } from '@mylife/ui';
-import { useEntitlements } from './EntitlementsProvider';
+import { useModuleUnlocked } from './EntitlementsProvider';
 import { PurchaseGate } from './PurchaseGate';
 
 interface ModuleCardProps {
@@ -19,10 +18,9 @@ interface ModuleCardProps {
  * Tapping a locked card shows the PurchaseGate modal.
  * Tapping an unlocked card navigates to the module's route group.
  */
-export function ModuleCard({ module }: ModuleCardProps) {
+function ModuleCardBase({ module }: ModuleCardProps) {
   const router = useRouter();
-  const entitlements = useEntitlements();
-  const unlocked = isModuleUnlocked(module.id, entitlements);
+  const unlocked = useModuleUnlocked(module.id);
   const isPremium = module.tier === 'premium';
   const [showGate, setShowGate] = useState(false);
 
@@ -166,3 +164,9 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
 });
+
+/**
+ * Memoized export — ModuleCard only re-renders when the module definition
+ * changes or its specific unlock status changes (via useModuleUnlocked).
+ */
+export const ModuleCard = memo(ModuleCardBase);

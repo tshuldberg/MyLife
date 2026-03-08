@@ -274,6 +274,67 @@ export function createTransaction(
   return tx;
 }
 
+/**
+ * Bulk-insert multiple transactions in a single SQLite transaction.
+ *
+ * Dramatically faster than calling createTransaction() in a loop — SQLite
+ * auto-commits each execute() individually without an explicit transaction,
+ * so N inserts = N disk syncs. This wraps them all in one BEGIN/COMMIT.
+ *
+ * Use this for CSV imports and any batch operation involving >1 row.
+ *
+ * @param db - Database adapter
+ * @param rows - Array of { id, input } pairs to insert
+ * @returns Array of inserted BudgetTransaction objects (same order as input)
+ */
+export function bulkCreateTransactions(
+  db: DatabaseAdapter,
+  rows: Array<{ id: string; input: BudgetTransactionInsert }>,
+): BudgetTransaction[] {
+  if (rows.length === 0) return [];
+  const now = new Date().toISOString();
+  const results: BudgetTransaction[] = [];
+
+  db.transaction(() => {
+    for (const { id, input } of rows) {
+      const tx: BudgetTransaction = {
+        id,
+        envelope_id: input.envelope_id ?? null,
+        account_id: input.account_id ?? null,
+        amount: input.amount,
+        direction: input.direction,
+        merchant: input.merchant ?? null,
+        note: input.note ?? null,
+        occurred_on: input.occurred_on,
+        created_at: now,
+        updated_at: now,
+      };
+
+      db.execute(
+        `INSERT INTO bg_transactions
+          (id, envelope_id, account_id, amount, direction, merchant, note, occurred_on, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          tx.id,
+          tx.envelope_id,
+          tx.account_id,
+          tx.amount,
+          tx.direction,
+          tx.merchant,
+          tx.note,
+          tx.occurred_on,
+          tx.created_at,
+          tx.updated_at,
+        ],
+      );
+
+      results.push(tx);
+    }
+  });
+
+  return results;
+}
+
 export function getTransactionById(
   db: DatabaseAdapter,
   id: string,

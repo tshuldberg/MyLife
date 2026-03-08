@@ -100,15 +100,17 @@ function applySingleChange(db: DatabaseAdapter, change: RowChange): boolean {
   // Row exists -- last-write-wins
   if (localUpdatedAt >= change.updatedAt) return false;
 
-  const setClauses = Object.keys(change.data)
-    .filter((col) => !Object.hasOwn(change.primaryKey, col))
-    .map((col) => `${col} = ?`);
+  // Build SET clause and values in a single pass (avoids iterating keys twice).
+  const setClauses: string[] = [];
+  const setValues: unknown[] = [];
+  for (const col of Object.keys(change.data)) {
+    if (!Object.hasOwn(change.primaryKey, col)) {
+      setClauses.push(`${col} = ?`);
+      setValues.push(change.data[col]);
+    }
+  }
 
   if (setClauses.length === 0) return false;
-
-  const setValues = Object.keys(change.data)
-    .filter((col) => !Object.hasOwn(change.primaryKey, col))
-    .map((col) => change.data![col]);
 
   db.execute(
     `UPDATE ${change.table} SET ${setClauses.join(', ')} WHERE ${pkClauses}`,

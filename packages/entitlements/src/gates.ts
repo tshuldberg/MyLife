@@ -7,6 +7,9 @@ const FREE_MODULES: ReadonlySet<ModuleId> = new Set(['fast']);
 /** One year in milliseconds. */
 const ONE_YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;
 
+/** Matches standalone module unlock product IDs (e.g. 'mylife_books_unlock'). */
+const STANDALONE_UNLOCK_RE = /^mylife_(.+)_unlock$/;
+
 // ---------------------------------------------------------------------------
 // Query functions
 // ---------------------------------------------------------------------------
@@ -30,6 +33,8 @@ export function getUnlockedModules(
   allModuleIds: readonly ModuleId[],
   state: EntitlementState,
 ): ModuleId[] {
+  // Fast path: hub unlock means every module is accessible
+  if (state.hubUnlocked) return [...allModuleIds];
   return allModuleIds.filter((id) => isModuleUnlocked(id, state));
 }
 
@@ -72,20 +77,21 @@ export function resolveEntitlements(
   const unlockedModules = new Set<ModuleId>();
   let storageTier: StorageTier = 'free';
   let updateEntitled = false;
-  let earliestPurchaseDate: Date | null = null;
+  // Store as numeric ms to avoid Date object allocation inside the loop.
+  let earliestPurchaseDateMs: number | null = null;
 
   for (const purchase of purchases) {
     if (!purchase.isActive) continue;
 
-    const purchaseDate = new Date(purchase.purchaseDate);
-
-    // Track earliest purchase date (for hub unlock or standalone unlocks)
+    // Track earliest purchase date (for hub unlock or standalone unlocks).
+    // Use Date.parse to get a number — avoids heap-allocating a Date per purchase.
     if (
       purchase.productId === 'mylife_hub_unlock' ||
-      /^mylife_.+_unlock$/.test(purchase.productId)
+      STANDALONE_UNLOCK_RE.test(purchase.productId)
     ) {
-      if (!earliestPurchaseDate || purchaseDate < earliestPurchaseDate) {
-        earliestPurchaseDate = purchaseDate;
+      const purchaseDateMs = Date.parse(purchase.purchaseDate);
+      if (!earliestPurchaseDateMs || purchaseDateMs < earliestPurchaseDateMs) {
+        earliestPurchaseDateMs = purchaseDateMs;
       }
     }
 
@@ -95,7 +101,7 @@ export function resolveEntitlements(
     }
 
     // Standalone module unlocks (bridge)
-    const standaloneMatch = purchase.productId.match(/^mylife_(.+)_unlock$/);
+    const standaloneMatch = STANDALONE_UNLOCK_RE.exec(purchase.productId);
     if (standaloneMatch && standaloneMatch[1] !== 'hub') {
       unlockedModules.add(standaloneMatch[1] as ModuleId);
     }
@@ -114,9 +120,8 @@ export function resolveEntitlements(
   }
 
   // Year 1 update entitlement: if user purchased within last year, they get updates
-  if (earliestPurchaseDate && !updateEntitled) {
-    const elapsed = nowMs - earliestPurchaseDate.getTime();
-    if (elapsed < ONE_YEAR_MS) {
+  if (earliestPurchaseDateMs !== null && !updateEntitled) {
+    if (nowMs - earliestPurchaseDateMs < ONE_YEAR_MS) {
       updateEntitled = true;
     }
   }
@@ -126,6 +131,7 @@ export function resolveEntitlements(
     unlockedModules,
     storageTier,
     updateEntitled,
-    purchaseDate: earliestPurchaseDate,
+    // Convert back to Date only once, at the end, for the return value.
+    purchaseDate: earliestPurchaseDateMs !== null ? new Date(earliestPurchaseDateMs) : null,
   };
 }

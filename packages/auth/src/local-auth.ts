@@ -214,7 +214,7 @@ export function getSessionUser(
   if (!row) return null;
 
   // Check expiry
-  if (row.expires_at && new Date(row.expires_at) < new Date()) {
+  if (row.expires_at && Date.parse(row.expires_at) < Date.now()) {
     db.execute('DELETE FROM hub_auth_sessions WHERE id = ?', [sessionId]);
     return null;
   }

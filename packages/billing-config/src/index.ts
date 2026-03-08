@@ -49,6 +49,7 @@ export const PRODUCTS = {
     budget: { id: 'mylife_budget_unlock', price: 4.99 },
     car: { id: 'mylife_car_unlock', price: 4.99 },
     habits: { id: 'mylife_habits_unlock', price: 4.99 },
+    health: { id: 'mylife_health_unlock', price: 4.99 },
     homes: { id: 'mylife_homes_unlock', price: 4.99 },
     meds: { id: 'mylife_meds_unlock', price: 4.99 },
     recipes: { id: 'mylife_recipes_unlock', price: 4.99 },
