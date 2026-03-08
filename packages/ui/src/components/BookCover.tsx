@@ -2,8 +2,11 @@ import React from 'react';
 import { View, Image, StyleSheet, type ViewStyle } from 'react-native';
 import { Text } from './Text';
 import { colors } from '../tokens/colors';
-import { borderRadius, coverSizes, type CoverSize } from '../tokens/spacing';
+import { coverSizes, type CoverSize } from '../tokens/spacing';
 import { shadows } from '../tokens/shadows';
+
+// Books-domain border radius (not in shared tokens)
+const COVER_RADIUS = 3;
 
 interface Props {
   coverUrl?: string | null;
@@ -17,7 +20,7 @@ export function BookCover({ coverUrl, size = 'medium', title, style }: Props) {
 
   if (coverUrl) {
     return (
-      <View style={[styles.container, dimensions, shadows.cover, style]}>
+      <View style={[styles.container, dimensions, shadows.glass, style]}>
         <Image
           source={{ uri: coverUrl }}
           style={[styles.image, dimensions]}
@@ -28,7 +31,7 @@ export function BookCover({ coverUrl, size = 'medium', title, style }: Props) {
   }
 
   return (
-    <View style={[styles.container, styles.placeholder, dimensions, shadows.cover, style]}>
+    <View style={[styles.container, styles.placeholder, dimensions, shadows.glass, style]}>
       {title ? (
         <Text
           variant="caption"
@@ -45,11 +48,11 @@ export function BookCover({ coverUrl, size = 'medium', title, style }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: borderRadius.cover,
+    borderRadius: COVER_RADIUS,
     overflow: 'hidden',
   },
   image: {
-    borderRadius: borderRadius.cover,
+    borderRadius: COVER_RADIUS,
   },
   placeholder: {
     backgroundColor: colors.surfaceElevated,

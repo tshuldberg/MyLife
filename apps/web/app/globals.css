@@ -3,30 +3,51 @@
 @tailwind utilities;
 
 :root {
-  --background: #0E0C09;
-  --surface: #1A1814;
-  --surface-elevated: #23201A;
-  --text: #F4EDE2;
-  --text-secondary: #A99E8E;
-  --text-tertiary: #6B6155;
-  --border: #2A2520;
-  --danger: #CC5555;
-  --success: #5BA55B;
+  /* Cool Obsidian base colors */
+  --background: #0A0A0F;
+  --surface: #12121A;
+  --surface-elevated: #1A1A24;
+  --text: #F0F0F5;
+  --text-secondary: rgba(240,240,245,0.65);
+  --text-tertiary: rgba(240,240,245,0.35);
+  --border: rgba(255,255,255,0.06);
+  --danger: #FF453A;
+  --success: #30D158;
 
-  /* Module accent colors */
+  /* Glass morphism */
+  --glass: rgba(255,255,255,0.04);
+  --glass-strong: rgba(255,255,255,0.08);
+  --glass-border: rgba(255,255,255,0.10);
+
+  /* Module accent colors (all 27) */
   --accent-books: #C9894D;
   --accent-budget: #22C55E;
+  --accent-car: #6366F1;
+  --accent-closet: #E879A8;
+  --accent-cycle: #F472B6;
   --accent-fast: #14B8A6;
+  --accent-flash: #FBBF24;
+  --accent-garden: #22C55E;
+  --accent-habits: #8B5CF6;
+  --accent-health: #10B981;
+  --accent-homes: #D97706;
+  --accent-journal: #A78BFA;
+  --accent-mail: #3B82F6;
+  --accent-meds: #06B6D4;
+  --accent-mood: #FB923C;
+  --accent-notes: #64748B;
+  --accent-nutrition: #F97316;
+  --accent-pets: #F59E0B;
   --accent-recipes: #F97316;
   --accent-rsvp: #FB7185;
+  --accent-stars: #8B5CF6;
+  --accent-subs: #10B981;
   --accent-surf: #3B82F6;
-  --accent-workouts: #EF4444;
-  --accent-homes: #D97706;
-  --accent-car: #6366F1;
-  --accent-habits: #8B5CF6;
-  --accent-meds: #06B6D4;
+  --accent-trails: #65A30D;
+  --accent-voice: #EF4444;
   --accent-words: #0EA5E9;
-  --accent-subs: #EC4899;
+  --accent-workouts: #EF4444;
+  --accent-social: #7C4DFF;
 
   /* Spacing */
   --space-xs: 4px;
@@ -41,6 +62,8 @@
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
+  --radius-xxl: 24px;
+  --radius-pill: 999px;
 
   /* Sidebar */
   --sidebar-width: 240px;

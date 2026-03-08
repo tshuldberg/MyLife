@@ -4,33 +4,61 @@ import { z } from 'zod';
 export type ModuleId =
   | 'books'
   | 'budget'
+  | 'car'
+  | 'closet'
+  | 'cycle'
   | 'fast'
+  | 'flash'
+  | 'garden'
+  | 'habits'
   | 'health'
+  | 'homes'
+  | 'journal'
+  | 'mail'
+  | 'meds'
+  | 'mood'
+  | 'notes'
+  | 'nutrition'
+  | 'pets'
   | 'recipes'
   | 'rsvp'
+  | 'stars'
+  | 'subs'
   | 'surf'
-  | 'workouts'
-  | 'homes'
-  | 'car'
-  | 'habits'
-  | 'meds'
-  | 'words';
+  | 'trails'
+  | 'voice'
+  | 'words'
+  | 'workouts';
 
 /** Zod schema for runtime validation of ModuleId values. */
 export const ModuleIdSchema = z.enum([
   'books',
   'budget',
+  'car',
+  'closet',
+  'cycle',
   'fast',
+  'flash',
+  'garden',
+  'habits',
   'health',
+  'homes',
+  'journal',
+  'mail',
+  'meds',
+  'mood',
+  'notes',
+  'nutrition',
+  'pets',
   'recipes',
   'rsvp',
+  'stars',
+  'subs',
   'surf',
-  'workouts',
-  'homes',
-  'car',
-  'habits',
-  'meds',
+  'trails',
+  'voice',
   'words',
+  'workouts',
 ]);
 
 /** A tab displayed in the module's bottom navigation. */

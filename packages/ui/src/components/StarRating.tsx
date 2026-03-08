@@ -1,8 +1,11 @@
 import React from 'react';
 import { View, Pressable, StyleSheet, type ViewStyle, type TextStyle } from 'react-native';
 import { Text as RNText } from 'react-native';
-import { colors } from '../tokens/colors';
 import { spacing } from '../tokens/spacing';
+
+// Books-domain star colors (not in shared tokens)
+const STAR_COLOR = '#E8B84B';
+const STAR_EMPTY_COLOR = '#2A2A34';
 
 interface Props {
   rating: number;
@@ -24,24 +27,24 @@ function Star({
 
   if (fill === 'full') {
     return (
-      <RNText style={[textStyle, { color: colors.star }]}>{'\u2605'}</RNText>
+      <RNText style={[textStyle, { color: STAR_COLOR }]}>{'\u2605'}</RNText>
     );
   }
 
   if (fill === 'empty') {
     return (
-      <RNText style={[textStyle, { color: colors.starEmpty }]}>{'\u2605'}</RNText>
+      <RNText style={[textStyle, { color: STAR_EMPTY_COLOR }]}>{'\u2605'}</RNText>
     );
   }
 
   // Half star: overlay a clipped full star on top of an empty star
   return (
     <View style={{ width: size, height: size + 2 }}>
-      <RNText style={[textStyle, { color: colors.starEmpty, position: 'absolute' }]}>
+      <RNText style={[textStyle, { color: STAR_EMPTY_COLOR, position: 'absolute' }]}>
         {'\u2605'}
       </RNText>
       <View style={{ width: size / 2, height: size + 2, overflow: 'hidden', position: 'absolute' }}>
-        <RNText style={[textStyle, { color: colors.star }]}>{'\u2605'}</RNText>
+        <RNText style={[textStyle, { color: STAR_COLOR }]}>{'\u2605'}</RNText>
       </View>
     </View>
   );

@@ -6,6 +6,7 @@ import type { ModuleDefinition } from '@mylife/module-registry';
 import { isModuleUnlocked } from '@mylife/entitlements';
 import { useEntitlements } from './EntitlementsProvider';
 import { PurchaseGate } from './PurchaseGate';
+import { MODULE_ICON_MAP } from '@/lib/module-icons';
 
 interface ModuleCardProps {
   module: ModuleDefinition;
@@ -19,6 +20,20 @@ export function ModuleCard({ module, enabled }: ModuleCardProps) {
   const [showGate, setShowGate] = useState(false);
 
   const route = `/${module.id}`;
+  const IconComponent = MODULE_ICON_MAP[module.id];
+
+  const iconElement = (
+    <span
+      style={{
+        ...styles.icon,
+        backgroundColor: `${module.accentColor}1A`,
+      }}
+    >
+      {IconComponent && (
+        <IconComponent size={22} style={{ color: '#FFFFFF' }} />
+      )}
+    </span>
+  );
 
   if (!unlocked) {
     return (
@@ -36,7 +51,7 @@ export function ModuleCard({ module, enabled }: ModuleCardProps) {
           />
           <div style={styles.content}>
             <div style={styles.header}>
-              <span style={styles.icon}>{module.icon}</span>
+              {iconElement}
               <div style={{ flex: 1 }}>
                 <h3 style={styles.name}>{module.name}</h3>
                 <p style={styles.tagline}>{module.tagline}</p>
@@ -88,7 +103,7 @@ export function ModuleCard({ module, enabled }: ModuleCardProps) {
       />
       <div style={styles.content}>
         <div style={styles.header}>
-          <span style={styles.icon}>{module.icon}</span>
+          {iconElement}
           <div>
             <h3 style={styles.name}>{module.name}</h3>
             <p style={styles.tagline}>{module.tagline}</p>
@@ -135,9 +150,11 @@ const styles: Record<string, React.CSSProperties> = {
   card: {
     display: 'flex',
     flexDirection: 'row',
-    backgroundColor: 'var(--surface)',
+    backgroundColor: 'var(--glass)',
     borderRadius: 'var(--radius-lg)',
-    border: '1px solid var(--border)',
+    border: '1px solid var(--glass-border)',
+    backdropFilter: 'blur(40px)',
+    WebkitBackdropFilter: 'blur(40px)',
     overflow: 'hidden',
     textDecoration: 'none',
     transition: 'background-color 0.15s, border-color 0.15s',
@@ -165,7 +182,12 @@ const styles: Record<string, React.CSSProperties> = {
     gap: '12px',
   },
   icon: {
-    fontSize: '28px',
+    width: '40px',
+    height: '40px',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
   },
   name: {
@@ -222,7 +244,7 @@ const styles: Record<string, React.CSSProperties> = {
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(14, 12, 9, 0.4)',
+    backgroundColor: 'rgba(10, 10, 15, 0.4)',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',

@@ -5,3 +5,4 @@ export type { CoverSize } from './spacing';
 export { typography } from './typography';
 export type { TypographyVariant } from './typography';
 export { shadows } from './shadows';
+export { glass, glassWeb } from './glass';

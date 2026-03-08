@@ -32,8 +32,18 @@ export const typography = {
     fontSize: 36,
     fontWeight: '700' as const,
   },
+  heroTitle: {
+    fontFamily: 'Inter',
+    fontSize: 36,
+    fontWeight: '800' as const,
+  },
+  iconCaption: {
+    fontFamily: 'Inter',
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
 
-  // Module-specific fonts
+  // Books-domain fonts (will relocate to @mylife/books)
   bookTitle: {
     fontFamily: 'Literata',
     fontSize: 20,

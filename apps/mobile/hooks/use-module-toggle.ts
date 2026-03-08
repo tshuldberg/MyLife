@@ -3,14 +3,18 @@ import { useModuleRegistry, type ModuleId } from '@mylife/module-registry';
 import { enableModule, disableModule, runModuleMigrations } from '@mylife/db';
 import { BOOKS_MODULE } from '@mylife/books';
 import { FAST_MODULE } from '@mylife/fast';
+import { FLASH_MODULE } from '@mylife/flash';
 import { BUDGET_MODULE } from '@mylife/budget';
 import { SURF_MODULE } from '@mylife/surf';
 import { RECIPES_MODULE } from '@mylife/recipes';
 import { WORKOUTS_MODULE } from '@mylife/workouts';
 import { HOMES_MODULE } from '@mylife/homes';
 import { CAR_MODULE } from '@mylife/car';
+import { CLOSET_MODULE } from '@mylife/closet';
 import { HABITS_MODULE } from '@mylife/habits';
 import { MEDS_MODULE } from '@mylife/meds';
+import { JOURNAL_MODULE } from '@mylife/journal';
+import { PETS_MODULE } from '@mylife/pets';
 import { RSVP_MODULE } from '@mylife/rsvp';
 import { useDatabase } from '../components/DatabaseProvider';
 
@@ -21,14 +25,18 @@ import { useDatabase } from '../components/DatabaseProvider';
 const MODULE_DEFINITIONS_WITH_MIGRATIONS: Partial<Record<ModuleId, { migrations?: { version: number; description: string; up: string[]; down: string[] }[] }>> = {
   books: BOOKS_MODULE,
   fast: FAST_MODULE,
+  flash: FLASH_MODULE,
   budget: BUDGET_MODULE,
   surf: SURF_MODULE,
   recipes: RECIPES_MODULE,
   workouts: WORKOUTS_MODULE,
   homes: HOMES_MODULE,
   car: CAR_MODULE,
+  closet: CLOSET_MODULE,
   habits: HABITS_MODULE,
   meds: MEDS_MODULE,
+  journal: JOURNAL_MODULE,
+  pets: PETS_MODULE,
   rsvp: RSVP_MODULE,
 };
 

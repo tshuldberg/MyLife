@@ -1,5 +1,36 @@
 # Timeline
 
+## 2026-03-08
+
+- **Phase 5: MySurf business logic consolidated into hub module.** Expanded `modules/surf/` from a lightweight adapter (2 tables, 12 CRUD functions, 4 types) to a full-featured module. Types: 32 Zod schemas + 10 engine interfaces (518 lines) covering spots, forecasts, alerts, community, trails, and rating engine domains. Schema: V2 migration adds 12 ALTER TABLE columns + 5 forecast/buoy/tide/narrative cache tables; V3 migration adds 9 user/alert/community/wave/trail tables. Total: 16 SQLite tables with `sf_` prefix, schemaVersion 3. Local CRUD: 40+ functions (1000+ lines) via `DatabaseAdapter`. Cloud adapters: 7 files with 30 `SupabaseClient`-injected query functions mirroring local CRUD for remote Supabase reads/writes (spots, forecasts, tides, buoys, narratives, alerts, reviews, photos, pins, sessions, trails). Engines: 4 rating files (spot rating, energy, wind, tide scoring) + 6 utility files (directions, geo, GPS wave detection, alert evaluation, trail analytics, GPX I/O). All ported from standalone `MySurf/packages/shared/src/` with `SpotType` enum adapted (`point_break` to `point`, etc.). Tests pending from background agent. Standalone archival pending.
+
+- **Phase 4: MyWorkouts business logic consolidated into hub module.** Ported 8 pure-logic engine files from standalone `packages/shared/src/` into `modules/workouts/src/`: workout engine state machine, 1RM calculators (Epley/Brzycki), warmup set calculator, plate loading algorithm, plan helpers, body map (14 muscle groups + exercise mappings), voice command parser (20 phrases), and progress analytics (streaks, volume, PRs). Added V3 schema migration with 5 new tables (`wk_workout_set_weights`, `wk_exercise_1rm_history`, `wk_body_measurements`, `wk_workout_plans`, `wk_plan_subscriptions`) and 15 new CRUD functions. 30+ new type definitions. 284 tests across 16 test files. All parity checks pass. Standalone archive pending user confirmation.
+
+- **Phase 3 complete: MyBooks consolidated into hub.** Standalone MyBooks archived to `archive/MyBooks/`, submodule removed from `.gitmodules`.
+- **Test suite expanded:** 264 tests across 18 files (up from 72 across 10). New test files: books CRUD (27), shelves + book-shelves (21), reading sessions (19), series + series-books (17), discovery engine + mood tags + content warnings (23), journal engine + CRUD + photos + book links (39), encryption (6), Zod schema validation (40).
+- **Full parity achieved.** Hub module already had all 28 tables, 75+ CRUD functions, and 5 engines (progress, discovery, challenges, journal, encryption) from prior migration work. Phase 3 focused on test coverage and archival.
+
+- **Phase 2 complete: MyRecipes consolidated into hub.** Standalone MyRecipes archived to `archive/MyRecipes/`, submodule removed from `.gitmodules`.
+- **V4 schema migration:** Added 3 new tables (`rc_collections`, `rc_recipe_collections`, `rc_nutrition_data`) with indexes.
+- **Collections CRUD (db/collections.ts):** `getCollections`, `createCollection`, `updateCollection`, `deleteCollection`, `addRecipeToCollection`, `removeRecipeFromCollection`.
+- **Nutrition CRUD (db/nutrition.ts):** `createNutritionData`, `getNutritionForItem`, `getNutritionByBarcode`, `updateNutritionData`, `deleteNutritionData`.
+- **CRUD extensions (db/crud.ts):** Added `getRecipeWithDetails`, `duplicateRecipe`, `getDefaultServings`, `getMeasurementSystem`.
+- **URL parser (parser/url-parser.ts):** HTML recipe extraction via JSON-LD, Microdata, and Meta tag fallback using cheerio. Exports `parseRecipeFromHtml`, `parseIsoDuration`.
+- **Pantry externals:** `open-food-facts.ts` (barcode lookup via OFF API), `food-recognition.ts` (Claude Vision API food identification).
+- **New types:** `Collection`, `CreateCollection`, `NutritionSource`, `NutritionData`, `CreateNutritionData`, `UpdateNutritionData`.
+- **Test suite expanded:** 189 tests across 16 files (up from 43 across 8). New test files: units (14), fractions (13), time (5), text-parser (17), url-parser (21), collections (6), nutrition (8), name-normalizer (62).
+- **Agent team:** Used "recipes-consolidation" team with 3 agents. Phase 1 (parallel): recipes-db (schema + CRUD), recipes-parser (URL parser + pantry externals). Phase 2: recipes-tester (8 test files).
+
+## 2026-03-07
+
+- **Phase 1 complete: MyBudget consolidated into hub.** Standalone MyBudget archived to `archive/MyBudget/`, submodule removed from `.gitmodules`.
+- **V4 schema migration:** Added 18 missing tables (category_groups, categories, budget_allocations, transaction_splits, recurring_templates, payee_cache, csv_profiles, goals, transaction_rules, price_history, notification_log, preferences, bank_connections, bank_accounts, bank_transactions_raw, bank_sync_state, bank_webhook_events, plus category_groups_categories join).
+- **Engine consolidation (14 modules):** Ported budget calculation engine, schedule calculator, income estimator, payday detector, net cash calculator, transaction rules engine, goals tracker, debt payoff calculator, rollover engine, reporting engine, alert evaluator, and supporting utilities from standalone into `modules/budget/src/engine/`.
+- **Subscription engine (6 files):** Ported renewal calculator, cost normalizer, status state machine, subscription catalog, subscription discovery, and catalog data from standalone into `modules/budget/src/subscriptions/`.
+- **CRUD and index updates:** Extended hub CRUD with operations for 18 new tables. Updated barrel exports.
+- **Route wiring:** Added mobile and web routes for budget features (debt payoff, goals, upcoming, settings/alerts, settings/currencies).
+- **Test suite expanded:** 176 tests across 15 files (up from ~110 across 10). New test files: budget-engine (20 tests), schedule (15 tests), budget-cycle integration (11 tests), subscription-engine (54 tests), recurring-detector (21 tests). Fixed V4 migration count in existing budget.test.ts.
+
 ## 2026-02-28
 
 - Built MyMeds module from scaffold to feature-complete across all 3 feature sets defined in `docs/feature-prompts/Done/mymeds-features.md`.
@@ -1048,3 +1079,68 @@
 1. Merge `MyBooks` PR #2, then sync the submodule pointer if rebased.
 2. Finish standalone-owned implementations for each `MyBooks/apps/web/app/books/**` route.
 3. Implement and gate MyBooks mobile passthrough parity.
+
+### Entry 2026-03-08.01 - Phase 2 MyRecipes Module Consolidation
+**Phase:** Phase 2 consolidation
+**What happened:** Expanded the hub recipes module from a narrow CRUD adapter into a richer MyRecipes domain package and wired the new pantry and structured ingredient behavior into the mobile recipes flow.
+
+- Added a new recipes migration layer for structured ingredient columns plus pantry inventory tables and pantry staple seeds in `modules/recipes/src/db/schema.ts` and `modules/recipes/src/definition.ts`.
+- Added standalone-derived recipes engines under `modules/recipes/src/` for ingredient parsing, text recipe parsing, quantity scaling, grocery list generation, pantry normalization, pantry matching, pantry deduction, and shared formatting utilities.
+- Added `modules/recipes/src/db/pantry.ts` and expanded `modules/recipes/src/db/crud.ts` and `modules/recipes/src/db/mygarden.ts` to support structured ingredients, pantry-aware shopping lists, richer cooking helpers, garden dashboards, harvest linking, and richer event helpers.
+- Updated mobile recipes screens to use the richer module APIs:
+  - `apps/mobile/app/(recipes)/add-recipe.tsx` now parses ingredient lines and detects timers from step text.
+  - `apps/mobile/app/(recipes)/recipe/[id].tsx` now uses structured ingredients and serving-based scaling.
+  - `apps/mobile/app/(recipes)/cooking-mode.tsx` now renders structured ingredient data.
+  - `apps/mobile/app/(recipes)/garden.tsx` and `apps/mobile/app/(recipes)/events.tsx` now use module helpers instead of inline SQL.
+  - Added `apps/mobile/app/(recipes)/pantry.tsx` and linked it from the recipes home screen.
+- Added focused tests for the parser, scaler, grocery merge, pantry expiration, and pantry database behavior.
+- Kept the existing `apps/web/app/recipes/**` passthrough strategy intact for this turn because current web parity in MyLife still treats standalone recipes web as the source of truth.
+
+**Verification:**
+- `pnpm --filter @mylife/recipes typecheck` -> pass.
+- `pnpm --filter @mylife/recipes test` -> pass (`8` files, `43` tests).
+- `pnpm --filter @mylife/mobile test -- app/'(recipes)'/__tests__/index.test.tsx` -> pass.
+- `pnpm gate:function:changed` -> fails on pre-existing mobile typecheck errors outside Phase 2 in `apps/mobile/app/(hub)/discover.tsx`, `packages/billing-config/src/index.ts`, and `packages/subscription/src/revenuecat.ts`.
+
+**Next steps:**
+1. Decide whether to move recipes mobile from adapter mode toward deeper standalone UI reuse, matching the current web passthrough strategy.
+2. Resolve the pre-existing mobile typecheck failures so `pnpm gate:function:changed` can pass in a dirty workspace.
+3. Add follow-on recipes UI for pantry matching, expiring-item suggestions, and import flows now that the underlying module support exists.
+
+### Entry 2026-03-08.02 - Batch2 Scaffold Pass (MyPets, MyJournal, MyFlash, MyCloset)
+**Phase:** Scaffold 13 Batch2 module build-out
+**What happened:** Completed the second scaffold batch in order and compared each module against its spec while building.
+
+- Added new hub modules with local-first schema, CRUD, dashboard helpers, tests, and exports:
+  - `modules/pets/src/**`
+  - `modules/journal/src/**`
+  - `modules/flash/src/**`
+  - `modules/closet/src/**`
+- Wired all four modules into shared app infrastructure:
+  - `apps/mobile/app/_layout.tsx`
+  - `apps/mobile/components/DatabaseProvider.tsx`
+  - `apps/mobile/hooks/use-module-toggle.ts`
+  - `apps/mobile/package.json`
+  - `apps/web/components/Providers.tsx`
+  - `apps/web/lib/db.ts`
+  - `apps/web/lib/modules.ts`
+  - `apps/web/package.json`
+- Added module route groups and screens for mobile and web:
+  - `apps/mobile/app/(pets)/**`, `apps/web/app/pets/**`
+  - `apps/mobile/app/(journal)/**`, `apps/web/app/journal/**`
+  - `apps/mobile/app/(flash)/**`, `apps/web/app/flash/**`
+  - `apps/mobile/app/(closet)/**`, `apps/web/app/closet/**`
+- Confirmed implemented-vs-spec gaps during the pass:
+  - `pets`: delivered profiles, health/reminders, medications, weight, expenses; still missing docs/photos, grooming/training/exercise history, sitter export, alerts, richer sharing/export.
+  - `journal`: delivered dated entries, tags, moods, search, streak/stats; still missing richer editor, prompts, attachments, encryption/biometrics, FTS5, export, therapy/template features.
+  - `flash`: delivered decks, card creation, due queue, lightweight scheduler, review logs, dashboard; still missing FSRS depth, media/cloze, import/export, bury/suspend, browser, reminders, AI/shared deck features.
+  - `closet`: delivered wardrobe items, tags, outfits, wear logs, donation suggestions, value analytics; still missing media capture, laundry and packing flows, richer filtering, AI suggestions, capsule/wishlist/style-board features, export.
+
+**Decision:** Keep Batch2 focused on durable local-first module foundations with runnable schema, CRUD, and core screens instead of trying to close every spec edge in one pass. This keeps the hub modules usable now and leaves a clear gap list for the next feature pass.
+
+**Files created/modified:** Four new module packages, four new mobile route groups, four new web route groups, and shared registry/database wiring across mobile and web.
+
+#### Confusion Point 1 (re-review of 2026-03-08.01 gate failures): shared gate blockers vs module-local verification
+**Updated finding:** The same host-level blockers still hold. `pnpm gate:function:changed` fails in `apps/mobile/app/(hub)/discover.tsx`, `packages/billing-config/src/index.ts`, and `packages/subscription/src/revenuecat.ts`, while all four Batch2 packages pass their own `typecheck` and `test` runs. That means package-local verification is currently the reliable progress signal for scaffold batches until the shared billing and entitlement work is repaired.
+
+**Skill opportunity:** A scaffold-batch parity audit skill could read the active plan, compare module exports/routes against spec bullets, and emit a standard gap checklist plus timeline entry before final sign-off.
