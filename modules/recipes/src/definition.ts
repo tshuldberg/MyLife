@@ -2,9 +2,14 @@ import type { ModuleDefinition, Migration } from '@mylife/module-registry';
 import {
   ALL_TABLES,
   CREATE_INDEXES,
+  ENHANCED_RECIPE_INDEXES,
   MYGARDEN_INDEXES,
   MYGARDEN_TABLES,
+  PANTRY_EVOLUTION_STATEMENTS,
+  SEED_PANTRY_STAPLES,
   SEED_SETTINGS,
+  V4_TABLES,
+  V4_INDEXES,
 } from './db/schema';
 
 const RECIPES_MIGRATION_V1: Migration = {
@@ -49,6 +54,31 @@ const RECIPES_MIGRATION_V2: Migration = {
   ],
 };
 
+const RECIPES_MIGRATION_V3: Migration = {
+  version: 3,
+  description: 'Structured ingredients, pantry inventory, and grocery planning support',
+  up: [
+    ...PANTRY_EVOLUTION_STATEMENTS,
+    ...ENHANCED_RECIPE_INDEXES,
+    ...SEED_PANTRY_STAPLES,
+  ],
+  down: [
+    'DROP TABLE IF EXISTS rc_pantry_staples',
+    'DROP TABLE IF EXISTS rc_pantry_items',
+  ],
+};
+
+const RECIPES_MIGRATION_V4: Migration = {
+  version: 4,
+  description: 'Collections and nutrition data',
+  up: [...V4_TABLES, ...V4_INDEXES],
+  down: [
+    'DROP TABLE IF EXISTS rc_nutrition_data',
+    'DROP TABLE IF EXISTS rc_recipe_collections',
+    'DROP TABLE IF EXISTS rc_collections',
+  ],
+};
+
 export const RECIPES_MODULE: ModuleDefinition = {
   id: 'recipes',
   name: 'MyGarden',
@@ -57,8 +87,8 @@ export const RECIPES_MODULE: ModuleDefinition = {
   accentColor: '#22C55E',
   tier: 'premium',
   storageType: 'sqlite',
-  migrations: [RECIPES_MIGRATION_V1, RECIPES_MIGRATION_V2],
-  schemaVersion: 2,
+  migrations: [RECIPES_MIGRATION_V1, RECIPES_MIGRATION_V2, RECIPES_MIGRATION_V3, RECIPES_MIGRATION_V4],
+  schemaVersion: 4,
   tablePrefix: 'rc_',
   navigation: {
     tabs: [

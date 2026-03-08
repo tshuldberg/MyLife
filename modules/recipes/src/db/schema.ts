@@ -222,6 +222,75 @@ CREATE TABLE IF NOT EXISTS ev_event_timeline (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`;
 
+export const ALTER_RC_INGREDIENTS_ADD_SECTION = `
+ALTER TABLE rc_ingredients ADD COLUMN section TEXT
+`;
+
+export const ALTER_RC_INGREDIENTS_ADD_QUANTITY_VALUE = `
+ALTER TABLE rc_ingredients ADD COLUMN quantity_value REAL
+`;
+
+export const ALTER_RC_INGREDIENTS_ADD_ITEM = `
+ALTER TABLE rc_ingredients ADD COLUMN item TEXT
+`;
+
+export const ALTER_RC_INGREDIENTS_ADD_PREP_NOTE = `
+ALTER TABLE rc_ingredients ADD COLUMN prep_note TEXT
+`;
+
+export const ALTER_RC_INGREDIENTS_ADD_IS_OPTIONAL = `
+ALTER TABLE rc_ingredients ADD COLUMN is_optional INTEGER NOT NULL DEFAULT 0
+`;
+
+export const ALTER_RC_STEPS_ADD_SECTION = `
+ALTER TABLE rc_steps ADD COLUMN section TEXT
+`;
+
+export const BACKFILL_RC_INGREDIENTS_ITEM = `
+UPDATE rc_ingredients
+SET item = name
+WHERE item IS NULL OR trim(item) = ''
+`;
+
+export const BACKFILL_RC_INGREDIENTS_QUANTITY_VALUE = `
+UPDATE rc_ingredients
+SET quantity_value = CASE
+  WHEN quantity IS NULL OR trim(quantity) = '' THEN NULL
+  WHEN trim(quantity) GLOB '[0-9]*' THEN CAST(quantity AS REAL)
+  ELSE NULL
+END
+WHERE quantity_value IS NULL
+`;
+
+export const CREATE_RC_PANTRY_ITEMS = `
+CREATE TABLE IF NOT EXISTS rc_pantry_items (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    quantity REAL,
+    unit TEXT,
+    storage_location TEXT NOT NULL DEFAULT 'pantry' CHECK (storage_location IN (
+        'fridge', 'freezer', 'pantry', 'counter', 'other'
+    )),
+    expiration_date TEXT,
+    purchase_date TEXT,
+    barcode TEXT,
+    photo_path TEXT,
+    notes TEXT,
+    grocery_section TEXT NOT NULL DEFAULT 'other' CHECK (grocery_section IN (
+        'produce', 'dairy', 'meat', 'pantry', 'frozen', 'bakery',
+        'beverages', 'snacks', 'condiments', 'other'
+    )),
+    is_staple INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const CREATE_RC_PANTRY_STAPLES = `
+CREATE TABLE IF NOT EXISTS rc_pantry_staples (
+    id TEXT PRIMARY KEY,
+    item TEXT NOT NULL UNIQUE
+)`;
+
 // -- Indexes --
 export const CREATE_INDEXES = [
   `CREATE INDEX IF NOT EXISTS rc_recipes_title_idx ON rc_recipes(title)`,
@@ -275,6 +344,98 @@ export const MYGARDEN_INDEXES = [
   `CREATE INDEX IF NOT EXISTS ev_menu_items_event_idx ON ev_menu_items(event_id)`,
   `CREATE INDEX IF NOT EXISTS ev_potluck_event_idx ON ev_potluck_claims(event_id)`,
   `CREATE INDEX IF NOT EXISTS ev_timeline_event_idx ON ev_event_timeline(event_id)`,
+];
+
+export const ENHANCED_RECIPE_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS rc_ingredients_item_idx ON rc_ingredients(item)`,
+  `CREATE INDEX IF NOT EXISTS rc_pantry_items_name_idx ON rc_pantry_items(name)`,
+  `CREATE INDEX IF NOT EXISTS rc_pantry_items_storage_idx ON rc_pantry_items(storage_location)`,
+  `CREATE INDEX IF NOT EXISTS rc_pantry_items_expiration_idx ON rc_pantry_items(expiration_date)`,
+  `CREATE INDEX IF NOT EXISTS rc_pantry_items_barcode_idx ON rc_pantry_items(barcode)`,
+  `CREATE INDEX IF NOT EXISTS rc_pantry_items_section_idx ON rc_pantry_items(grocery_section)`,
+];
+
+export const PANTRY_EVOLUTION_STATEMENTS = [
+  ALTER_RC_INGREDIENTS_ADD_SECTION,
+  ALTER_RC_INGREDIENTS_ADD_QUANTITY_VALUE,
+  ALTER_RC_INGREDIENTS_ADD_ITEM,
+  ALTER_RC_INGREDIENTS_ADD_PREP_NOTE,
+  ALTER_RC_INGREDIENTS_ADD_IS_OPTIONAL,
+  ALTER_RC_STEPS_ADD_SECTION,
+  BACKFILL_RC_INGREDIENTS_ITEM,
+  BACKFILL_RC_INGREDIENTS_QUANTITY_VALUE,
+  CREATE_RC_PANTRY_ITEMS,
+  CREATE_RC_PANTRY_STAPLES,
+];
+
+// -- V4: Collections --
+export const CREATE_RC_COLLECTIONS = `
+CREATE TABLE IF NOT EXISTS rc_collections (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    cover_recipe_id TEXT REFERENCES rc_recipes(id) ON DELETE SET NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const CREATE_RC_RECIPE_COLLECTIONS = `
+CREATE TABLE IF NOT EXISTS rc_recipe_collections (
+    recipe_id TEXT NOT NULL REFERENCES rc_recipes(id) ON DELETE CASCADE,
+    collection_id TEXT NOT NULL REFERENCES rc_collections(id) ON DELETE CASCADE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(recipe_id, collection_id)
+)`;
+
+// -- V4: Nutrition Data --
+export const CREATE_RC_NUTRITION_DATA = `
+CREATE TABLE IF NOT EXISTS rc_nutrition_data (
+    id TEXT PRIMARY KEY,
+    pantry_item_id TEXT REFERENCES rc_pantry_items(id) ON DELETE SET NULL,
+    barcode TEXT,
+    product_name TEXT,
+    brand TEXT,
+    serving_size_text TEXT,
+    calories REAL,
+    fat_g REAL,
+    saturated_fat_g REAL,
+    carbs_g REAL,
+    fiber_g REAL,
+    sugar_g REAL,
+    protein_g REAL,
+    sodium_mg REAL,
+    source TEXT NOT NULL DEFAULT 'manual',
+    fetched_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const V4_TABLES = [CREATE_RC_COLLECTIONS, CREATE_RC_RECIPE_COLLECTIONS, CREATE_RC_NUTRITION_DATA];
+
+export const V4_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS rc_collections_sort_idx ON rc_collections(sort_order)`,
+  `CREATE INDEX IF NOT EXISTS rc_recipe_collections_collection_idx ON rc_recipe_collections(collection_id)`,
+  `CREATE INDEX IF NOT EXISTS rc_recipe_collections_recipe_idx ON rc_recipe_collections(recipe_id)`,
+  `CREATE INDEX IF NOT EXISTS rc_nutrition_data_pantry_item_idx ON rc_nutrition_data(pantry_item_id)`,
+  `CREATE INDEX IF NOT EXISTS rc_nutrition_data_barcode_idx ON rc_nutrition_data(barcode)`,
+];
+
+export const SEED_PANTRY_STAPLES = [
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-salt', 'salt')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-pepper', 'black pepper')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-olive-oil', 'olive oil')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-vegetable-oil', 'vegetable oil')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-flour', 'all-purpose flour')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-sugar', 'sugar')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-butter', 'butter')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-garlic-powder', 'garlic powder')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-onion-powder', 'onion powder')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-paprika', 'paprika')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-cumin', 'cumin')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-oregano', 'oregano')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-baking-soda', 'baking soda')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-baking-powder', 'baking powder')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-soy-sauce', 'soy sauce')`,
+  `INSERT OR IGNORE INTO rc_pantry_staples (id, item) VALUES ('staple-vinegar', 'vinegar')`,
 ];
 
 /** Seed SQL for default settings */

@@ -88,6 +88,10 @@ export default function RecipesLayout() {
           options={{ href: null, title: 'Cooking Mode', headerShown: false }}
         />
         <Tabs.Screen
+          name="pantry"
+          options={{ href: null, title: 'Pantry' }}
+        />
+        <Tabs.Screen
           name="event/[id]"
           options={{ href: null, title: 'Event' }}
         />

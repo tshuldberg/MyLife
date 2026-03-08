@@ -218,6 +218,7 @@ export const BudgetSubscriptionSchema = z.object({
   icon: z.string().nullable(),
   color: z.string().nullable(),
   notify_days: z.number().int().nonnegative(),
+  envelope_id: z.string().nullable(),
   catalog_id: z.string().nullable(),
   sort_order: z.number().int().nonnegative(),
   created_at: z.string(),
@@ -239,6 +240,7 @@ export const BudgetSubscriptionInsertSchema = BudgetSubscriptionSchema.omit({
   icon: true,
   color: true,
   notify_days: true,
+  envelope_id: true,
   catalog_id: true,
   sort_order: true,
 });
@@ -291,4 +293,383 @@ export interface CatalogEntry {
   billingCycle: BillingCycle;
   category: CatalogCategory;
 }
+
+// =====================================================================
+// V4 Types — YNAB-style budget engine, reporting, alerts, multi-currency
+// =====================================================================
+
+// --- Category Groups ---
+
+export const CategoryGroupSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1).max(80),
+  sort_order: z.number().int().nonnegative(),
+  is_hidden: z.number().int().min(0).max(1),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type CategoryGroup = z.infer<typeof CategoryGroupSchema>;
+
+export const CategoryGroupInsertSchema = CategoryGroupSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+}).partial({
+  sort_order: true,
+  is_hidden: true,
+});
+export type CategoryGroupInsert = z.infer<typeof CategoryGroupInsertSchema>;
+
+export const CategoryGroupUpdateSchema = z.object({
+  name: z.string().min(1).max(80).optional(),
+  sort_order: z.number().int().nonnegative().optional(),
+  is_hidden: z.number().int().min(0).max(1).optional(),
+});
+export type CategoryGroupUpdate = z.infer<typeof CategoryGroupUpdateSchema>;
+
+// --- Budget Allocations ---
+
+export const BudgetAllocationSchema = z.object({
+  id: z.string(),
+  envelope_id: z.string(),
+  month: z.string(), // YYYY-MM
+  allocated: z.number().int(),
+});
+export type BudgetAllocation = z.infer<typeof BudgetAllocationSchema>;
+
+export const BudgetAllocationInsertSchema = BudgetAllocationSchema.omit({
+  id: true,
+});
+export type BudgetAllocationInsert = z.infer<typeof BudgetAllocationInsertSchema>;
+
+// --- Transaction Splits ---
+
+export const TransactionSplitSchema = z.object({
+  id: z.string(),
+  transaction_id: z.string(),
+  envelope_id: z.string().nullable(),
+  amount: z.number().int(),
+  memo: z.string().nullable(),
+});
+export type TransactionSplit = z.infer<typeof TransactionSplitSchema>;
+
+export const TransactionSplitInsertSchema = TransactionSplitSchema.omit({
+  id: true,
+}).partial({
+  envelope_id: true,
+  memo: true,
+});
+export type TransactionSplitInsert = z.infer<typeof TransactionSplitInsertSchema>;
+
+// --- Recurring Templates ---
+
+export const RecurringFrequency = z.enum([
+  'weekly',
+  'biweekly',
+  'monthly',
+  'quarterly',
+  'annually',
+]);
+export type RecurringFrequency = z.infer<typeof RecurringFrequency>;
+
+export const RecurringTemplateSchema = z.object({
+  id: z.string(),
+  account_id: z.string(),
+  envelope_id: z.string().nullable(),
+  payee: z.string().min(1),
+  amount: z.number().int(),
+  frequency: RecurringFrequency,
+  start_date: z.string(),
+  end_date: z.string().nullable(),
+  next_date: z.string(),
+  is_active: z.number().int().min(0).max(1),
+  subscription_id: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type RecurringTemplate = z.infer<typeof RecurringTemplateSchema>;
+
+export const RecurringTemplateInsertSchema = RecurringTemplateSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+}).partial({
+  envelope_id: true,
+  end_date: true,
+  is_active: true,
+  subscription_id: true,
+});
+export type RecurringTemplateInsert = z.infer<typeof RecurringTemplateInsertSchema>;
+
+export const RecurringTemplateUpdateSchema = z.object({
+  envelope_id: z.string().nullable().optional(),
+  payee: z.string().min(1).optional(),
+  amount: z.number().int().optional(),
+  frequency: RecurringFrequency.optional(),
+  end_date: z.string().nullable().optional(),
+  next_date: z.string().optional(),
+  is_active: z.number().int().min(0).max(1).optional(),
+});
+export type RecurringTemplateUpdate = z.infer<typeof RecurringTemplateUpdateSchema>;
+
+// --- Payee Cache ---
+
+export const PayeeCacheSchema = z.object({
+  payee: z.string(),
+  last_envelope_id: z.string().nullable(),
+  use_count: z.number().int().nonnegative(),
+  last_used: z.string(),
+});
+export type PayeeCache = z.infer<typeof PayeeCacheSchema>;
+
+// --- CSV Profiles ---
+
+export const AmountSign = z.enum([
+  'negative_is_outflow',
+  'positive_is_outflow',
+  'separate_columns',
+]);
+export type AmountSign = z.infer<typeof AmountSign>;
+
+export const CsvProfileSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  date_column: z.number().int().nonnegative(),
+  payee_column: z.number().int().nonnegative(),
+  amount_column: z.number().int().nonnegative(),
+  memo_column: z.number().int().nonnegative().nullable(),
+  date_format: z.string(),
+  amount_sign: AmountSign,
+  debit_column: z.number().int().nonnegative().nullable(),
+  credit_column: z.number().int().nonnegative().nullable(),
+  skip_rows: z.number().int().nonnegative(),
+  created_at: z.string(),
+});
+export type CsvProfile = z.infer<typeof CsvProfileSchema>;
+
+export const CsvProfileInsertSchema = CsvProfileSchema.omit({
+  id: true,
+  created_at: true,
+}).partial({
+  memo_column: true,
+  debit_column: true,
+  credit_column: true,
+  skip_rows: true,
+});
+export type CsvProfileInsert = z.infer<typeof CsvProfileInsertSchema>;
+
+// --- Price History ---
+
+export const PriceHistorySchema = z.object({
+  id: z.string(),
+  subscription_id: z.string(),
+  price: z.number().int(),
+  effective_date: z.string(),
+  created_at: z.string(),
+});
+export type PriceHistory = z.infer<typeof PriceHistorySchema>;
+
+// --- Notification Log ---
+
+export const NotificationType = z.enum([
+  'renewal',
+  'trial_expiry',
+  'monthly_summary',
+]);
+export type NotificationType = z.infer<typeof NotificationType>;
+
+export const NotificationLogSchema = z.object({
+  id: z.string(),
+  subscription_id: z.string(),
+  type: NotificationType,
+  scheduled_for: z.string(),
+  sent_at: z.string().nullable(),
+});
+export type NotificationLog = z.infer<typeof NotificationLogSchema>;
+
+// --- Transaction Rules ---
+
+export const MatchType = z.enum(['contains', 'exact', 'starts_with']);
+export type MatchType = z.infer<typeof MatchType>;
+
+export const TransactionRuleSchema = z.object({
+  id: z.string(),
+  payee_pattern: z.string().min(1),
+  match_type: MatchType,
+  envelope_id: z.string(),
+  is_enabled: z.number().int().min(0).max(1),
+  priority: z.number().int(),
+  created_at: z.string(),
+});
+export type TransactionRule = z.infer<typeof TransactionRuleSchema>;
+
+export const TransactionRuleInsertSchema = TransactionRuleSchema.omit({
+  id: true,
+  created_at: true,
+}).partial({
+  is_enabled: true,
+  priority: true,
+});
+export type TransactionRuleInsert = z.infer<typeof TransactionRuleInsertSchema>;
+
+export const TransactionRuleUpdateSchema = z.object({
+  payee_pattern: z.string().min(1).optional(),
+  match_type: MatchType.optional(),
+  envelope_id: z.string().optional(),
+  is_enabled: z.number().int().min(0).max(1).optional(),
+  priority: z.number().int().optional(),
+});
+export type TransactionRuleUpdate = z.infer<typeof TransactionRuleUpdateSchema>;
+
+// --- Net Worth Snapshots ---
+
+export const NetWorthSnapshotSchema = z.object({
+  id: z.string(),
+  month: z.string(), // YYYY-MM
+  assets: z.number().int(),
+  liabilities: z.number().int(),
+  net_worth: z.number().int(),
+  account_balances: z.string().nullable(), // JSON
+  created_at: z.string(),
+});
+export type NetWorthSnapshot = z.infer<typeof NetWorthSnapshotSchema>;
+
+// --- Debt Payoff ---
+
+export const PayoffStrategy = z.enum(['snowball', 'avalanche']);
+export type PayoffStrategy = z.infer<typeof PayoffStrategy>;
+
+export const DebtPayoffPlanSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1),
+  strategy: PayoffStrategy,
+  extra_payment: z.number().int().nonnegative(),
+  is_active: z.number().int().min(0).max(1),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type DebtPayoffPlan = z.infer<typeof DebtPayoffPlanSchema>;
+
+export const DebtPayoffPlanInsertSchema = DebtPayoffPlanSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+}).partial({
+  extra_payment: true,
+  is_active: true,
+});
+export type DebtPayoffPlanInsert = z.infer<typeof DebtPayoffPlanInsertSchema>;
+
+export const Compounding = z.enum(['monthly', 'daily']);
+export type Compounding = z.infer<typeof Compounding>;
+
+export const DebtPayoffDebtSchema = z.object({
+  id: z.string(),
+  plan_id: z.string(),
+  account_id: z.string().nullable(),
+  name: z.string().min(1),
+  balance: z.number().int(),
+  interest_rate: z.number().int().nonnegative(),
+  minimum_payment: z.number().int().nonnegative(),
+  compounding: Compounding,
+  sort_order: z.number().int().nonnegative(),
+});
+export type DebtPayoffDebt = z.infer<typeof DebtPayoffDebtSchema>;
+
+export const DebtPayoffDebtInsertSchema = DebtPayoffDebtSchema.omit({
+  id: true,
+}).partial({
+  account_id: true,
+  interest_rate: true,
+  minimum_payment: true,
+  compounding: true,
+  sort_order: true,
+});
+export type DebtPayoffDebtInsert = z.infer<typeof DebtPayoffDebtInsertSchema>;
+
+// --- Budget Rollovers ---
+
+export const BudgetRolloverSchema = z.object({
+  id: z.string(),
+  envelope_id: z.string(),
+  from_month: z.string(),
+  to_month: z.string(),
+  amount: z.number().int(),
+  created_at: z.string(),
+});
+export type BudgetRollover = z.infer<typeof BudgetRolloverSchema>;
+
+// --- Budget Alerts ---
+
+export const BudgetAlertSchema = z.object({
+  id: z.string(),
+  envelope_id: z.string(),
+  threshold_pct: z.number().int().min(1).max(200),
+  is_enabled: z.number().int().min(0).max(1),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type BudgetAlert = z.infer<typeof BudgetAlertSchema>;
+
+export const BudgetAlertInsertSchema = BudgetAlertSchema.omit({
+  id: true,
+  created_at: true,
+  updated_at: true,
+}).partial({
+  threshold_pct: true,
+  is_enabled: true,
+});
+export type BudgetAlertInsert = z.infer<typeof BudgetAlertInsertSchema>;
+
+export const AlertHistorySchema = z.object({
+  id: z.string(),
+  alert_id: z.string(),
+  envelope_id: z.string(),
+  month: z.string(),
+  threshold_pct: z.number().int(),
+  spent_pct: z.number().int(),
+  amount_spent: z.number().int(),
+  target_amount: z.number().int(),
+  notified_at: z.string(),
+});
+export type AlertHistory = z.infer<typeof AlertHistorySchema>;
+
+// --- Multi-Currency ---
+
+export const CurrencySchema = z.object({
+  code: z.string().length(3),
+  name: z.string().min(1),
+  symbol: z.string(),
+  decimal_places: z.number().int().nonnegative(),
+  is_base: z.number().int().min(0).max(1),
+  created_at: z.string(),
+});
+export type Currency = z.infer<typeof CurrencySchema>;
+
+export const ExchangeRateSchema = z.object({
+  id: z.string(),
+  from_currency: z.string().length(3),
+  to_currency: z.string().length(3),
+  rate: z.number().int(),
+  rate_decimal: z.string(),
+  fetched_at: z.string(),
+});
+export type ExchangeRate = z.infer<typeof ExchangeRateSchema>;
+
+// --- Shared Envelopes ---
+
+export const SharingMode = z.enum(['joint', 'split']);
+export type SharingMode = z.infer<typeof SharingMode>;
+
+export const SharedEnvelopeSchema = z.object({
+  id: z.string(),
+  envelope_id: z.string(),
+  device_id: z.string(),
+  partner_device_id: z.string().nullable(),
+  sharing_mode: SharingMode,
+  is_active: z.number().int().min(0).max(1),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+export type SharedEnvelope = z.infer<typeof SharedEnvelopeSchema>;
 

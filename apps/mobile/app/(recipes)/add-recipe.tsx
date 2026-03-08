@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -14,9 +14,10 @@ import {
   updateRecipe,
   addIngredient,
   getIngredients,
+  parseIngredientText,
   deleteIngredient,
+  detectStepTimerMinutes,
   type Difficulty,
-  type Ingredient,
   type Step,
 } from '@mylife/recipes';
 import type { DatabaseAdapter } from '@mylife/db';
@@ -137,9 +138,15 @@ export default function AddRecipeScreen() {
         .map((line) => line.trim())
         .filter(Boolean)
         .forEach((line, i) => {
+          const parsed = parseIngredientText(line);
           addIngredient(db, uuid(), {
             recipe_id: editId,
-            name: line,
+            name: parsed.prepNote ? `${parsed.item}, ${parsed.prepNote}` : parsed.item || line,
+            quantity: parsed.quantity !== null ? String(parsed.quantity) : null,
+            unit: parsed.unit,
+            item: parsed.item || line,
+            quantity_value: parsed.quantity,
+            prep_note: parsed.prepNote,
             sort_order: i,
           });
         });
@@ -153,7 +160,7 @@ export default function AddRecipeScreen() {
         .map((line) => line.trim())
         .filter(Boolean)
         .forEach((line, i) => {
-          addStep(db, uuid(), editId, i + 1, line, null);
+          addStep(db, uuid(), editId, i + 1, line, detectStepTimerMinutes(line));
         });
 
       router.back();
@@ -177,9 +184,15 @@ export default function AddRecipeScreen() {
         .map((line) => line.trim())
         .filter(Boolean)
         .forEach((line, i) => {
+          const parsed = parseIngredientText(line);
           addIngredient(db, uuid(), {
             recipe_id: recipeId,
-            name: line,
+            name: parsed.prepNote ? `${parsed.item}, ${parsed.prepNote}` : parsed.item || line,
+            quantity: parsed.quantity !== null ? String(parsed.quantity) : null,
+            unit: parsed.unit,
+            item: parsed.item || line,
+            quantity_value: parsed.quantity,
+            prep_note: parsed.prepNote,
             sort_order: i,
           });
         });
@@ -188,7 +201,7 @@ export default function AddRecipeScreen() {
         .map((line) => line.trim())
         .filter(Boolean)
         .forEach((line, i) => {
-          addStep(db, uuid(), recipeId, i + 1, line, null);
+          addStep(db, uuid(), recipeId, i + 1, line, detectStepTimerMinutes(line));
         });
 
       router.back();

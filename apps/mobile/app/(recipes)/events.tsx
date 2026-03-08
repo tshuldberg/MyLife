@@ -8,21 +8,12 @@ import {
   View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { createEvent, type Event } from '@mylife/recipes';
-import type { DatabaseAdapter } from '@mylife/db';
+import { createEvent, getHostedEvents, type Event } from '@mylife/recipes';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
 import { uuid } from '../../lib/uuid';
 
 const ACCENT = colors.modules.recipes;
-
-function getEvents(db: DatabaseAdapter): Event[] {
-  return db.query<Event>(
-    `SELECT id, title, event_date, event_time, location, description, capacity, invite_token, created_at, updated_at
-     FROM ev_events
-     ORDER BY event_date ASC, event_time ASC`,
-  );
-}
 
 function formatDate(dateStr: string): string {
   const d = new Date(`${dateStr}T00:00:00`);
@@ -42,7 +33,7 @@ export default function EventsScreen() {
   const [description, setDescription] = useState('');
 
   const load = useCallback(() => {
-    setEvents(getEvents(db));
+    setEvents(getHostedEvents(db));
   }, [db]);
 
   useEffect(() => {

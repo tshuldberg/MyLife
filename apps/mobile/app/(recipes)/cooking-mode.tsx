@@ -1,12 +1,13 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   getRecipeById,
-  getIngredients,
+  getStructuredIngredients,
   detectStepTimerMinutes,
+  formatQuantity,
   type Recipe,
-  type Ingredient,
+  type StructuredIngredient,
   type Step,
 } from '@mylife/recipes';
 import type { DatabaseAdapter } from '@mylife/db';
@@ -38,7 +39,7 @@ export default function CookingModeScreen() {
 
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [steps, setSteps] = useState<Step[]>([]);
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [ingredients, setIngredients] = useState<StructuredIngredient[]>([]);
   const [currentStep, setCurrentStep] = useState(0);
   const [showIngredients, setShowIngredients] = useState(false);
 
@@ -51,7 +52,7 @@ export default function CookingModeScreen() {
     if (!recipeId) return;
     setRecipe(getRecipeById(db, recipeId));
     setSteps(getSteps(db, recipeId));
-    setIngredients(getIngredients(db, recipeId));
+    setIngredients(getStructuredIngredients(db, recipeId));
   }, [db, recipeId]);
 
   // Note: expo-keep-awake could be added here to prevent screen sleep during cooking.
@@ -148,9 +149,10 @@ export default function CookingModeScreen() {
           <Text style={styles.sectionTitle}>Ingredients</Text>
           {ingredients.map((ing) => (
             <Text key={ing.id} style={styles.ingredientText}>
-              {ing.quantity ? `${ing.quantity} ` : ''}
+              {formatQuantity(ing.quantity_value) ? `${formatQuantity(ing.quantity_value)} ` : ''}
               {ing.unit ? `${ing.unit} ` : ''}
-              {ing.name}
+              {ing.item}
+              {ing.prep_note ? `, ${ing.prep_note}` : ''}
             </Text>
           ))}
         </View>

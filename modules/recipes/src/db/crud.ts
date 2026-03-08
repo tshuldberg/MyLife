@@ -7,6 +7,8 @@ import type {
   CreateIngredient,
   RecipeTag,
   RecipeFilters,
+  Step,
+  StructuredIngredient,
 } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -38,6 +40,11 @@ interface IngredientRow {
   quantity: string | null;
   unit: string | null;
   sort_order: number;
+  section?: string | null;
+  quantity_value?: number | null;
+  item?: string | null;
+  prep_note?: string | null;
+  is_optional?: number | null;
 }
 
 interface RecipeTagRow {
@@ -77,6 +84,27 @@ function rowToIngredient(row: IngredientRow): Ingredient {
     name: row.name,
     quantity: row.quantity,
     unit: row.unit,
+    sort_order: row.sort_order,
+    section: row.section ?? null,
+    quantity_value: row.quantity_value ?? null,
+    item: row.item ?? row.name,
+    prep_note: row.prep_note ?? null,
+    is_optional: row.is_optional ?? 0,
+  };
+}
+
+function rowToStructuredIngredient(row: IngredientRow): StructuredIngredient {
+  return {
+    id: row.id,
+    recipe_id: row.recipe_id,
+    section: row.section ?? null,
+    quantity_value: row.quantity_value ?? parseLegacyQuantity(row.quantity),
+    quantity: row.quantity,
+    unit: row.unit,
+    item: row.item ?? row.name,
+    name: row.name,
+    prep_note: row.prep_note ?? null,
+    is_optional: row.is_optional ?? 0,
     sort_order: row.sort_order,
   };
 }
@@ -226,6 +254,20 @@ export function updateRecipe(
   }
 }
 
+export function toggleFavorite(db: DatabaseAdapter, id: string): boolean {
+  const recipe = getRecipeById(db, id);
+  if (!recipe) {
+    return false;
+  }
+  const next = recipe.is_favorite ? 0 : 1;
+  updateRecipe(db, id, { is_favorite: next });
+  return next === 1;
+}
+
+export function setRating(db: DatabaseAdapter, id: string, rating: number | null): void {
+  updateRecipe(db, id, { rating: rating ?? 0 });
+}
+
 /** Delete a recipe by ID. Cascades to ingredients and tags. */
 export function deleteRecipe(db: DatabaseAdapter, id: string): boolean {
   db.execute(`DELETE FROM rc_recipes WHERE id = ?`, [id]);
@@ -274,8 +316,19 @@ export function addIngredient(
   input: CreateIngredient,
 ): Ingredient {
   db.execute(
-    `INSERT INTO rc_ingredients (id, recipe_id, name, quantity, unit, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO rc_ingredients (
+      id,
+      recipe_id,
+      name,
+      quantity,
+      unit,
+      sort_order,
+      section,
+      quantity_value,
+      item,
+      prep_note,
+      is_optional
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.recipe_id,
@@ -283,6 +336,11 @@ export function addIngredient(
       input.quantity ?? null,
       input.unit ?? null,
       input.sort_order ?? 0,
+      input.section ?? null,
+      input.quantity_value ?? parseLegacyQuantity(input.quantity ?? null),
+      input.item ?? input.name,
+      input.prep_note ?? null,
+      input.is_optional ?? 0,
     ],
   );
 
@@ -293,6 +351,11 @@ export function addIngredient(
     quantity: input.quantity ?? null,
     unit: input.unit ?? null,
     sort_order: input.sort_order ?? 0,
+    section: input.section ?? null,
+    quantity_value: input.quantity_value ?? parseLegacyQuantity(input.quantity ?? null),
+    item: input.item ?? input.name,
+    prep_note: input.prep_note ?? null,
+    is_optional: input.is_optional ?? 0,
   };
 }
 
@@ -305,11 +368,35 @@ export function getIngredients(db: DatabaseAdapter, recipeId: string): Ingredien
   return rows.map(rowToIngredient);
 }
 
+export function getStructuredIngredients(
+  db: DatabaseAdapter,
+  recipeId: string,
+): StructuredIngredient[] {
+  const rows = db.query<IngredientRow>(
+    `SELECT * FROM rc_ingredients WHERE recipe_id = ? ORDER BY sort_order`,
+    [recipeId],
+  );
+  return rows.map(rowToStructuredIngredient);
+}
+
 /** Update an ingredient */
 export function updateIngredient(
   db: DatabaseAdapter,
   id: string,
-  updates: Partial<Pick<Ingredient, 'name' | 'quantity' | 'unit' | 'sort_order'>>,
+  updates: Partial<
+    Pick<
+      Ingredient,
+      | 'name'
+      | 'quantity'
+      | 'unit'
+      | 'sort_order'
+      | 'section'
+      | 'quantity_value'
+      | 'item'
+      | 'prep_note'
+      | 'is_optional'
+    >
+  >,
 ): void {
   const fields: string[] = [];
   const values: unknown[] = [];
@@ -329,6 +416,26 @@ export function updateIngredient(
   if (updates.sort_order !== undefined) {
     fields.push('sort_order = ?');
     values.push(updates.sort_order);
+  }
+  if (updates.section !== undefined) {
+    fields.push('section = ?');
+    values.push(updates.section);
+  }
+  if (updates.quantity_value !== undefined) {
+    fields.push('quantity_value = ?');
+    values.push(updates.quantity_value);
+  }
+  if (updates.item !== undefined) {
+    fields.push('item = ?');
+    values.push(updates.item);
+  }
+  if (updates.prep_note !== undefined) {
+    fields.push('prep_note = ?');
+    values.push(updates.prep_note);
+  }
+  if (updates.is_optional !== undefined) {
+    fields.push('is_optional = ?');
+    values.push(updates.is_optional);
   }
 
   if (fields.length > 0) {
@@ -393,4 +500,111 @@ export function setSetting(db: DatabaseAdapter, key: string, value: string): voi
     `INSERT OR REPLACE INTO rc_settings (key, value) VALUES (?, ?)`,
     [key, value],
   );
+}
+
+function parseLegacyQuantity(quantity: string | null): number | null {
+  if (!quantity) return null;
+  const trimmed = quantity.trim();
+  if (!trimmed) return null;
+  if (/^\d+(\.\d+)?$/.test(trimmed)) {
+    return Number.parseFloat(trimmed);
+  }
+  if (/^\d+\s*\/\s*\d+$/.test(trimmed)) {
+    const [numerator, denominator] = trimmed.split('/').map((value) => Number.parseFloat(value.trim()));
+    if (denominator) {
+      return numerator / denominator;
+    }
+  }
+  if (/^\d+\s+\d+\s*\/\s*\d+$/.test(trimmed)) {
+    const [whole, fraction] = trimmed.split(/\s+/, 2);
+    const [numerator, denominator] = fraction.split('/').map((value) => Number.parseFloat(value.trim()));
+    if (denominator) {
+      return Number.parseFloat(whole) + numerator / denominator;
+    }
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Recipe Details
+// ─────────────────────────────────────────────────────────────────────────
+
+export function getRecipeWithDetails(
+  db: DatabaseAdapter,
+  id: string,
+): { recipe: Recipe; ingredients: Ingredient[]; steps: Step[]; tags: RecipeTag[] } | null {
+  const recipe = getRecipeById(db, id);
+  if (!recipe) return null;
+  const ingredients = getIngredients(db, id);
+  const steps = db.query<Step>(
+    `SELECT * FROM rc_steps WHERE recipe_id = ? ORDER BY sort_order`,
+    [id],
+  );
+  const tags = getTags(db, id);
+  return { recipe, ingredients, steps, tags };
+}
+
+export function duplicateRecipe(
+  db: DatabaseAdapter,
+  sourceId: string,
+  newRecipeId: string,
+  newIngredientIds: string[],
+  newStepIds: string[],
+  newTagIds: string[],
+): string | null {
+  const details = getRecipeWithDetails(db, sourceId);
+  if (!details) return null;
+
+  const { recipe, ingredients, steps, tags } = details;
+  const now = new Date().toISOString();
+
+  db.transaction(() => {
+    // Clone recipe
+    db.execute(
+      `INSERT INTO rc_recipes (id, title, description, servings, prep_time_mins, cook_time_mins, total_time_mins, difficulty, source_url, image_uri, is_favorite, rating, notes, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
+      [newRecipeId, recipe.title + ' (Copy)', recipe.description, recipe.servings, recipe.prep_time_mins, recipe.cook_time_mins, recipe.total_time_mins, recipe.difficulty, recipe.source_url, recipe.image_uri, recipe.rating, recipe.notes, now, now],
+    );
+
+    // Clone ingredients
+    ingredients.forEach((ing, i) => {
+      db.execute(
+        `INSERT INTO rc_ingredients (id, recipe_id, name, quantity, unit, sort_order, section, quantity_value, item, prep_note, is_optional)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [newIngredientIds[i], newRecipeId, ing.name, ing.quantity, ing.unit, ing.sort_order, ing.section ?? null, ing.quantity_value ?? null, ing.item ?? null, ing.prep_note ?? null, ing.is_optional ?? 0],
+      );
+    });
+
+    // Clone steps
+    steps.forEach((step, i) => {
+      db.execute(
+        `INSERT INTO rc_steps (id, recipe_id, step_number, instruction, timer_minutes, sort_order, section)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [newStepIds[i], newRecipeId, step.step_number, step.instruction, step.timer_minutes, step.sort_order, step.section ?? null],
+      );
+    });
+
+    // Clone tags
+    tags.forEach((tag, i) => {
+      db.execute(
+        `INSERT INTO rc_recipe_tags (id, recipe_id, tag) VALUES (?, ?, ?)`,
+        [newTagIds[i], newRecipeId, tag.tag],
+      );
+    });
+  });
+
+  return newRecipeId;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Convenience Settings
+// ─────────────────────────────────────────────────────────────────────────
+
+export function getDefaultServings(db: DatabaseAdapter): number {
+  const val = getSetting(db, 'defaultServings');
+  return val ? parseInt(val, 10) : 4;
+}
+
+export function getMeasurementSystem(db: DatabaseAdapter): string {
+  return getSetting(db, 'measurementSystem') ?? 'us';
 }

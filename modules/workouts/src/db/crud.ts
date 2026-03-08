@@ -1,7 +1,15 @@
 import type { DatabaseAdapter } from '@mylife/db';
 import type {
+  BodyMeasurementInput,
+  BodyMeasurementRow,
   CompletedExercise,
+  Exercise1RMRow,
   MuscleGroup,
+  PlanSubscriptionRow,
+  Record1RMInput,
+  SetWeightInput,
+  SetWeightRow,
+  WeightUnit,
   WorkoutAudioCue,
   WorkoutCategory,
   WorkoutCategoryCount,
@@ -15,6 +23,9 @@ import type {
   WorkoutFormRecording,
   WorkoutLog,
   WorkoutMetrics,
+  WorkoutPlan,
+  WorkoutPlanInput,
+  WorkoutPlanWeek,
   WorkoutProgram,
   WorkoutSeedItem,
   WorkoutSession,
@@ -579,6 +590,321 @@ export function getWorkoutDashboard(db: DatabaseAdapter): WorkoutDashboard {
     streakDays,
     totalMinutes30d: sessions30d.totalMinutes,
   };
+}
+
+// ── Set Weight Tracking ──
+
+function rowToSetWeight(row: Record<string, unknown>): SetWeightRow {
+  return {
+    id: row.id as string,
+    sessionId: row.session_id as string,
+    exerciseId: row.exercise_id as string,
+    setNumber: row.set_number as number,
+    weight: row.weight as number,
+    reps: row.reps as number,
+    unit: row.unit as WeightUnit,
+    estimated1rm: row.estimated_1rm as number,
+    createdAt: row.created_at as string,
+  };
+}
+
+export function recordSetWeight(
+  db: DatabaseAdapter,
+  id: string,
+  input: SetWeightInput,
+): void {
+  db.execute(
+    `INSERT INTO wk_workout_set_weights (
+      id, session_id, exercise_id, set_number, weight, reps, unit, estimated_1rm, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.sessionId,
+      input.exerciseId,
+      input.setNumber,
+      input.weight,
+      input.reps,
+      input.unit ?? 'lbs',
+      input.estimated1rm ?? 0,
+      nowIso(),
+    ],
+  );
+}
+
+export function getSetWeightsForSession(
+  db: DatabaseAdapter,
+  sessionId: string,
+): SetWeightRow[] {
+  return db
+    .query<Record<string, unknown>>(
+      'SELECT * FROM wk_workout_set_weights WHERE session_id = ? ORDER BY set_number ASC',
+      [sessionId],
+    )
+    .map(rowToSetWeight);
+}
+
+export function getSetWeightsForExercise(
+  db: DatabaseAdapter,
+  exerciseId: string,
+  options?: { limit?: number },
+): SetWeightRow[] {
+  let sql = 'SELECT * FROM wk_workout_set_weights WHERE exercise_id = ? ORDER BY created_at DESC';
+  const params: unknown[] = [exerciseId];
+  if (options?.limit && options.limit > 0) {
+    sql += ' LIMIT ?';
+    params.push(options.limit);
+  }
+  return db.query<Record<string, unknown>>(sql, params).map(rowToSetWeight);
+}
+
+// ── 1RM History ──
+
+function rowTo1RM(row: Record<string, unknown>): Exercise1RMRow {
+  return {
+    id: row.id as string,
+    exerciseId: row.exercise_id as string,
+    maxWeight: row.max_weight as number,
+    maxReps: row.max_reps as number,
+    estimated1rm: row.estimated_1rm as number,
+    unit: row.unit as WeightUnit,
+    achievedAt: row.achieved_at as string,
+    createdAt: row.created_at as string,
+  };
+}
+
+export function record1RM(
+  db: DatabaseAdapter,
+  id: string,
+  input: Record1RMInput,
+): void {
+  db.execute(
+    `INSERT INTO wk_exercise_1rm_history (
+      id, exercise_id, max_weight, max_reps, estimated_1rm, unit, achieved_at, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.exerciseId,
+      input.maxWeight,
+      input.maxReps,
+      input.estimated1rm,
+      input.unit ?? 'lbs',
+      input.achievedAt,
+      nowIso(),
+    ],
+  );
+}
+
+export function get1RMHistory(
+  db: DatabaseAdapter,
+  exerciseId: string,
+  options?: { limit?: number },
+): Exercise1RMRow[] {
+  let sql = 'SELECT * FROM wk_exercise_1rm_history WHERE exercise_id = ? ORDER BY achieved_at DESC';
+  const params: unknown[] = [exerciseId];
+  if (options?.limit && options.limit > 0) {
+    sql += ' LIMIT ?';
+    params.push(options.limit);
+  }
+  return db.query<Record<string, unknown>>(sql, params).map(rowTo1RM);
+}
+
+export function getLatest1RM(
+  db: DatabaseAdapter,
+  exerciseId: string,
+): Exercise1RMRow | null {
+  const row = db
+    .query<Record<string, unknown>>(
+      'SELECT * FROM wk_exercise_1rm_history WHERE exercise_id = ? ORDER BY achieved_at DESC LIMIT 1',
+      [exerciseId],
+    )[0];
+  return row ? rowTo1RM(row) : null;
+}
+
+// ── Body Measurements ──
+
+function rowToMeasurement(row: Record<string, unknown>): BodyMeasurementRow {
+  return {
+    id: row.id as string,
+    type: row.type as string,
+    value: row.value as number,
+    unit: row.unit as string,
+    measuredAt: row.measured_at as string,
+    createdAt: row.created_at as string,
+  };
+}
+
+export function createBodyMeasurement(
+  db: DatabaseAdapter,
+  id: string,
+  input: BodyMeasurementInput,
+): void {
+  db.execute(
+    `INSERT INTO wk_body_measurements (
+      id, type, value, unit, measured_at, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?)`,
+    [id, input.type, input.value, input.unit, input.measuredAt, nowIso()],
+  );
+}
+
+export function getBodyMeasurements(
+  db: DatabaseAdapter,
+  options?: { type?: string; limit?: number },
+): BodyMeasurementRow[] {
+  const where: string[] = [];
+  const params: unknown[] = [];
+
+  if (options?.type) {
+    where.push('type = ?');
+    params.push(options.type);
+  }
+
+  let sql = 'SELECT * FROM wk_body_measurements';
+  if (where.length > 0) {
+    sql += ` WHERE ${where.join(' AND ')}`;
+  }
+  sql += ' ORDER BY measured_at DESC';
+
+  if (options?.limit && options.limit > 0) {
+    sql += ' LIMIT ?';
+    params.push(options.limit);
+  }
+
+  return db.query<Record<string, unknown>>(sql, params).map(rowToMeasurement);
+}
+
+export function deleteBodyMeasurement(db: DatabaseAdapter, id: string): void {
+  db.execute('DELETE FROM wk_body_measurements WHERE id = ?', [id]);
+}
+
+// ── Workout Plans ──
+
+function rowToPlan(row: Record<string, unknown>): WorkoutPlan {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    description: (row.description as string) ?? '',
+    creatorId: (row.creator_id as string | null) ?? null,
+    weeks: parseJson<WorkoutPlanWeek[]>(row.weeks_json, []),
+    isPremium: !!(row.is_premium as number),
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+export function createWorkoutPlan(
+  db: DatabaseAdapter,
+  id: string,
+  input: WorkoutPlanInput,
+): void {
+  const now = nowIso();
+  db.execute(
+    `INSERT INTO wk_workout_plans (
+      id, title, description, creator_id, weeks_json, is_premium, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.title,
+      input.description ?? '',
+      input.creatorId ?? null,
+      input.weeksJson,
+      input.isPremium ? 1 : 0,
+      now,
+      now,
+    ],
+  );
+}
+
+export function getWorkoutPlans(
+  db: DatabaseAdapter,
+  options?: { limit?: number },
+): WorkoutPlan[] {
+  let sql = 'SELECT * FROM wk_workout_plans ORDER BY created_at DESC';
+  const params: unknown[] = [];
+  if (options?.limit && options.limit > 0) {
+    sql += ' LIMIT ?';
+    params.push(options.limit);
+  }
+  return db.query<Record<string, unknown>>(sql, params).map(rowToPlan);
+}
+
+export function getWorkoutPlanById(
+  db: DatabaseAdapter,
+  id: string,
+): WorkoutPlan | null {
+  const row = db
+    .query<Record<string, unknown>>(
+      'SELECT * FROM wk_workout_plans WHERE id = ? LIMIT 1',
+      [id],
+    )[0];
+  return row ? rowToPlan(row) : null;
+}
+
+export function updateWorkoutPlan(
+  db: DatabaseAdapter,
+  id: string,
+  input: WorkoutPlanInput,
+): void {
+  db.execute(
+    `UPDATE wk_workout_plans
+     SET title = ?, description = ?, creator_id = ?, weeks_json = ?,
+         is_premium = ?, updated_at = ?
+     WHERE id = ?`,
+    [
+      input.title,
+      input.description ?? '',
+      input.creatorId ?? null,
+      input.weeksJson,
+      input.isPremium ? 1 : 0,
+      nowIso(),
+      id,
+    ],
+  );
+}
+
+export function deleteWorkoutPlan(db: DatabaseAdapter, id: string): void {
+  db.execute('DELETE FROM wk_workout_plans WHERE id = ?', [id]);
+}
+
+// ── Plan Subscriptions ──
+
+function rowToSubscription(row: Record<string, unknown>): PlanSubscriptionRow {
+  return {
+    id: row.id as string,
+    planId: row.plan_id as string,
+    startedAt: row.started_at as string,
+    isActive: !!(row.is_active as number),
+    createdAt: row.created_at as string,
+  };
+}
+
+export function subscribeToPlan(
+  db: DatabaseAdapter,
+  id: string,
+  planId: string,
+): void {
+  db.execute(
+    `INSERT INTO wk_plan_subscriptions (
+      id, plan_id, started_at, is_active, created_at
+    ) VALUES (?, ?, ?, 1, ?)`,
+    [id, planId, nowIso(), nowIso()],
+  );
+}
+
+export function unsubscribeFromPlan(db: DatabaseAdapter, planId: string): void {
+  db.execute(
+    'UPDATE wk_plan_subscriptions SET is_active = 0 WHERE plan_id = ? AND is_active = 1',
+    [planId],
+  );
+}
+
+export function getActivePlanSubscription(
+  db: DatabaseAdapter,
+): PlanSubscriptionRow | null {
+  const row = db
+    .query<Record<string, unknown>>(
+      'SELECT * FROM wk_plan_subscriptions WHERE is_active = 1 ORDER BY created_at DESC LIMIT 1',
+    )[0];
+  return row ? rowToSubscription(row) : null;
 }
 
 // Legacy APIs retained below to avoid breaking existing callers while the

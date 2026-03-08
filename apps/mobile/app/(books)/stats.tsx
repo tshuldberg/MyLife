@@ -210,7 +210,7 @@ const styles = StyleSheet.create({
   },
   ratingBarFill: {
     height: 8,
-    backgroundColor: colors.star,
+    backgroundColor: '#E8B84B',
     borderRadius: 4,
   },
   reviewCTA: {

@@ -9,13 +9,15 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   getRecipeById,
-  getIngredients,
+  getStructuredIngredients,
   getTags,
   updateRecipe,
   deleteRecipe,
+  scaleIngredients,
+  formatQuantity,
   type Recipe,
-  type Ingredient,
   type RecipeTag,
+  type ScaledIngredient,
   type Step,
 } from '@mylife/recipes';
 import type { DatabaseAdapter } from '@mylife/db';
@@ -42,25 +44,25 @@ function formatTime(mins: number | null): string | null {
   return m > 0 ? `${h}h ${m}min` : `${h}h`;
 }
 
-function stars(rating: number): string {
-  const filled = Math.max(0, Math.min(5, rating));
-  return '\u2605'.repeat(filled) + '\u2606'.repeat(5 - filled);
-}
-
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const db = useDatabase();
 
   const [recipe, setRecipe] = useState<Recipe | null>(null);
-  const [ingredients, setIngredients] = useState<Ingredient[]>([]);
+  const [ingredients, setIngredients] = useState<ScaledIngredient[]>([]);
   const [steps, setSteps] = useState<Step[]>([]);
   const [tags, setTags] = useState<RecipeTag[]>([]);
+  const [targetServings, setTargetServings] = useState(1);
 
   const load = useCallback(() => {
     if (!id) return;
-    setRecipe(getRecipeById(db, id));
-    setIngredients(getIngredients(db, id));
+    const nextRecipe = getRecipeById(db, id);
+    const baseIngredients = getStructuredIngredients(db, id);
+    setRecipe(nextRecipe);
+    const servings = nextRecipe?.servings ?? 1;
+    setTargetServings((current) => (current > 0 ? current : servings));
+    setIngredients(scaleIngredients(baseIngredients, servings, servings));
     setSteps(getSteps(db, id));
     setTags(getTags(db, id));
   }, [db, id]);
@@ -95,6 +97,16 @@ export default function RecipeDetailScreen() {
     if (!recipe) return;
     updateRecipe(db, recipe.id, { rating: newRating });
     load();
+  };
+
+  const adjustServings = (direction: -1 | 1) => {
+    if (!recipe?.servings || !id) {
+      return;
+    }
+    const nextServings = Math.max(1, targetServings + direction);
+    setTargetServings(nextServings);
+    const baseIngredients = getStructuredIngredients(db, id);
+    setIngredients(scaleIngredients(baseIngredients, recipe.servings, nextServings));
   };
 
   if (!recipe) {
@@ -164,6 +176,21 @@ export default function RecipeDetailScreen() {
         </View>
       ) : null}
 
+      {recipe.servings ? (
+        <View style={styles.servingsRow}>
+          <Text variant="caption" color={colors.textSecondary}>Servings</Text>
+          <View style={styles.servingsControls}>
+            <Pressable style={styles.servingsButton} onPress={() => adjustServings(-1)}>
+              <Text variant="label">-</Text>
+            </Pressable>
+            <Text variant="body">{targetServings}</Text>
+            <Pressable style={styles.servingsButton} onPress={() => adjustServings(1)}>
+              <Text variant="label">+</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
       {/* Rating */}
       <View style={styles.ratingRow}>
         {[1, 2, 3, 4, 5].map((star) => (
@@ -201,14 +228,15 @@ export default function RecipeDetailScreen() {
         <Card>
           <Text variant="subheading">Ingredients</Text>
           <Text variant="caption" color={colors.textSecondary}>
-            {recipe.servings ? `${recipe.servings} servings` : ''}
+            {recipe.servings ? `${recipe.servings} base · ${targetServings} shown` : ''}
           </Text>
           {ingredients.map((ing) => (
             <View key={ing.id} style={styles.ingredientRow}>
               <Text variant="body">
-                {ing.quantity ? `${ing.quantity} ` : ''}
+                {formatQuantity(ing.scaled_quantity) ? `${formatQuantity(ing.scaled_quantity)} ` : ''}
                 {ing.unit ? `${ing.unit} ` : ''}
-                {ing.name}
+                {ing.item ?? ing.name}
+                {ing.prep_note ? `, ${ing.prep_note}` : ''}
               </Text>
             </View>
           ))}
@@ -333,6 +361,24 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     paddingHorizontal: spacing.sm,
     alignItems: 'center',
+  },
+  servingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  servingsControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  servingsButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceElevated,
   },
   ratingRow: {
     flexDirection: 'row',

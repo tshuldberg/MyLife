@@ -56,8 +56,8 @@ describe('@mylife/budget', () => {
       expect(BUDGET_MODULE.tier).toBe('premium');
       expect(BUDGET_MODULE.storageType).toBe('sqlite');
       expect(BUDGET_MODULE.tablePrefix).toBe('bg_');
-      expect(BUDGET_MODULE.schemaVersion).toBe(3);
-      expect(BUDGET_MODULE.migrations).toHaveLength(3);
+      expect(BUDGET_MODULE.schemaVersion).toBe(4);
+      expect(BUDGET_MODULE.migrations).toHaveLength(4);
     });
 
     it('has 5 navigation tabs', () => {

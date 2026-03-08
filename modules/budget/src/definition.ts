@@ -9,6 +9,9 @@ import {
   SEED_SETTINGS,
   SUBSCRIPTION_TABLES,
   SUBSCRIPTION_INDEXES,
+  V4_ALL_TABLES,
+  V4_INDEXES,
+  V4_ALTER_STATEMENTS,
 } from './db/schema';
 
 const BUDGET_MIGRATION_V1: Migration = {
@@ -59,6 +62,44 @@ const BUDGET_MIGRATION_V3: Migration = {
   ],
 };
 
+const BUDGET_MIGRATION_V4: Migration = {
+  version: 4,
+  description:
+    'YNAB-style budget engine: category groups, allocations, splits, recurring templates, payee cache, CSV profiles, price history, notifications, transaction rules, net worth, debt payoff, rollovers, alerts, multi-currency, shared envelopes',
+  up: [
+    // Alter existing tables first (add columns before creating tables that reference them)
+    ...V4_ALTER_STATEMENTS,
+    // Create new tables
+    ...V4_ALL_TABLES,
+    // Create indexes
+    ...V4_INDEXES,
+    // Seed base currency
+    `INSERT OR IGNORE INTO bg_currencies (code, name, symbol, decimal_places, is_base) VALUES ('USD', 'US Dollar', '$', 2, 1)`,
+  ],
+  down: [
+    'DROP TABLE IF EXISTS bg_shared_envelopes',
+    'DROP TABLE IF EXISTS bg_exchange_rates',
+    'DROP TABLE IF EXISTS bg_currencies',
+    'DROP TABLE IF EXISTS bg_alert_history',
+    'DROP TABLE IF EXISTS bg_budget_alerts',
+    'DROP TABLE IF EXISTS bg_budget_rollovers',
+    'DROP TABLE IF EXISTS bg_debt_payoff_debts',
+    'DROP TABLE IF EXISTS bg_debt_payoff_plans',
+    'DROP TABLE IF EXISTS bg_net_worth_snapshots',
+    'DROP TABLE IF EXISTS bg_transaction_rules',
+    'DROP TABLE IF EXISTS bg_notification_log',
+    'DROP TABLE IF EXISTS bg_price_history',
+    'DROP TABLE IF EXISTS bg_csv_profiles',
+    'DROP TABLE IF EXISTS bg_payee_cache',
+    'DROP TABLE IF EXISTS bg_recurring_templates',
+    'DROP TABLE IF EXISTS bg_transaction_splits',
+    'DROP TABLE IF EXISTS bg_budget_allocations',
+    'DROP TABLE IF EXISTS bg_category_groups',
+    // Note: ALTER TABLE DROP COLUMN not supported in all SQLite versions.
+    // The added columns on existing tables will remain but be unused after rollback.
+  ],
+};
+
 export const BUDGET_MODULE: ModuleDefinition = {
   id: 'budget',
   name: 'MyBudget',
@@ -67,8 +108,8 @@ export const BUDGET_MODULE: ModuleDefinition = {
   accentColor: '#22C55E',
   tier: 'premium',
   storageType: 'sqlite',
-  migrations: [BUDGET_MIGRATION_V1, BUDGET_MIGRATION_V2, BUDGET_MIGRATION_V3],
-  schemaVersion: 3,
+  migrations: [BUDGET_MIGRATION_V1, BUDGET_MIGRATION_V2, BUDGET_MIGRATION_V3, BUDGET_MIGRATION_V4],
+  schemaVersion: 4,
   tablePrefix: 'bg_',
   navigation: {
     tabs: [
