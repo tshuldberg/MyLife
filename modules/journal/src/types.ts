@@ -1,0 +1,78 @@
+import { z } from 'zod';
+
+export const JournalMoodSchema = z.enum(['low', 'okay', 'good', 'great', 'grateful']);
+export type JournalMood = z.infer<typeof JournalMoodSchema>;
+
+export const JournalEntrySchema = z.object({
+  id: z.string(),
+  entryDate: z.string(),
+  title: z.string().nullable(),
+  body: z.string(),
+  tags: z.array(z.string()),
+  mood: JournalMoodSchema.nullable(),
+  imageUris: z.array(z.string()),
+  wordCount: z.number().int(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type JournalEntry = z.infer<typeof JournalEntrySchema>;
+
+export const JournalTagSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  color: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type JournalTag = z.infer<typeof JournalTagSchema>;
+
+export const JournalSettingSchema = z.object({
+  key: z.string(),
+  value: z.string(),
+});
+export type JournalSetting = z.infer<typeof JournalSettingSchema>;
+
+export const JournalSearchResultSchema = JournalEntrySchema.extend({
+  matchedTagNames: z.array(z.string()),
+});
+export type JournalSearchResult = z.infer<typeof JournalSearchResultSchema>;
+
+export const JournalDashboardSchema = z.object({
+  entryCount: z.number().int(),
+  currentStreak: z.number().int(),
+  longestStreak: z.number().int(),
+  totalWords: z.number().int(),
+  monthlyWords: z.number().int(),
+  latestMood: JournalMoodSchema.nullable(),
+});
+export type JournalDashboard = z.infer<typeof JournalDashboardSchema>;
+
+export const CreateJournalEntryInputSchema = z.object({
+  entryDate: z.string().optional(),
+  title: z.string().nullable().default(null),
+  body: z.string().min(1),
+  tags: z.array(z.string()).default([]),
+  mood: JournalMoodSchema.nullable().default(null),
+  imageUris: z.array(z.string()).default([]),
+});
+export type CreateJournalEntryInput = z.input<typeof CreateJournalEntryInputSchema>;
+
+export const UpdateJournalEntryInputSchema = z.object({
+  entryDate: z.string().optional(),
+  title: z.string().nullable().optional(),
+  body: z.string().min(1).optional(),
+  tags: z.array(z.string()).optional(),
+  mood: JournalMoodSchema.nullable().optional(),
+  imageUris: z.array(z.string()).optional(),
+});
+export type UpdateJournalEntryInput = z.input<typeof UpdateJournalEntryInputSchema>;
+
+export const JournalEntryFilterSchema = z.object({
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  tag: z.string().optional(),
+  mood: JournalMoodSchema.optional(),
+  search: z.string().optional(),
+  limit: z.number().int().min(1).max(200).default(50),
+  offset: z.number().int().min(0).default(0),
+});
+export type JournalEntryFilter = z.input<typeof JournalEntryFilterSchema>;
