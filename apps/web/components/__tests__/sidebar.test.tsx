@@ -132,7 +132,7 @@ describe('Sidebar', () => {
 
     render(<Sidebar />);
 
-    expect(screen.getByText('\uD83D\uDCDA')).toBeInTheDocument();
     expect(screen.getByText(/MyBooks/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /MyBooks/i })).toHaveAttribute('href', '/books');
   });
 });

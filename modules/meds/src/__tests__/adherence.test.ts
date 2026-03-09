@@ -185,9 +185,12 @@ describe('adherence engine', () => {
     it('returns combined stats', () => {
       createMedicationExtended(adapter, 'm1', { name: 'Test', frequency: 'daily' });
 
-      const today = new Date();
+      // Use dates well in the past (but within 30-day window) to avoid
+      // timezone flakiness when today's dose at T08:00Z is after current UTC time.
+      const base = new Date();
+      base.setDate(base.getDate() - 2); // start from 2 days ago
       for (let i = 0; i < 5; i++) {
-        const d = new Date(today);
+        const d = new Date(base);
         d.setDate(d.getDate() - i);
         const dateStr = d.toISOString().slice(0, 10);
         const status = i < 4 ? 'taken' : 'skipped';

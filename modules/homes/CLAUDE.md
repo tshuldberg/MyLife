@@ -40,8 +40,9 @@ None. CRUD module with market metrics aggregation.
 
 ## Parity Status
 
-- **Standalone repo:** MyHomes (exists as standalone submodule)
-- **Hub integration:** wired
+- **Standalone repo:** MyHomes (active standalone workspace)
+- **Hub integration:** wired as a lightweight hub adapter
+- **Parity note:** This module currently covers a narrow listings and tours slice, not full HumanHomes platform parity.
 
 ## Key Files
 

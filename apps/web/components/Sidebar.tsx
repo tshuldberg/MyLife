@@ -4,20 +4,37 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useModuleRegistry } from '@mylife/module-registry';
 import { isWebSupportedModuleId } from '@/lib/modules';
+import { MODULE_ICON_MAP } from '@/lib/module-icons';
+import { Compass, Settings, Users } from 'lucide-react';
 
 const MODULE_ROUTES: Record<string, string> = {
   books: '/books',
   budget: '/budget',
+  car: '/car',
+  closet: '/closet',
+  cycle: '/cycle',
   fast: '/fast',
+  flash: '/flash',
+  garden: '/garden',
+  habits: '/habits',
+  health: '/health',
+  homes: '/homes',
+  journal: '/journal',
+  mail: '/mail',
+  meds: '/meds',
+  mood: '/mood',
+  notes: '/notes',
+  nutrition: '/nutrition',
+  pets: '/pets',
   recipes: '/recipes',
   rsvp: '/rsvp',
+  stars: '/stars',
+  subs: '/subs',
   surf: '/surf',
-  workouts: '/workouts',
-  homes: '/homes',
-  car: '/car',
-  habits: '/habits',
-  meds: '/meds',
+  trails: '/trails',
+  voice: '/voice',
   words: '/words',
+  workouts: '/workouts',
 };
 
 export function Sidebar() {
@@ -40,6 +57,7 @@ export function Sidebar() {
         {enabled.map((mod) => {
           const route = MODULE_ROUTES[mod.id] ?? `/${mod.id}`;
           const isActive = pathname.startsWith(route);
+          const IconComponent = MODULE_ICON_MAP[mod.id];
           return (
             <Link
               key={mod.id}
@@ -49,18 +67,18 @@ export function Sidebar() {
                 ...(isActive ? styles.moduleLinkActive : {}),
               }}
             >
-              <span
-                style={{
-                  ...styles.moduleIcon,
-                  backgroundColor: `${mod.accentColor}1A`,
-                }}
-              >
-                {mod.icon}
+              <span style={styles.moduleIcon}>
+                {IconComponent && (
+                  <IconComponent
+                    size={16}
+                    style={{ color: `var(--accent-${mod.id})` }}
+                  />
+                )}
               </span>
               <span
                 style={{
                   ...styles.moduleName,
-                  color: isActive ? mod.accentColor : 'var(--text-secondary)',
+                  color: isActive ? `var(--accent-${mod.id})` : 'var(--text-secondary)',
                 }}
               >
                 {mod.name}
@@ -85,7 +103,10 @@ export function Sidebar() {
           ...(pathname === '/discover' ? { color: 'var(--text)' } : {}),
         }}
       >
-        Discover
+        <span style={styles.bottomLinkContent}>
+          <Compass size={16} />
+          Discover
+        </span>
       </Link>
       <Link
         href="/settings"
@@ -94,7 +115,24 @@ export function Sidebar() {
           ...(pathname === '/settings' ? { color: 'var(--text)' } : {}),
         }}
       >
-        Settings
+        <span style={styles.bottomLinkContent}>
+          <Settings size={16} />
+          Settings
+        </span>
+      </Link>
+      <Link
+        href="/social"
+        style={{
+          ...styles.bottomLink,
+          ...(pathname.startsWith('/social')
+            ? { color: 'var(--accent-social)' }
+            : {}),
+        }}
+      >
+        <span style={styles.bottomLinkContent}>
+          <Users size={16} />
+          Social
+        </span>
       </Link>
     </nav>
   );
@@ -127,13 +165,13 @@ const styles: Record<string, React.CSSProperties> = {
     width: '36px',
     height: '36px',
     borderRadius: '10px',
-    background: 'linear-gradient(135deg, #C9894D, #F97316)',
+    background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     fontWeight: 700,
     fontSize: '18px',
-    color: '#0E0C09',
+    color: '#0A0A0F',
   },
   logoText: {
     fontSize: '20px',
@@ -161,7 +199,7 @@ const styles: Record<string, React.CSSProperties> = {
     transition: 'background-color 0.15s',
   },
   moduleLinkActive: {
-    backgroundColor: 'var(--surface-elevated)',
+    backgroundColor: 'var(--glass-strong)',
   },
   moduleIcon: {
     width: '32px',
@@ -172,6 +210,7 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: 'center',
     fontSize: '16px',
     flexShrink: 0,
+    backgroundColor: 'var(--glass)',
   },
   moduleName: {
     fontSize: '14px',
@@ -191,5 +230,10 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-tertiary)',
     textDecoration: 'none',
     transition: 'color 0.15s',
+  },
+  bottomLinkContent: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
   },
 };

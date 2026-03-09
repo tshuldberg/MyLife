@@ -19,3 +19,5 @@ export {
 } from './hooks';
 
 export { MODULE_IDS, FREE_MODULES, MODULE_METADATA } from './constants';
+
+export { MODULE_ICONS, DOCK_ITEMS } from './hub-icons';

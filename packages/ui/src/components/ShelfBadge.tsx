@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, StyleSheet, type ViewStyle } from 'react-native';
 import { Text } from './Text';
-import { colors } from '../tokens/colors';
 import { spacing, borderRadius } from '../tokens/spacing';
 
 interface Props {
@@ -14,7 +13,7 @@ interface Props {
 
 export function ShelfBadge({
   name,
-  color = colors.shelf,
+  color = '#2C6B50',
   icon,
   compact = false,
   style,

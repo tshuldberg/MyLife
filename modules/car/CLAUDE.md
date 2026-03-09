@@ -43,8 +43,9 @@ None. Straightforward CRUD module.
 
 ## Parity Status
 
-- **Standalone repo:** MyCar (design-only)
+- **Standalone repo:** MyCar (active standalone workspace)
 - **Hub integration:** wired
+- **Parity note:** Standalone remains canonical until archived. Treat hub parity as active and pending verification.
 
 ## Key Files
 

@@ -1,10 +1,12 @@
 import React, { useCallback, useMemo } from 'react';
 import { Alert, SectionList, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import { icons } from 'lucide-react-native';
 import {
   useModuleRegistry,
   useEnabledModules,
   MODULE_METADATA,
+  MODULE_ICONS,
   FREE_MODULES,
   type ModuleDefinition,
   type ModuleId,
@@ -15,32 +17,50 @@ import { useDatabase } from '../../components/DatabaseProvider';
 import { getStoredEntitlement } from '../../lib/entitlements';
 import { isEntitlementExpired } from '@mylife/entitlements';
 
-/** Category groupings for module discovery. */
+/** Convert "kebab-case" Lucide name to PascalCase key used by the icons map. */
+function toPascalCase(name: string): string {
+  return name
+    .split('-')
+    .map((seg) => seg.charAt(0).toUpperCase() + seg.slice(1))
+    .join('');
+}
+
+/** Resolve a Lucide icon component by its kebab-case name. */
+function getIcon(name: string) {
+  const key = toPascalCase(name);
+  return (icons as Record<string, React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>>)[key] ?? null;
+}
+
+/** Category groupings for module discovery -- all 27 modules. */
 const MODULE_CATEGORIES: { title: string; moduleIds: ModuleId[] }[] = [
   {
     title: 'Lifestyle',
-    moduleIds: ['books', 'recipes', 'habits', 'words'],
-  },
-  {
-    title: 'Social',
-    moduleIds: ['rsvp'],
-  },
-  {
-    title: 'Finance',
-    moduleIds: ['budget'],
+    moduleIds: ['books', 'recipes', 'words', 'journal', 'notes', 'flash'],
   },
   {
     title: 'Health & Fitness',
-    moduleIds: ['health', 'workouts'],
+    moduleIds: ['health', 'workouts', 'fast', 'meds', 'nutrition', 'mood', 'cycle'],
+  },
+  {
+    title: 'Finance',
+    moduleIds: ['budget', 'subs'],
+  },
+  {
+    title: 'Home & Auto',
+    moduleIds: ['homes', 'car', 'garden', 'closet'],
+  },
+  {
+    title: 'Social & Events',
+    moduleIds: ['rsvp', 'mail', 'voice'],
   },
   {
     title: 'Exploration',
-    moduleIds: ['surf', 'homes', 'car'],
+    moduleIds: ['surf', 'trails', 'stars', 'pets'],
   },
 ];
 
 /**
- * Discover screen — browse all suite modules grouped by category.
+ * Discover screen -- browse all suite modules grouped by category.
  * Shows a lock icon overlay on premium modules.
  * Tapping a module toggles it on/off (persisted to SQLite).
  */
@@ -90,6 +110,9 @@ export default function DiscoverScreen() {
       const isEnabled = registry.isEnabled(item.id);
       const isFree = (FREE_MODULES as readonly string[]).includes(item.id);
       const isPremiumLocked = !isFree && !hasEntitlement;
+      const iconName = MODULE_ICONS[item.id] ?? 'circle';
+      const IconComponent = getIcon(iconName);
+      const LockIcon = getIcon('lock');
 
       return (
         <TouchableOpacity
@@ -102,10 +125,16 @@ export default function DiscoverScreen() {
           <Card style={[styles.moduleCard, { borderLeftColor: item.accentColor }]}>
             <View style={styles.moduleContent}>
               <View style={styles.iconWrapper}>
-                <Text style={styles.moduleIcon}>{item.icon}</Text>
-                {isPremiumLocked && (
+                <View style={[styles.iconCircle, { backgroundColor: item.accentColor + '20' }]}>
+                  {IconComponent ? (
+                    <IconComponent size={22} color={item.accentColor} strokeWidth={1.8} />
+                  ) : (
+                    <Text style={styles.moduleIcon}>{item.icon}</Text>
+                  )}
+                </View>
+                {isPremiumLocked && LockIcon && (
                   <View style={styles.lockBadge}>
-                    <Text style={styles.lockIcon}>{'\u{1F512}'}</Text>
+                    <LockIcon size={10} color={colors.textTertiary} strokeWidth={2} />
                   </View>
                 )}
               </View>
@@ -189,8 +218,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: spacing.md,
   },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   moduleIcon: {
-    fontSize: 28,
+    fontSize: 20,
   },
   lockBadge: {
     position: 'absolute',
@@ -203,9 +239,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  lockIcon: {
-    fontSize: 10,
-  },
   moduleInfo: {
     flex: 1,
     gap: 2,
@@ -217,12 +250,12 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
   enabledBadge: {
-    backgroundColor: 'rgba(91, 165, 91, 0.15)',
+    backgroundColor: 'rgba(48, 209, 88, 0.15)',
   },
   disabledBadge: {
-    backgroundColor: 'rgba(107, 97, 85, 0.15)',
+    backgroundColor: 'rgba(240, 240, 245, 0.06)',
   },
   premiumBadge: {
-    backgroundColor: 'rgba(201, 137, 77, 0.15)',
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
   },
 });

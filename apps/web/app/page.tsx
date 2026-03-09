@@ -59,15 +59,17 @@ const styles: Record<string, React.CSSProperties> = {
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
     gap: '16px',
   },
   empty: {
     textAlign: 'center' as const,
     padding: '64px 24px',
-    backgroundColor: 'var(--surface)',
+    backgroundColor: 'var(--glass)',
+    backdropFilter: 'blur(40px)',
+    WebkitBackdropFilter: 'blur(40px)',
     borderRadius: 'var(--radius-lg)',
-    border: '1px solid var(--border)',
+    border: '1px solid var(--glass-border)',
   },
   emptyTitle: {
     fontSize: '18px',
@@ -81,7 +83,7 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '8px',
   },
   link: {
-    color: 'var(--accent-books)',
+    color: 'var(--accent-surf)',
     textDecoration: 'underline',
   },
 };

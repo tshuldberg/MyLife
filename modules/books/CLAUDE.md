@@ -51,14 +51,15 @@ Private book tracking module for the MyLife hub. Track your reading life with li
 
 ## Test Coverage
 
-- **Test files:** 8
-- **Covered:** Open Library API (`api/__tests__/open-library.test.ts`), transform (`api/__tests__/transform.test.ts`), sharing (`db/__tests__/sharing.test.ts`), reader DB (`db/__tests__/reader.test.ts`), import (`import/__tests__/import.test.ts`), export (`export/__tests__/export.test.ts`), reader upload parsing (`reader/__tests__/parse-upload.test.ts`), stats (`stats/__tests__/stats.test.ts`)
-- **Gaps:** progress-engine, discovery-engine, challenge-engine, journal-engine, encryption, core book CRUD
+- **Test files:** 18
+- **Tests:** 264
+- **Covered:** Core book CRUD, shelves + book-shelves, reading sessions lifecycle, series + series-books, mood tags + content warnings, discovery engine, journal CRUD + engine + encryption, challenge engine, progress engine, Open Library API + transform, import (Goodreads + StoryGraph), export (CSV + JSON + Markdown), reader DB + upload parsing, sharing, stats, Zod schema validation
+- **Gaps:** Sharing visibility logic edge cases (listShareEventsVisibleToUser friends JOIN)
 
 ## Parity Status
 
-- **Standalone repo:** MyBooks (exists as standalone submodule)
-- **Hub integration:** wired
+- **Standalone repo:** MyBooks (archived -- consolidated into hub)
+- **Hub integration:** Full parity achieved. All standalone features migrated.
 
 ## Key Files
 

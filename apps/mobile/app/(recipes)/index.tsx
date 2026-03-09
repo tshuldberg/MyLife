@@ -21,8 +21,6 @@ function todayWeekStart(): string {
   return d.toISOString().slice(0, 10);
 }
 
-const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
 export default function RecipesHomeScreen() {
   const db = useDatabase();
   const router = useRouter();
@@ -61,6 +59,18 @@ export default function RecipesHomeScreen() {
           <Text style={styles.metricValue}>{favorites}</Text>
         </Card>
       </View>
+
+      <Card>
+        <View style={styles.rowBetween}>
+          <Text variant="subheading">Kitchen Tools</Text>
+          <Pressable onPress={() => router.push('/(recipes)/pantry')}>
+            <Text variant="caption" color={ACCENT}>Open Pantry</Text>
+          </Pressable>
+        </View>
+        <Text variant="caption" color={colors.textSecondary}>
+          Track staples, see what is expiring, and subtract pantry stock from shopping lists.
+        </Text>
+      </Card>
 
       {todayMeals.length > 0 ? (
         <Card>

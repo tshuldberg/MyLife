@@ -7,8 +7,8 @@ interface ModuleTheme {
 }
 
 const ModuleThemeContext = createContext<ModuleTheme>({
-  module: 'books',
-  accent: colors.modules.books,
+  module: 'health',
+  accent: colors.modules.health,
 });
 
 export function useModuleTheme(): ModuleTheme {

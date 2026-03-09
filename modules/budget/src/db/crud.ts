@@ -575,6 +575,7 @@ export function createSubscription(
     icon: input.icon ?? null,
     color: input.color ?? null,
     notify_days: input.notify_days ?? 1,
+    envelope_id: input.envelope_id ?? null,
     catalog_id: input.catalog_id ?? null,
     sort_order: input.sort_order ?? 0,
     created_at: now,
@@ -585,14 +586,14 @@ export function createSubscription(
     `INSERT INTO bg_subscriptions
       (id, name, price, currency, billing_cycle, custom_days, status,
        start_date, next_renewal, trial_end_date, cancelled_date,
-       notes, url, icon, color, notify_days, catalog_id, sort_order,
+       notes, url, icon, color, notify_days, envelope_id, catalog_id, sort_order,
        created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       sub.id, sub.name, sub.price, sub.currency, sub.billing_cycle,
       sub.custom_days, sub.status, sub.start_date, sub.next_renewal,
       sub.trial_end_date, sub.cancelled_date, sub.notes, sub.url,
-      sub.icon, sub.color, sub.notify_days, sub.catalog_id,
+      sub.icon, sub.color, sub.notify_days, sub.envelope_id, sub.catalog_id,
       sub.sort_order, sub.created_at, sub.updated_at,
     ],
   );

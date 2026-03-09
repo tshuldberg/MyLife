@@ -10,17 +10,30 @@ import {
 } from '@mylife/db';
 import { BOOKS_MODULE } from '@mylife/books';
 import { FAST_MODULE } from '@mylife/fast';
+import { FLASH_MODULE } from '@mylife/flash';
 import { BUDGET_MODULE } from '@mylife/budget';
 import { RECIPES_MODULE } from '@mylife/recipes';
 import { CAR_MODULE } from '@mylife/car';
+import { CLOSET_MODULE } from '@mylife/closet';
+import { CYCLE_MODULE } from '@mylife/cycle';
 import { HABITS_MODULE } from '@mylife/habits';
 import { MEDS_MODULE } from '@mylife/meds';
 import { SURF_MODULE } from '@mylife/surf';
 import { WORKOUTS_MODULE } from '@mylife/workouts';
 import { HOMES_MODULE } from '@mylife/homes';
 import { WORDS_MODULE } from '@mylife/words';
+import { JOURNAL_MODULE } from '@mylife/journal';
+import { PETS_MODULE } from '@mylife/pets';
 import { RSVP_MODULE } from '@mylife/rsvp';
+import { STARS_MODULE } from '@mylife/stars';
 import { HEALTH_MODULE } from '@mylife/health';
+import { NUTRITION_MODULE } from '@mylife/nutrition';
+import { MOOD_MODULE } from '@mylife/mood';
+import { NOTES_MODULE } from '@mylife/notes';
+import { GARDEN_MODULE } from '@mylife/garden';
+import { TRAILS_MODULE } from '@mylife/trails';
+import { VOICE_MODULE } from '@mylife/voice';
+import { MAIL_MODULE } from '@mylife/mail';
 
 let adapter: DatabaseAdapter | null = null;
 
@@ -73,17 +86,30 @@ export function getAdapter(): DatabaseAdapter {
 const MODULE_DEFINITIONS_WITH_MIGRATIONS = {
   books: BOOKS_MODULE,
   fast: FAST_MODULE,
+  flash: FLASH_MODULE,
   budget: BUDGET_MODULE,
   recipes: RECIPES_MODULE,
   car: CAR_MODULE,
+  closet: CLOSET_MODULE,
+  cycle: CYCLE_MODULE,
   habits: HABITS_MODULE,
   meds: MEDS_MODULE,
   surf: SURF_MODULE,
   workouts: WORKOUTS_MODULE,
   homes: HOMES_MODULE,
   words: WORDS_MODULE,
+  journal: JOURNAL_MODULE,
+  pets: PETS_MODULE,
   rsvp: RSVP_MODULE,
+  stars: STARS_MODULE,
   health: HEALTH_MODULE,
+  nutrition: NUTRITION_MODULE,
+  mood: MOOD_MODULE,
+  notes: NOTES_MODULE,
+  garden: GARDEN_MODULE,
+  trails: TRAILS_MODULE,
+  voice: VOICE_MODULE,
+  mail: MAIL_MODULE,
 } as const;
 
 /**

@@ -17,6 +17,28 @@ export {
   deleteWorkoutFormRecording,
   getWorkoutDashboard,
   getWorkoutMetrics,
+  // Set weight tracking
+  recordSetWeight,
+  getSetWeightsForSession,
+  getSetWeightsForExercise,
+  // 1RM history
+  record1RM,
+  get1RMHistory,
+  getLatest1RM,
+  // Body measurements
+  createBodyMeasurement,
+  getBodyMeasurements,
+  deleteBodyMeasurement,
+  // Workout plans
+  createWorkoutPlan,
+  getWorkoutPlans,
+  getWorkoutPlanById,
+  updateWorkoutPlan,
+  deleteWorkoutPlan,
+  // Plan subscriptions
+  subscribeToPlan,
+  unsubscribeFromPlan,
+  getActivePlanSubscription,
   // legacy
   createWorkoutLog,
   getWorkoutLogs,

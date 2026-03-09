@@ -9,27 +9,18 @@ import {
 } from 'react-native';
 import {
   createGardenPlant,
+  getGardenPlants,
   getNextWateringDate,
   markPlantWatered,
-  getGardenLayouts,
   type GardenPlant,
   type PlantLocation,
 } from '@mylife/recipes';
-import type { DatabaseAdapter } from '@mylife/db';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
 import { uuid } from '../../lib/uuid';
 
 const ACCENT = colors.modules.recipes;
 const LOCATIONS: PlantLocation[] = ['indoor', 'outdoor', 'raised_bed', 'container'];
-
-function getPlants(db: DatabaseAdapter): GardenPlant[] {
-  return db.query<GardenPlant>(
-    `SELECT id, species, location, planting_date, watering_interval_days, last_watered_at, notes, created_at, updated_at
-     FROM gd_plants
-     ORDER BY created_at DESC`,
-  );
-}
 
 function wateringStatus(plant: GardenPlant): { label: string; overdue: boolean } {
   const next = getNextWateringDate(plant);
@@ -50,7 +41,7 @@ export default function GardenScreen() {
   const [interval, setInterval] = useState('3');
 
   const load = useCallback(() => {
-    setPlants(getPlants(db));
+    setPlants(getGardenPlants(db));
   }, [db]);
 
   useEffect(() => {

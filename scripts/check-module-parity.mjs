@@ -76,14 +76,16 @@ const moduleSpecs = [
   {
     id: 'books',
     standalone: 'MyBooks',
-    status: 'implemented',
+    status: 'archived',
+    archiveRoot: 'archive/MyBooks',
     standaloneWebRoots: ['MyBooks/apps/web/app'],
     standaloneMobileRoots: ['MyBooks/apps/mobile/app'],
   },
   {
     id: 'budget',
     standalone: 'MyBudget',
-    status: 'implemented',
+    status: 'archived',
+    archiveRoot: 'archive/MyBudget',
     standaloneWebRoots: ['MyBudget/apps/web/app'],
     standaloneMobileRoots: ['MyBudget/apps/mobile/app'],
   },
@@ -97,7 +99,8 @@ const moduleSpecs = [
   {
     id: 'recipes',
     standalone: 'MyRecipes',
-    status: 'implemented',
+    status: 'archived',
+    archiveRoot: 'archive/MyRecipes',
     standaloneWebRoots: ['MyRecipes/apps/web/app'],
     standaloneMobileRoots: ['MyRecipes/apps/mobile/app'],
   },
@@ -118,7 +121,8 @@ const moduleSpecs = [
   {
     id: 'workouts',
     standalone: 'MyWorkouts',
-    status: 'implemented',
+    status: 'archived',
+    archiveRoot: 'archive/MyWorkouts',
     standaloneWebRoots: ['MyWorkouts/apps/web/app'],
     standaloneMobileRoots: ['MyWorkouts/apps/mobile/app'],
   },
@@ -151,8 +155,68 @@ const moduleSpecs = [
     standaloneMobileRoots: ['MyHabits/apps/mobile/app'],
   },
   {
+    id: 'closet',
+    standalone: 'MyCloset',
+    status: 'design_only',
+  },
+  {
+    id: 'cycle',
+    standalone: 'MyCycle',
+    status: 'design_only',
+  },
+  {
+    id: 'flash',
+    standalone: 'MyFlash',
+    status: 'design_only',
+  },
+  {
+    id: 'mail',
+    standalone: 'MyMail',
+    status: 'design_only',
+  },
+  {
     id: 'meds',
     standalone: 'MyMeds',
+    status: 'design_only',
+  },
+  {
+    id: 'mood',
+    standalone: 'MyMood',
+    status: 'design_only',
+  },
+  {
+    id: 'notes',
+    standalone: 'MyNotes',
+    status: 'design_only',
+  },
+  {
+    id: 'journal',
+    standalone: 'MyJournal',
+    status: 'design_only',
+  },
+  {
+    id: 'garden',
+    standalone: 'MyGarden',
+    status: 'design_only',
+  },
+  {
+    id: 'pets',
+    standalone: 'MyPets',
+    status: 'design_only',
+  },
+  {
+    id: 'trails',
+    standalone: 'MyTrails',
+    status: 'design_only',
+  },
+  {
+    id: 'voice',
+    standalone: 'MyVoice',
+    status: 'design_only',
+  },
+  {
+    id: 'stars',
+    standalone: 'MyStars',
     status: 'design_only',
   },
 ];
@@ -194,18 +258,6 @@ for (const spec of moduleSpecs) {
     ok(`${moduleName}: hub mobile root present`);
   }
 
-  if (!gitmodules.includes(`path = ${standaloneRoot}`)) {
-    fail(`${moduleName}: standalone ${standaloneRoot} not found in .gitmodules`);
-  } else {
-    ok(`${moduleName}: standalone repo tracked in .gitmodules`);
-  }
-
-  if (!fileExists(`${standaloneRoot}/.git`)) {
-    fail(`${moduleName}: standalone repo missing local .git metadata`);
-  } else {
-    ok(`${moduleName}: standalone repo initialized`);
-  }
-
   if (!webPackage.dependencies?.[moduleName]) {
     fail(`${moduleName}: missing web dependency in apps/web/package.json`);
   } else {
@@ -216,6 +268,27 @@ for (const spec of moduleSpecs) {
     fail(`${moduleName}: missing mobile dependency in apps/mobile/package.json`);
   } else {
     ok(`${moduleName}: mobile dependency wired`);
+  }
+
+  if (spec.status === 'archived') {
+    if (spec.archiveRoot && fileExists(spec.archiveRoot)) {
+      ok(`${moduleName}: archive placeholder present (${spec.archiveRoot})`);
+    } else {
+      warn(`${moduleName}: expected archive placeholder missing (${spec.archiveRoot ?? 'archive path not set'})`);
+    }
+    continue;
+  }
+
+  if (!gitmodules.includes(`path = ${standaloneRoot}`)) {
+    fail(`${moduleName}: standalone ${standaloneRoot} not found in .gitmodules`);
+  } else {
+    ok(`${moduleName}: standalone repo tracked in .gitmodules`);
+  }
+
+  if (!fileExists(`${standaloneRoot}/.git`)) {
+    fail(`${moduleName}: standalone repo missing local .git metadata`);
+  } else {
+    ok(`${moduleName}: standalone repo initialized`);
   }
 
   if (spec.status === 'design_only') {

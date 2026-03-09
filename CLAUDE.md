@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-MyLife is a unified hub app consolidating 10+ privacy-first personal app modules into a single cross-platform application. Users enable/disable modules from a hub dashboard, funded by a suite subscription.
+MyLife is a unified hub app consolidating privacy-first personal app modules into a single cross-platform application. The registry currently defines 27 module IDs, with 14 full modules wired on mobile and 12 wired on web. Users enable or disable modules from a hub dashboard, funded by a suite subscription.
 
 **Platforms:** iOS (Expo), Android (Expo), Web (Next.js 15), macOS (SwiftUI — future)
 **Monetization:** Suite subscription via RevenueCat (mobile) + Stripe (web)
@@ -29,35 +29,30 @@ MyLife is a unified hub app consolidating 10+ privacy-first personal app modules
 
 ## App Isolation + Hub Inclusion (Critical)
 
-- Any app added to the `/Users/trey/Desktop/Apps` workspace must be either:
+- Any app added to `/Users/trey/Desktop/Apps` must be either:
   - a fully isolated standalone app directory (for example `MyWords/`), or
-  - a module integrated into the MyLife hub (`modules/<name>/` with routes wired in `apps/mobile` and/or `apps/web`).
-- If an app exists in both forms, keep the standalone app fully isolated in its own directory and keep hub integration inside MyLife module/app boundaries.
+  - a MyLife hub module wired inside `modules/<name>/` and `apps/mobile` and/or `apps/web`.
+- If an app exists in both forms, keep the standalone app fully isolated in its own directory and keep hub integration inside MyLife module and app boundaries.
 - Do not scatter standalone app files directly in the MyLife root.
+- Directories under `archive/` are historical placeholders, not active standalone edit targets.
 
-## Standalone/Module Parity (Critical)
+## Standalone And Module Parity (Critical)
 
-- Standalone app repositories are the canonical product sources of truth.
-- If an app exists as both a standalone repo and a MyLife module, both must remain identical products (features, behavior, data model intent, and UX intent).
-- Do not ship module-only or standalone-only capabilities.
-- Any parity-impacting change must be applied in both codebases in the same session and reflected in both instruction pairs (`AGENTS.md` + `CLAUDE.md`).
-- Optional networked capabilities (for example bank sync) are allowed, but option availability and behavior must match between standalone and module versions.
-- Hub implementations must be parity adapters, not independent rewrites.
-- For any standalone + module pair, route/screen structure, user-visible labels, controls, and settings must match exactly; only hub shell chrome (sidebar/top-level hub navigation) may differ.
-- Hub shell theming may differ, but module screen theming must match the standalone app for that module.
-- Avoid duplicate UI logic across standalone and hub. Prefer shared components/packages or thin adapter layers that keep one canonical source.
-- Web passthrough parity is enforced by direct route reuse for passthrough-enabled modules (`books`, `habits`, `words`, `workouts`): hub files under `apps/web/app/<module>/**` must stay thin wrappers that import standalone pages from the corresponding `@my<module>-web/app/**` alias.
-- Any parity validation failure is a release blocker. Run `pnpm check:parity` before merging parity-impacting work.
-- Use `pnpm check:module-parity` for cross-module parity inventory checks, `pnpm check:passthrough-parity` for standalone↔hub parity matrix plus strict passthrough wrapper enforcement, and `pnpm check:workouts-parity` for strict MyWorkouts UI/data parity checks.
-- Modules with standalone repos that only contain design docs are parity-deferred until standalone runtime code exists.
+- Active standalone apps are canonical product sources until they are explicitly archived.
+- If an active standalone app also has a hub module, keep product intent aligned across both surfaces: feature set, behavior, data model intent, and user-facing terminology.
+- Do not describe a hub module as parity-complete if it is still a lightweight adapter or partial migration.
+- When a parity-impacting rule changes, update both instruction pairs (`AGENTS.md` and `CLAUDE.md`) in the same session.
+- Use `pnpm check:module-parity`, `pnpm check:passthrough-parity`, `pnpm check:workouts-parity`, and `pnpm check:parity` for parity-impacting work.
 
 ## Agent Instructions and Tooling
 
 - Persistent agent instructions are stored in both `AGENTS.md` and `CLAUDE.md`. Keep them in sync when rules change.
-- Global Codex skills are sourced from `/Users/trey/.codex/skills` (67 skills verified on 2026-02-24).
+- Global Codex skills are sourced from `/Users/trey/.codex/skills`.
 - In-repo skill snapshot is tracked in `.claude/skills-available.md`.
+- MyLife also includes repo-local skills under `.claude/skills/` for parity, migration, scaffolding, and gate workflows.
 - Plugin/MCP availability and re-verification steps are tracked in `.claude/plugins.md`.
 - Local execution allow-list settings live in `.claude/settings.local.json`.
+- `.claude/settings.json` enables agent teams and runs `pnpm check:parity --quiet` on task completion.
 
 ## Key Commands
 
@@ -69,16 +64,16 @@ pnpm dev:web             # Next.js web only
 pnpm build               # Build all packages and apps
 pnpm test                # Run all tests (Vitest)
 pnpm typecheck           # Type check all
-pnpm check:module-parity # Validate standalone↔hub module parity inventory
-pnpm check:passthrough-parity # Validate all standalone apps + module passthrough matrix
-pnpm check:workouts-parity # Strict MyWorkouts UI/data parity validation
-pnpm check:parity        # Full parity gate (standalone integrity + module parity + workouts strict parity)
-pnpm test:parity-matrix  # Run standalone↔MyLife parity matrix tests only
 pnpm scaffold:function-test --file <path> --function <name> # Scaffold contract + fuzz + perf test template
 pnpm gate:function --file <path> # Run lint + typecheck + tests for a changed function package
 pnpm gate:function:changed # Run the function gate across all changed source files
 pnpm gate:function --standalone <MyAppName> # Run same gate for a contained standalone app root
 pnpm gate:function --all-standalone # Run same gate across all contained standalone app roots
+pnpm check:module-parity # Verify standalone vs module parity for paired apps
+pnpm check:passthrough-parity # Verify passthrough route and registry parity
+pnpm check:workouts-parity # Verify workouts standalone vs hub parity
+pnpm check:parity # Run the full parity suite used by the task-complete hook
+pnpm check:generated-artifacts # Block large generated outputs in tracked docs paths
 pnpm clean               # Clean build artifacts
 ```
 
@@ -95,6 +90,11 @@ pnpm clean               # Clean build artifacts
 - Keep `docs/performance/` focused on curated docs and small examples only.
 - Before merge, run `pnpm check:generated-artifacts` to block forbidden generated files and oversized tracked files.
 
+## Parity Verification
+
+- `.claude/settings.json` runs `pnpm check:parity --quiet` before a task can be marked complete.
+- When parity-sensitive facts change, update docs and verification scripts in the same session.
+
 ## Architecture
 
 ```
@@ -102,9 +102,9 @@ MyLife/
 ├── apps/
 │   ├── mobile/                    # Single Expo app (iOS + Android)
 │   │   ├── app/
-│   │   │   ├── _layout.tsx        # Root: DatabaseProvider → ModuleRegistryProvider → Stack
-│   │   │   └── (hub)/             # Hub dashboard, discover, settings (3 tabs)
-│   │   └── components/            # Hub-shell components (ModuleCard, BackToHubButton)
+│   │   │   ├── _layout.tsx        # Root: DatabaseProvider -> ModuleRegistryProvider -> Stack
+│   │   │   └── (hub)/             # Hub dashboard, discover, settings
+│   │   └── components/            # Hub shell components
 │   └── web/                       # Single Next.js 15 app
 │       ├── app/
 │       │   ├── layout.tsx         # Persistent sidebar with module icons
@@ -113,26 +113,20 @@ MyLife/
 │       │   └── settings/          # Account, subscription
 │       └── components/            # Sidebar, ModuleCard, Providers
 ├── modules/                       # Per-module business logic (@mylife/<name>)
-│   ├── books/                     # @mylife/books (MyBooks)
-│   ├── budget/                    # @mylife/budget (MyBudget)
-│   ├── fast/                      # @mylife/fast (MyFast)
-│   ├── recipes/                   # @mylife/recipes (MyRecipes)
-│   ├── surf/                      # @mylife/surf (MySurf — Supabase)
-│   ├── workouts/                  # @mylife/workouts (MyWorkouts — Supabase)
-│   ├── homes/                     # @mylife/homes (MyHomes — Drizzle + tRPC)
-│   ├── car/                       # @mylife/car (MyCar — new)
-│   ├── habits/                    # @mylife/habits (MyHabits — new)
-│   └── meds/                      # @mylife/meds (MyMeds — new)
+│   ├── books budget car fast habits health homes meds nutrition/
+│   ├── recipes rsvp surf words workouts/    # currently wired in at least one host app
+│   └── closet cycle flash garden journal mail mood notes pets stars subs trails voice/
+│                                         # scaffolded or partially wired modules
 ├── packages/
-│   ├── ui/                        # @mylife/ui — Unified dark theme + components
-│   ├── db/                        # @mylife/db — SQLite adapter, hub schema, migration orchestrator
-│   ├── module-registry/           # @mylife/module-registry — Module lifecycle, types, hooks
-│   ├── auth/                      # @mylife/auth — Supabase Auth wrapper (Phase 3)
-│   ├── subscription/              # @mylife/subscription — RevenueCat + Stripe (Phase 3)
-│   ├── migration/                 # @mylife/migration — Standalone app data importers
+│   ├── ui/                        # @mylife/ui, Cool Obsidian tokens + shared components
+│   ├── db/                        # @mylife/db, SQLite adapter, hub schema, migration orchestration
+│   ├── module-registry/           # @mylife/module-registry, module metadata + lifecycle
+│   ├── auth/                      # @mylife/auth, auth wrapper
+│   ├── subscription/              # @mylife/subscription, billing + entitlements
+│   ├── migration/                 # @mylife/migration, standalone importers
 │   ├── eslint-config/
 │   └── typescript-config/
-├── supabase/                      # Combined migrations for surf + workouts (Phase 4)
+├── supabase/                      # Shared cloud migrations for surf/workouts
 ├── turbo.json
 ├── pnpm-workspace.yaml
 └── package.json
@@ -142,22 +136,35 @@ MyLife/
 
 - **Module system:** Every module exports a `ModuleDefinition` contract. The hub registers, enables/disables, and renders modules dynamically via `@mylife/module-registry`.
 - **Single SQLite file:** All local modules share one `.sqlite` with table name prefixes (`bk_` for books, `bg_` for budget, etc.). Hub tables use `hub_` prefix.
-- **Theme boundary:** Hub shell may use the MyLife dark theme, but module screens must match standalone module theming to preserve parity.
+- **Theme:** All modules use the Cool Obsidian design system (see Design System section below).
 - **Privacy-first:** Zero analytics, zero telemetry, offline-first where possible.
+
+### Registry vs Host App Wiring
+
+- `packages/module-registry/src/types.ts` defines 27 known `ModuleId` values.
+- Mobile currently registers full module definitions for `books`, `budget`, `car`, `fast`, `habits`, `health`, `homes`, `meds`, `nutrition`, `recipes`, `rsvp`, `surf`, `words`, and `workouts`.
+- Web currently registers full module definitions for `books`, `budget`, `car`, `fast`, `habits`, `homes`, `meds`, `recipes`, `rsvp`, `surf`, `words`, and `workouts`.
+- Registry metadata also exists for scaffolded or partially wired modules such as `closet`, `cycle`, `flash`, `garden`, `journal`, `mail`, `mood`, `notes`, `pets`, `stars`, `subs`, `trails`, and `voice`.
+- Treat `packages/module-registry/src/constants.ts` and each `modules/*/src/definition.ts` file as the source of truth for live IDs, tiers, and prefixes.
 
 ### Module Table Prefixes
 
 | Module | Prefix | Module | Prefix |
 |--------|--------|--------|--------|
-| Hub | `hub_` | Car | `cr_` |
-| Books | `bk_` | Habits | `hb_` |
-| Budget | `bg_` | Meds | `md_` |
-| Fast | `ft_` | Recipes | `rc_` |
+| Hub | `hub_` | Homes | `hm_` |
+| Books | `bk_` | Meds | `md_` |
+| Budget | `bg_` | Nutrition | `nu_` |
+| Car | `cr_` | Recipes | `rc_` |
+| Fast | `ft_` | RSVP | `rv_` |
+| Habits | `hb_` | Surf | `sf_` |
+| Health | `hl_` | Words | `wd_` |
+| Workouts | `wk_` | Source of truth | `modules/*/src/definition.ts` |
 
 ### Subscription Tiers
 
-- **Free tier:** MyFast (always unlocked)
-- **MyLife Pro:** All 10 modules — $4.99/mo, $29.99/yr, $79.99 lifetime
+- **Registry free modules:** `fast`, `journal`, `mood`, `notes`, `voice`
+- **Current live free surface:** `fast` is wired in both host apps today; the other free IDs remain scaffolded or partially wired.
+- **MyLife Pro:** Required for premium modules once they are wired into the hub. Verify current packaging and pricing against billing config before publishing product copy.
 
 ## Module System
 
@@ -183,17 +190,62 @@ interface ModuleDefinition {
 
 **Module lifecycle:** Enable → SQLite migrations run → nav routes activate → dashboard card appears. Disable → routes removed, card hidden, data preserved (NOT deleted).
 
+## Archive Strategy
+
+Standalone app repositories are being consolidated into MyLife hub modules. After features merge into a hub module, the standalone repo moves to `archive/<name>/`.
+
+| Standalone | Hub Module | Status |
+|-----------|------------|--------|
+| MyBooks/ | modules/books/ | Archived (2026-03-08) |
+| MyBudget/ | modules/budget/ | Archived (2026-03-07) |
+| MyCar/ | modules/car/ | Active -- consolidation pending |
+| MyRecipes/ | modules/recipes/ | Archived (2026-03-08) |
+| MySurf/ | modules/surf/ | Consolidated -- archival pending |
+| MyWorkouts/ | modules/workouts/ | Archived (2026-03-08) |
+
+This table covers the primary standalone consolidation track. The full module inventory also includes scaffolded and partially wired modules tracked in `packages/module-registry/`.
+
+### Consolidation Workflow
+1. Review spec for full feature set
+2. Gap analysis: map standalone files to hub counterparts
+3. Schema migration: add new migration versions for missing tables
+4. Business logic migration: copy engines/services into modules/<name>/src/
+5. Route wiring: create screens in apps/mobile/ and apps/web/
+6. Test migration: port tests, verify with pnpm test
+7. Archive: move standalone to archive/<name>/, remove submodule, update docs
+
+## Design System (Cool Obsidian)
+
+The hub uses a cool-toned dark theme inspired by iOS glass morphism.
+
+| Token | Value | Usage |
+|-------|-------|-------|
+| background | #0A0A0F | App background |
+| surface | #12121A | Card/panel fill |
+| surfaceElevated | #1A1A24 | Elevated surfaces |
+| text | #F0F0F5 | Primary text |
+| textSecondary | rgba(240,240,245,0.65) | Secondary text |
+| border | rgba(255,255,255,0.06) | Subtle borders |
+| glass | rgba(255,255,255,0.04) | Glass card fill |
+| glassStrong | rgba(255,255,255,0.08) | Strong glass fill |
+| glassBorder | rgba(255,255,255,0.10) | Glass card border |
+| danger | #FF453A | iOS system red |
+| success | #30D158 | iOS system green |
+
+Glass morphism: use expo-blur BlurView on mobile, backdrop-filter on web.
+Token source of truth: packages/ui/src/tokens/
+
 ## Phase Plan
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| **Phase 0** | Hub Foundation — monorepo, module registry, db, ui, app shells | **Done** |
-| **Phase 1** | First Module — MyBooks migration, table prefix, data importer | **Done** |
-| **Phase 2** | Core Module Migration + Standalone Parity — MyBudget, MyFast, MyRecipes + new scaffolds | Pending |
-| **Phase 3** | Auth + Subscription — Supabase Auth, RevenueCat, Stripe, paywall | Pending |
-| **Phase 4** | Cloud Modules — MySurf, MyWorkouts, MyHomes migration | Pending |
-| **Phase 5** | macOS App — SwiftUI, Zod→Swift codegen, GRDB SQLite | Pending |
-| **Phase 6** | Polish + Launch — perf, App Store, TestFlight, Vercel | Pending |
+| Phase 0 | Hub Foundation + Cool Obsidian redesign | Done |
+| Phase 1 | MyBudget consolidation | Done |
+| Phase 2 | MyRecipes consolidation | Done |
+| Phase 3 | MyBooks consolidation | Done |
+| Phase 4 | MyWorkouts consolidation | Done |
+| Phase 5 | MySurf consolidation | Done |
+| Phase 6 | MyCar consolidation | Pending |
 
 ## Git Workflow
 
@@ -229,7 +281,7 @@ Agent team support is enabled via `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `.
 |-------|------|-------------|
 | `module-dev` | Migrate standalone apps into hub modules, edit module code | Yes |
 | `hub-shell-dev` | Edit hub shell (apps/, packages/), dashboard, sidebar, registry | Yes |
-| `parity-checker` | Run parity checks, report drift (read-only, Sonnet) | No |
+| `parity-checker` | Read-only parity validation across standalone apps, modules, and docs | No |
 
 **Workspace-level agents** (inherited from `/Users/trey/Desktop/Apps/.claude/agents/`):
 
@@ -242,10 +294,9 @@ Agent team support is enabled via `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `.
 
 ### Typical Team Compositions
 
-**Module migration sprint (Phase 2 work):**
+**Module consolidation sprint:**
 - Lead: coordinator, task creation
-- 2-3x `module-dev`: each owns a different module (e.g., budget, fast, recipes)
-- 1x `parity-checker`: validates after each module completes
+- 2-3x `module-dev`: each owns a different module (e.g., budget, recipes, books)
 - 1x `test-writer`: adds test coverage in parallel
 
 **Hub shell feature work:**
@@ -254,17 +305,16 @@ Agent team support is enabled via `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `.
 - 1x `hub-shell-dev` (web): Next.js app changes
 - 1x `module-dev`: module-registry changes if needed
 
-**Cross-module parity fix:**
+**Cross-module documentation update:**
 - Lead: coordinator
-- 1x `module-dev` per affected standalone submodule
-- 1x `parity-checker`: runs checks continuously
+- 1x `module-dev` per affected module
 - 1x `docs-agent`: updates CLAUDE.md/AGENTS.md pairs
+- 1x `parity-checker`: validates parity and sync-sensitive changes before completion
 
 ### Team Guidance
 
-- Start with 3-5 teammates. Size tasks at 5-6 per teammate.
+- Prefer small teams with clear file ownership.
 - Assign file ownership zones from the table above to prevent edit conflicts.
-- Parity-impacting work requires a `parity-checker` teammate to validate before marking tasks complete.
 - All teammates automatically load this CLAUDE.md, so critical rules here are enforced team-wide.
 - Use `--teammate-mode in-process` for single-terminal sessions or `--teammate-mode tmux` for split panes.
 
@@ -285,13 +335,10 @@ Skip `resolve-library-id` and go directly to `query-docs` with these:
 
 ## Standalone Submodules (Parity Workflow)
 
-Standalone submodule directories (`MyBooks/`, `MyBudget/`, etc.) inside the MyLife repo are the canonical product sources. For parity work:
-- Edit standalone submodules directly -- they are the source of truth.
+- Edit active standalone submodule directories directly when they remain canonical.
 - Do not create copies, staging directories, or parallel directory trees for standalone apps.
-- Do not create directories at the `/Apps/` root or adjacent to `MyLife/` for parity scaffolding.
-- After editing a standalone submodule, apply the corresponding hub-side change in `modules/<name>/` and/or `apps/` within the same session.
-- Verify with `pnpm check:parity` before merging parity-impacting work.
-
+- After changing an active standalone app with a paired hub module, apply the corresponding hub-side change in the same session.
+- Archived standalone placeholders under `archive/` no longer serve as canonical sources. The hub module becomes the maintained implementation.
 
 ## Writing Style
 - Do not use em dashes in documents or writing.

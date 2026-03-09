@@ -132,7 +132,7 @@ describe('getEnabledModuleIds', () => {
       { module_id: 'books', enabled_at: '2026-02-25 04:12:44' },
       { module_id: 'surf', enabled_at: '2026-02-25 04:13:44' },
       { module_id: 'workouts', enabled_at: '2026-02-25 04:14:44' },
-      { module_id: 'voice', enabled_at: '2026-02-25 04:15:44' },
+      { module_id: 'subs', enabled_at: '2026-02-25 04:15:44' },
     ]);
 
     const ids = await getEnabledModuleIds();

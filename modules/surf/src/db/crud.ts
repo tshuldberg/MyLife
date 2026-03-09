@@ -1,7 +1,29 @@
 import type { DatabaseAdapter } from '@mylife/db';
-import type { SurfSession, SurfSpot } from '../types';
+import type {
+  SurfSession,
+  SurfSpot,
+  CreateSpotInput,
+  Forecast,
+  SwellComponent,
+  TidePoint,
+  BuoyReading,
+  Narrative,
+  UserPin,
+  SpotAlert,
+  AlertRule,
+  SpotReview,
+  SpotPhoto,
+  SpotGuide,
+  SessionWave,
+  RecordedHike,
+} from '../types';
+
+// ---------------------------------------------------------------------------
+// Row mappers
+// ---------------------------------------------------------------------------
 
 function rowToSpot(row: Record<string, unknown>): SurfSpot {
+  const hazardsRaw = row.hazards_json as string | null;
   return {
     id: row.id as string,
     name: row.name as string,
@@ -15,6 +37,18 @@ function rowToSpot(row: Record<string, unknown>): SurfSpot {
     lastUpdated: row.last_updated as string,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
+    slug: (row.slug as string) ?? undefined,
+    latitude: (row.latitude as number) ?? undefined,
+    longitude: (row.longitude as number) ?? undefined,
+    orientationDeg: (row.orientation_deg as number) ?? undefined,
+    skillLevel: (row.skill_level as SurfSpot['skillLevel']) ?? undefined,
+    hazards: hazardsRaw ? JSON.parse(hazardsRaw) : undefined,
+    idealSwellDirMin: (row.ideal_swell_dir_min as number) ?? undefined,
+    idealSwellDirMax: (row.ideal_swell_dir_max as number) ?? undefined,
+    idealTideLow: (row.ideal_tide_low as number) ?? undefined,
+    idealTideHigh: (row.ideal_tide_high as number) ?? undefined,
+    description: (row.description as string) ?? undefined,
+    crowdFactor: (row.crowd_factor as number) ?? undefined,
   };
 }
 
@@ -30,26 +64,180 @@ function rowToSession(row: Record<string, unknown>): SurfSession {
   };
 }
 
+function rowToForecast(row: Record<string, unknown>): Omit<Forecast, 'swellComponents'> {
+  return {
+    id: row.id as string,
+    spotId: row.spot_id as string,
+    forecastTime: row.forecast_time as string,
+    waveHeightMinFt: row.wave_height_min_ft as number,
+    waveHeightMaxFt: row.wave_height_max_ft as number,
+    waveHeightLabel: (row.wave_height_label as string) ?? undefined,
+    rating: row.rating as number,
+    conditionColor: row.condition_color as Forecast['conditionColor'],
+    windSpeedKts: row.wind_speed_kts as number,
+    windGustKts: row.wind_gust_kts as number,
+    windDirectionDegrees: row.wind_direction_deg as number,
+    windLabel: row.wind_label as Forecast['windLabel'],
+    energyKj: row.energy_kj as number,
+    consistencyScore: row.consistency_score as number,
+    waterTempF: (row.water_temp_f as number) ?? undefined,
+    airTempF: (row.air_temp_f as number) ?? undefined,
+    modelRun: row.model_run as string,
+    modelName: (row.model_name as string) ?? undefined,
+  };
+}
+
+function rowToSwellComponent(row: Record<string, unknown>): SwellComponent {
+  return {
+    heightFt: row.height_ft as number,
+    periodSeconds: row.period_s as number,
+    directionDegrees: row.direction_deg as number,
+    directionLabel: (row.direction_label as string) ?? '',
+    componentOrder: row.swell_index as number,
+  };
+}
+
+function rowToTide(row: Record<string, unknown>): TidePoint {
+  return {
+    timestamp: row.timestamp as string,
+    heightFt: row.height_ft as number,
+    type: row.type as TidePoint['type'],
+  };
+}
+
+function rowToBuoy(row: Record<string, unknown>): BuoyReading {
+  return {
+    buoyId: row.buoy_id as string,
+    timestamp: row.timestamp as string,
+    waveHeightFt: (row.wave_height_ft as number) ?? undefined,
+    dominantPeriodSeconds: (row.dominant_period_s as number) ?? undefined,
+    averagePeriodSeconds: (row.avg_period_s as number) ?? undefined,
+    waveDirectionDegrees: (row.wave_direction_deg as number) ?? undefined,
+    waterTempF: (row.water_temp_f as number) ?? undefined,
+    airTempF: (row.air_temp_f as number) ?? undefined,
+    windSpeedKts: (row.wind_speed_kts as number) ?? undefined,
+    windDirectionDegrees: (row.wind_direction_deg as number) ?? undefined,
+  };
+}
+
+function rowToNarrative(row: Record<string, unknown>): Narrative {
+  return {
+    id: row.id as string,
+    spotId: (row.spot_id as string) ?? undefined,
+    region: (row.region as string) ?? undefined,
+    forecastDate: row.forecast_date as string,
+    summary: row.summary as string,
+    body: row.body as string,
+    generatedAt: row.generated_at as string,
+    helpfulVotes: row.helpful_votes as number,
+    unhelpfulVotes: row.unhelpful_votes as number,
+  };
+}
+
+function rowToUserPin(row: Record<string, unknown>): UserPin {
+  return {
+    id: row.id as string,
+    userId: row.user_id as string,
+    latitude: row.latitude as number,
+    longitude: row.longitude as number,
+    name: row.name as string,
+    notes: (row.notes as string) ?? undefined,
+    isPublic: !!(row.is_public as number),
+    createdAt: (row.created_at as string) ?? undefined,
+  };
+}
+
+function rowToReview(row: Record<string, unknown>): SpotReview {
+  return {
+    id: row.id as string,
+    spotId: row.spot_id as string,
+    userId: row.user_id as string,
+    rating: row.rating as number,
+    title: (row.title as string) ?? undefined,
+    body: row.body as string,
+    photoCount: row.photo_count as number,
+    createdAt: (row.created_at as string) ?? undefined,
+    updatedAt: (row.updated_at as string) ?? undefined,
+  };
+}
+
+function rowToPhoto(row: Record<string, unknown>): SpotPhoto {
+  return {
+    id: row.id as string,
+    spotId: row.spot_id as string,
+    reviewId: (row.review_id as string) ?? undefined,
+    userId: row.user_id as string,
+    imageUrl: row.image_url as string,
+    caption: (row.caption as string) ?? undefined,
+    latitude: (row.latitude as number) ?? undefined,
+    longitude: (row.longitude as number) ?? undefined,
+    takenAt: (row.taken_at as string) ?? undefined,
+    createdAt: (row.created_at as string) ?? undefined,
+  };
+}
+
+function rowToGuide(row: Record<string, unknown>): SpotGuide {
+  const hazardsRaw = row.hazards_json as string | null;
+  return {
+    spotId: row.spot_id as string,
+    bestTideWindow: row.best_tide_window as string,
+    bestSwellDirection: row.best_swell_direction as string,
+    hazards: hazardsRaw ? JSON.parse(hazardsRaw) : [],
+    parkingNotes: row.parking_notes as string,
+    crowdNotes: row.crowd_notes as string,
+    localTips: row.local_tips as string,
+    updatedAt: (row.updated_at as string) ?? undefined,
+  };
+}
+
+function rowToSessionWave(row: Record<string, unknown>): SessionWave {
+  return {
+    id: row.id as string,
+    sessionId: row.session_id as string,
+    waveNumber: row.wave_number as number,
+    durationSeconds: row.duration_s as number,
+    maxSpeedKts: row.max_speed_kts as number,
+    distanceMeters: row.distance_m as number,
+    direction: (row.direction as number) ?? undefined,
+    detectedAt: row.detected_at as string,
+  };
+}
+
+function rowToHikeSummary(row: Record<string, unknown>): RecordedHike {
+  return {
+    id: row.id as string,
+    localId: row.local_hike_id as string,
+    userId: (row.user_id as string) ?? undefined,
+    trailId: (row.trail_id as string) ?? undefined,
+    name: row.name as string,
+    startedAt: row.started_at as string,
+    durationSeconds: row.duration_s as number,
+    distanceMeters: row.distance_m as number,
+    elevationGainMeters: row.elevation_gain_m as number,
+    elevationLossMeters: row.elevation_loss_m as number,
+    paceMinutesPerKm: (row.pace_min_per_km as number) ?? undefined,
+    createdAt: (row.created_at as string) ?? undefined,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Spots CRUD (V1 + V2 enrichment)
+// ---------------------------------------------------------------------------
+
 export function createSpot(
   db: DatabaseAdapter,
   id: string,
-  input: {
-    name: string;
-    region: string;
-    breakType: SurfSpot['breakType'];
-    waveHeightFt?: number;
-    windKts?: number;
-    tide?: SurfSpot['tide'];
-    swellDirection?: string;
-    isFavorite?: boolean;
-  },
+  input: CreateSpotInput,
 ): void {
   const now = new Date().toISOString();
   db.execute(
     `INSERT INTO sf_spots (
       id, name, region, break_type, wave_height_ft, wind_kts,
-      tide, swell_direction, is_favorite, last_updated, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      tide, swell_direction, is_favorite, last_updated, created_at, updated_at,
+      slug, latitude, longitude, orientation_deg, skill_level, hazards_json,
+      ideal_swell_dir_min, ideal_swell_dir_max, ideal_tide_low, ideal_tide_high,
+      description, crowd_factor
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       input.name,
@@ -63,6 +251,18 @@ export function createSpot(
       now,
       now,
       now,
+      input.slug ?? null,
+      input.latitude ?? null,
+      input.longitude ?? null,
+      input.orientationDeg ?? null,
+      input.skillLevel ?? 'all',
+      input.hazards ? JSON.stringify(input.hazards) : '[]',
+      input.idealSwellDirMin ?? null,
+      input.idealSwellDirMax ?? null,
+      input.idealTideLow ?? null,
+      input.idealTideHigh ?? null,
+      input.description ?? null,
+      input.crowdFactor ?? null,
     ],
   );
 }
@@ -100,6 +300,22 @@ export function getSpots(
       params,
     )
     .map(rowToSpot);
+}
+
+export function getSpotById(db: DatabaseAdapter, id: string): SurfSpot | null {
+  const rows = db.query<Record<string, unknown>>(
+    'SELECT * FROM sf_spots WHERE id = ?',
+    [id],
+  );
+  return rows.length > 0 ? rowToSpot(rows[0]) : null;
+}
+
+export function getSpotBySlug(db: DatabaseAdapter, slug: string): SurfSpot | null {
+  const rows = db.query<Record<string, unknown>>(
+    'SELECT * FROM sf_spots WHERE slug = ?',
+    [slug],
+  );
+  return rows.length > 0 ? rowToSpot(rows[0]) : null;
 }
 
 export function updateSpotConditions(
@@ -140,6 +356,52 @@ export function updateSpotConditions(
   db.execute(`UPDATE sf_spots SET ${sets.join(', ')} WHERE id = ?`, params);
 }
 
+export function updateSpotProfile(
+  db: DatabaseAdapter,
+  id: string,
+  updates: Partial<CreateSpotInput>,
+): void {
+  const sets: string[] = [];
+  const params: unknown[] = [];
+
+  const fieldMap: Record<string, string> = {
+    name: 'name',
+    region: 'region',
+    breakType: 'break_type',
+    slug: 'slug',
+    latitude: 'latitude',
+    longitude: 'longitude',
+    orientationDeg: 'orientation_deg',
+    skillLevel: 'skill_level',
+    idealSwellDirMin: 'ideal_swell_dir_min',
+    idealSwellDirMax: 'ideal_swell_dir_max',
+    idealTideLow: 'ideal_tide_low',
+    idealTideHigh: 'ideal_tide_high',
+    description: 'description',
+    crowdFactor: 'crowd_factor',
+  };
+
+  for (const [key, col] of Object.entries(fieldMap)) {
+    const val = (updates as Record<string, unknown>)[key];
+    if (val !== undefined) {
+      sets.push(`${col} = ?`);
+      params.push(val);
+    }
+  }
+
+  if (updates.hazards !== undefined) {
+    sets.push('hazards_json = ?');
+    params.push(JSON.stringify(updates.hazards));
+  }
+
+  if (sets.length === 0) return;
+  const now = new Date().toISOString();
+  sets.push('updated_at = ?');
+  params.push(now, id);
+
+  db.execute(`UPDATE sf_spots SET ${sets.join(', ')} WHERE id = ?`, params);
+}
+
 export function toggleSpotFavorite(db: DatabaseAdapter, id: string): void {
   db.execute(
     `UPDATE sf_spots
@@ -169,6 +431,10 @@ export function getAverageWaveHeightFt(db: DatabaseAdapter): number {
   )[0];
   return row?.avg ?? 0;
 }
+
+// ---------------------------------------------------------------------------
+// Sessions CRUD
+// ---------------------------------------------------------------------------
 
 export function createSession(
   db: DatabaseAdapter,
@@ -227,4 +493,524 @@ export function deleteSession(db: DatabaseAdapter, id: string): void {
 
 export function countSessions(db: DatabaseAdapter): number {
   return db.query<{ c: number }>('SELECT COUNT(*) as c FROM sf_sessions')[0]?.c ?? 0;
+}
+
+// ---------------------------------------------------------------------------
+// Forecasts CRUD (V2 cache)
+// ---------------------------------------------------------------------------
+
+export function upsertForecast(
+  db: DatabaseAdapter,
+  id: string,
+  input: Omit<Forecast, 'id' | 'swellComponents'>,
+): void {
+  db.execute(
+    `INSERT OR REPLACE INTO sf_forecasts (
+      id, spot_id, forecast_time, model_run, model_name,
+      wave_height_min_ft, wave_height_max_ft, wave_height_label,
+      rating, condition_color,
+      wind_speed_kts, wind_gust_kts, wind_direction_deg, wind_label,
+      energy_kj, consistency_score, water_temp_f, air_temp_f
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.spotId,
+      input.forecastTime,
+      input.modelRun,
+      input.modelName ?? 'gfs',
+      input.waveHeightMinFt,
+      input.waveHeightMaxFt,
+      input.waveHeightLabel ?? null,
+      input.rating,
+      input.conditionColor,
+      input.windSpeedKts,
+      input.windGustKts,
+      input.windDirectionDegrees,
+      input.windLabel,
+      input.energyKj,
+      input.consistencyScore,
+      input.waterTempF ?? null,
+      input.airTempF ?? null,
+    ],
+  );
+}
+
+export function upsertSwellComponents(
+  db: DatabaseAdapter,
+  forecastId: string,
+  components: SwellComponent[],
+): void {
+  db.execute('DELETE FROM sf_swell_components WHERE forecast_id = ?', [forecastId]);
+  for (const c of components) {
+    db.execute(
+      `INSERT INTO sf_swell_components (id, forecast_id, swell_index, height_ft, period_s, direction_deg, direction_label)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        `${forecastId}_${c.componentOrder}`,
+        forecastId,
+        c.componentOrder,
+        c.heightFt,
+        c.periodSeconds,
+        c.directionDegrees,
+        c.directionLabel ?? null,
+      ],
+    );
+  }
+}
+
+export function getSpotForecast(
+  db: DatabaseAdapter,
+  spotId: string,
+  days?: number,
+): Forecast[] {
+  const params: unknown[] = [spotId];
+  let sql = `SELECT * FROM sf_forecasts WHERE spot_id = ?`;
+  if (days !== undefined) {
+    sql += ` AND forecast_time >= datetime('now') AND forecast_time <= datetime('now', '+' || ? || ' days')`;
+    params.push(days);
+  }
+  sql += ' ORDER BY forecast_time ASC';
+
+  const rows = db.query<Record<string, unknown>>(sql, params);
+  return rows.map((r) => {
+    const base = rowToForecast(r);
+    const comps = db
+      .query<Record<string, unknown>>(
+        'SELECT * FROM sf_swell_components WHERE forecast_id = ? ORDER BY swell_index',
+        [base.id],
+      )
+      .map(rowToSwellComponent);
+    return { ...base, swellComponents: comps } as Forecast;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Tides CRUD (V2 cache)
+// ---------------------------------------------------------------------------
+
+export function upsertTide(
+  db: DatabaseAdapter,
+  id: string,
+  input: { stationId: string; timestamp: string; heightFt: number; type?: string },
+): void {
+  db.execute(
+    `INSERT OR REPLACE INTO sf_tides (id, station_id, timestamp, height_ft, type)
+     VALUES (?, ?, ?, ?, ?)`,
+    [id, input.stationId, input.timestamp, input.heightFt, input.type ?? 'intermediate'],
+  );
+}
+
+export function getTides(
+  db: DatabaseAdapter,
+  stationId: string,
+  start: string,
+  end: string,
+): TidePoint[] {
+  return db
+    .query<Record<string, unknown>>(
+      `SELECT * FROM sf_tides
+       WHERE station_id = ? AND timestamp >= ? AND timestamp <= ?
+       ORDER BY timestamp ASC`,
+      [stationId, start, end],
+    )
+    .map(rowToTide);
+}
+
+// ---------------------------------------------------------------------------
+// Buoy Readings CRUD (V2 cache)
+// ---------------------------------------------------------------------------
+
+export function upsertBuoyReading(
+  db: DatabaseAdapter,
+  id: string,
+  input: Omit<BuoyReading, 'buoyName' | 'latitude' | 'longitude'> & { buoyId: string },
+): void {
+  db.execute(
+    `INSERT OR REPLACE INTO sf_buoy_readings (
+      id, buoy_id, timestamp, wave_height_ft, dominant_period_s,
+      avg_period_s, wave_direction_deg, water_temp_f, air_temp_f,
+      wind_speed_kts, wind_direction_deg
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.buoyId,
+      input.timestamp,
+      input.waveHeightFt ?? null,
+      input.dominantPeriodSeconds ?? null,
+      input.averagePeriodSeconds ?? null,
+      input.waveDirectionDegrees ?? null,
+      input.waterTempF ?? null,
+      input.airTempF ?? null,
+      input.windSpeedKts ?? null,
+      input.windDirectionDegrees ?? null,
+    ],
+  );
+}
+
+export function getLatestBuoyReading(
+  db: DatabaseAdapter,
+  buoyId: string,
+): BuoyReading | null {
+  const rows = db.query<Record<string, unknown>>(
+    'SELECT * FROM sf_buoy_readings WHERE buoy_id = ? ORDER BY timestamp DESC LIMIT 1',
+    [buoyId],
+  );
+  return rows.length > 0 ? rowToBuoy(rows[0]) : null;
+}
+
+export function getRecentBuoyReadings(
+  db: DatabaseAdapter,
+  buoyId: string,
+  hours: number,
+): BuoyReading[] {
+  return db
+    .query<Record<string, unknown>>(
+      `SELECT * FROM sf_buoy_readings
+       WHERE buoy_id = ? AND timestamp >= datetime('now', '-' || ? || ' hours')
+       ORDER BY timestamp DESC`,
+      [buoyId, hours],
+    )
+    .map(rowToBuoy);
+}
+
+// ---------------------------------------------------------------------------
+// Narratives CRUD (V2 cache)
+// ---------------------------------------------------------------------------
+
+export function upsertNarrative(
+  db: DatabaseAdapter,
+  id: string,
+  input: Omit<Narrative, 'id' | 'helpfulVotes' | 'unhelpfulVotes'>,
+): void {
+  db.execute(
+    `INSERT OR REPLACE INTO sf_narratives (
+      id, spot_id, region, forecast_date, summary, body, model_used, generated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.spotId ?? null,
+      input.region ?? null,
+      input.forecastDate,
+      input.summary,
+      input.body,
+      null,
+      input.generatedAt,
+    ],
+  );
+}
+
+export function getSpotNarrative(
+  db: DatabaseAdapter,
+  spotId: string,
+  date: string,
+): Narrative | null {
+  const rows = db.query<Record<string, unknown>>(
+    'SELECT * FROM sf_narratives WHERE spot_id = ? AND forecast_date = ? ORDER BY generated_at DESC LIMIT 1',
+    [spotId, date],
+  );
+  return rows.length > 0 ? rowToNarrative(rows[0]) : null;
+}
+
+export function getRegionNarrative(
+  db: DatabaseAdapter,
+  region: string,
+  date: string,
+): Narrative | null {
+  const rows = db.query<Record<string, unknown>>(
+    'SELECT * FROM sf_narratives WHERE region = ? AND forecast_date = ? ORDER BY generated_at DESC LIMIT 1',
+    [region, date],
+  );
+  return rows.length > 0 ? rowToNarrative(rows[0]) : null;
+}
+
+// ---------------------------------------------------------------------------
+// User Pins CRUD (V3)
+// ---------------------------------------------------------------------------
+
+export function createUserPin(
+  db: DatabaseAdapter,
+  id: string,
+  input: { userId: string; latitude: number; longitude: number; name: string; notes?: string; isPublic?: boolean },
+): void {
+  db.execute(
+    `INSERT INTO sf_user_pins (id, user_id, latitude, longitude, name, notes, is_public)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [id, input.userId, input.latitude, input.longitude, input.name, input.notes ?? null, input.isPublic ? 1 : 0],
+  );
+}
+
+export function getUserPins(db: DatabaseAdapter, userId: string): UserPin[] {
+  return db
+    .query<Record<string, unknown>>(
+      'SELECT * FROM sf_user_pins WHERE user_id = ? ORDER BY created_at DESC',
+      [userId],
+    )
+    .map(rowToUserPin);
+}
+
+export function deleteUserPin(db: DatabaseAdapter, id: string): void {
+  db.execute('DELETE FROM sf_user_pins WHERE id = ?', [id]);
+}
+
+// ---------------------------------------------------------------------------
+// Spot Alerts CRUD (V3)
+// ---------------------------------------------------------------------------
+
+export function createSpotAlert(
+  db: DatabaseAdapter,
+  id: string,
+  input: { userId: string; spotId: string; name: string; cooldownMinutes?: number; rules: Omit<AlertRule, 'id' | 'alertId'>[] },
+): void {
+  const now = new Date().toISOString();
+  db.execute(
+    `INSERT INTO sf_spot_alerts (id, user_id, spot_id, name, cooldown_minutes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [id, input.userId, input.spotId, input.name, input.cooldownMinutes ?? 30, now, now],
+  );
+  for (let i = 0; i < input.rules.length; i++) {
+    const r = input.rules[i];
+    db.execute(
+      `INSERT INTO sf_alert_rules (id, alert_id, parameter, operator, value, join_operator, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [`${id}_r${i}`, id, r.parameter, r.operator, r.value, r.joinWith ?? 'and', r.sortOrder ?? i],
+    );
+  }
+}
+
+export function getSpotAlerts(
+  db: DatabaseAdapter,
+  userId: string,
+  spotId?: string,
+): SpotAlert[] {
+  const params: unknown[] = [userId];
+  let sql = 'SELECT * FROM sf_spot_alerts WHERE user_id = ?';
+  if (spotId) {
+    sql += ' AND spot_id = ?';
+    params.push(spotId);
+  }
+  sql += ' ORDER BY created_at DESC';
+
+  return db.query<Record<string, unknown>>(sql, params).map((row) => {
+    const alertId = row.id as string;
+    const rules = db
+      .query<Record<string, unknown>>(
+        'SELECT * FROM sf_alert_rules WHERE alert_id = ? ORDER BY sort_order',
+        [alertId],
+      )
+      .map((r) => ({
+        id: r.id as string,
+        alertId: r.alert_id as string,
+        parameter: r.parameter as AlertRule['parameter'],
+        operator: r.operator as AlertRule['operator'],
+        value: r.value as number,
+        joinWith: r.join_operator as AlertRule['joinWith'],
+        sortOrder: r.sort_order as number,
+      }));
+
+    return {
+      id: alertId,
+      userId: row.user_id as string,
+      spotId: row.spot_id as string,
+      name: row.name as string,
+      isActive: !!(row.is_active as number),
+      cooldownMinutes: row.cooldown_minutes as number,
+      lastTriggeredAt: (row.last_triggered_at as string) ?? undefined,
+      rules,
+      createdAt: (row.created_at as string) ?? undefined,
+      updatedAt: (row.updated_at as string) ?? undefined,
+    };
+  });
+}
+
+export function setSpotAlertActive(
+  db: DatabaseAdapter,
+  id: string,
+  active: boolean,
+): void {
+  db.execute(
+    'UPDATE sf_spot_alerts SET is_active = ?, updated_at = ? WHERE id = ?',
+    [active ? 1 : 0, new Date().toISOString(), id],
+  );
+}
+
+export function deleteSpotAlert(db: DatabaseAdapter, id: string): void {
+  db.execute('DELETE FROM sf_spot_alerts WHERE id = ?', [id]);
+}
+
+// ---------------------------------------------------------------------------
+// Reviews CRUD (V3)
+// ---------------------------------------------------------------------------
+
+export function createSpotReview(
+  db: DatabaseAdapter,
+  id: string,
+  input: { spotId: string; userId: string; rating: number; title?: string; body: string },
+): void {
+  const now = new Date().toISOString();
+  db.execute(
+    `INSERT INTO sf_spot_reviews (id, spot_id, user_id, rating, title, body, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, input.spotId, input.userId, input.rating, input.title ?? null, input.body, now, now],
+  );
+}
+
+export function getSpotReviews(
+  db: DatabaseAdapter,
+  spotId: string,
+  limit?: number,
+): SpotReview[] {
+  let sql = 'SELECT * FROM sf_spot_reviews WHERE spot_id = ? ORDER BY created_at DESC';
+  const params: unknown[] = [spotId];
+  if (limit !== undefined) {
+    sql += ' LIMIT ?';
+    params.push(limit);
+  }
+  return db.query<Record<string, unknown>>(sql, params).map(rowToReview);
+}
+
+export function deleteSpotReview(db: DatabaseAdapter, id: string): void {
+  db.execute('DELETE FROM sf_spot_reviews WHERE id = ?', [id]);
+}
+
+// ---------------------------------------------------------------------------
+// Photos CRUD (V3)
+// ---------------------------------------------------------------------------
+
+export function createSpotPhoto(
+  db: DatabaseAdapter,
+  id: string,
+  input: { spotId: string; userId: string; imageUrl: string; reviewId?: string; caption?: string; latitude?: number; longitude?: number; takenAt?: string },
+): void {
+  db.execute(
+    `INSERT INTO sf_spot_photos (id, spot_id, review_id, user_id, image_url, caption, latitude, longitude, taken_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, input.spotId, input.reviewId ?? null, input.userId, input.imageUrl, input.caption ?? null, input.latitude ?? null, input.longitude ?? null, input.takenAt ?? null],
+  );
+}
+
+export function getSpotPhotos(
+  db: DatabaseAdapter,
+  spotId: string,
+  limit?: number,
+): SpotPhoto[] {
+  let sql = 'SELECT * FROM sf_spot_photos WHERE spot_id = ? ORDER BY created_at DESC';
+  const params: unknown[] = [spotId];
+  if (limit !== undefined) {
+    sql += ' LIMIT ?';
+    params.push(limit);
+  }
+  return db.query<Record<string, unknown>>(sql, params).map(rowToPhoto);
+}
+
+export function deleteSpotPhoto(db: DatabaseAdapter, id: string): void {
+  db.execute('DELETE FROM sf_spot_photos WHERE id = ?', [id]);
+}
+
+// ---------------------------------------------------------------------------
+// Spot Guides CRUD (V3)
+// ---------------------------------------------------------------------------
+
+export function upsertSpotGuide(
+  db: DatabaseAdapter,
+  input: Omit<SpotGuide, 'updatedAt'> & { id: string },
+): void {
+  const now = new Date().toISOString();
+  db.execute(
+    `INSERT OR REPLACE INTO sf_spot_guides (id, spot_id, best_tide_window, best_swell_direction, hazards_json, parking_notes, crowd_notes, local_tips, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [input.id, input.spotId, input.bestTideWindow, input.bestSwellDirection, JSON.stringify(input.hazards), input.parkingNotes, input.crowdNotes, input.localTips, now],
+  );
+}
+
+export function getSpotGuide(
+  db: DatabaseAdapter,
+  spotId: string,
+): SpotGuide | null {
+  const rows = db.query<Record<string, unknown>>(
+    'SELECT * FROM sf_spot_guides WHERE spot_id = ?',
+    [spotId],
+  );
+  return rows.length > 0 ? rowToGuide(rows[0]) : null;
+}
+
+// ---------------------------------------------------------------------------
+// Session Waves CRUD (V3)
+// ---------------------------------------------------------------------------
+
+export function recordSessionWave(
+  db: DatabaseAdapter,
+  id: string,
+  input: Omit<SessionWave, 'id'>,
+): void {
+  db.execute(
+    `INSERT INTO sf_session_waves (id, session_id, wave_number, duration_s, max_speed_kts, distance_m, direction, detected_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, input.sessionId, input.waveNumber, input.durationSeconds, input.maxSpeedKts, input.distanceMeters, input.direction ?? null, input.detectedAt],
+  );
+}
+
+export function getSessionWaves(
+  db: DatabaseAdapter,
+  sessionId: string,
+): SessionWave[] {
+  return db
+    .query<Record<string, unknown>>(
+      'SELECT * FROM sf_session_waves WHERE session_id = ? ORDER BY wave_number',
+      [sessionId],
+    )
+    .map(rowToSessionWave);
+}
+
+// ---------------------------------------------------------------------------
+// Trail Hike Summaries CRUD (V3)
+// ---------------------------------------------------------------------------
+
+export function upsertTrailHikeSummary(
+  db: DatabaseAdapter,
+  id: string,
+  input: {
+    userId: string;
+    localHikeId: string;
+    trailId?: string;
+    name: string;
+    distanceMeters: number;
+    elevationGainMeters: number;
+    elevationLossMeters: number;
+    durationSeconds: number;
+    paceMinutesPerKm?: number;
+    startedAt: string;
+  },
+): void {
+  db.execute(
+    `INSERT OR REPLACE INTO sf_trail_hike_summaries (
+      id, user_id, local_hike_id, trail_id, name,
+      distance_m, elevation_gain_m, elevation_loss_m, duration_s,
+      pace_min_per_km, started_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.userId,
+      input.localHikeId,
+      input.trailId ?? null,
+      input.name,
+      input.distanceMeters,
+      input.elevationGainMeters,
+      input.elevationLossMeters,
+      input.durationSeconds,
+      input.paceMinutesPerKm ?? null,
+      input.startedAt,
+    ],
+  );
+}
+
+export function getTrailHikeSummaries(
+  db: DatabaseAdapter,
+  userId: string,
+): RecordedHike[] {
+  return db
+    .query<Record<string, unknown>>(
+      'SELECT * FROM sf_trail_hike_summaries WHERE user_id = ? ORDER BY started_at DESC',
+      [userId],
+    )
+    .map(rowToHikeSummary);
 }

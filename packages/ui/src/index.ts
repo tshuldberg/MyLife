@@ -6,6 +6,7 @@ export type { CoverSize } from './tokens/spacing';
 export { typography } from './tokens/typography';
 export type { TypographyVariant } from './tokens/typography';
 export { shadows } from './tokens/shadows';
+export { glass, glassWeb } from './tokens/glass';
 
 // Components
 export { Card } from './components/Card';
@@ -24,10 +25,13 @@ export { ModuleAuthPicker } from './components/ModuleAuthPicker';
 export { OnboardingPage, OnboardingFeatureRow } from './components/OnboardingPage';
 export { OnboardingFlow } from './components/OnboardingFlow';
 
-// Books-domain components
+// Books-domain components (future: relocate to @mylife/books)
 export { BookCover } from './components/BookCover';
 export { StarRating } from './components/StarRating';
 export { ShelfBadge } from './components/ShelfBadge';
 export { TagPill } from './components/TagPill';
 export { ReadingGoalRing } from './components/ReadingGoalRing';
 export { SearchBar } from './components/SearchBar';
+
+// Social-domain components
+export { ShareCard } from './components/ShareCard';

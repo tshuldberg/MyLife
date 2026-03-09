@@ -15,16 +15,29 @@ import {
 } from '@mylife/db';
 import { BOOKS_MODULE } from '@mylife/books';
 import { FAST_MODULE } from '@mylife/fast';
+import { FLASH_MODULE } from '@mylife/flash';
+import { GARDEN_MODULE } from '@mylife/garden';
 import { BUDGET_MODULE } from '@mylife/budget';
 import { SURF_MODULE } from '@mylife/surf';
 import { RECIPES_MODULE } from '@mylife/recipes';
 import { WORKOUTS_MODULE } from '@mylife/workouts';
 import { HOMES_MODULE } from '@mylife/homes';
 import { CAR_MODULE } from '@mylife/car';
+import { CLOSET_MODULE } from '@mylife/closet';
+import { CYCLE_MODULE } from '@mylife/cycle';
 import { HABITS_MODULE } from '@mylife/habits';
 import { MEDS_MODULE } from '@mylife/meds';
+import { MOOD_MODULE } from '@mylife/mood';
+import { NOTES_MODULE } from '@mylife/notes';
 import { HEALTH_MODULE } from '@mylife/health';
+import { NUTRITION_MODULE } from '@mylife/nutrition';
+import { JOURNAL_MODULE } from '@mylife/journal';
+import { PETS_MODULE } from '@mylife/pets';
 import { RSVP_MODULE } from '@mylife/rsvp';
+import { STARS_MODULE } from '@mylife/stars';
+import { TRAILS_MODULE } from '@mylife/trails';
+import { VOICE_MODULE } from '@mylife/voice';
+import { MAIL_MODULE } from '@mylife/mail';
 import type { ModuleRegistry, ModuleId } from '@mylife/module-registry';
 import { colors } from '@mylife/ui';
 
@@ -50,16 +63,29 @@ function createExpoAdapter(db: SQLiteDatabase): DatabaseAdapter {
 const MODULE_DEFINITIONS_WITH_MIGRATIONS = {
   books: BOOKS_MODULE,
   fast: FAST_MODULE,
+  flash: FLASH_MODULE,
   budget: BUDGET_MODULE,
   surf: SURF_MODULE,
   recipes: RECIPES_MODULE,
   workouts: WORKOUTS_MODULE,
   homes: HOMES_MODULE,
   car: CAR_MODULE,
+  closet: CLOSET_MODULE,
+  cycle: CYCLE_MODULE,
   habits: HABITS_MODULE,
   meds: MEDS_MODULE,
+  mood: MOOD_MODULE,
+  notes: NOTES_MODULE,
+  garden: GARDEN_MODULE,
   health: HEALTH_MODULE,
+  nutrition: NUTRITION_MODULE,
+  journal: JOURNAL_MODULE,
+  pets: PETS_MODULE,
   rsvp: RSVP_MODULE,
+  stars: STARS_MODULE,
+  trails: TRAILS_MODULE,
+  voice: VOICE_MODULE,
+  mail: MAIL_MODULE,
 } as const;
 
 const DatabaseContext = createContext<DatabaseAdapter | null>(null);

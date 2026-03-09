@@ -77,6 +77,62 @@ CREATE TABLE IF NOT EXISTS wk_form_recordings (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`;
 
+export const CREATE_WORKOUT_SET_WEIGHTS = `
+CREATE TABLE IF NOT EXISTS wk_workout_set_weights (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES wk_workout_sessions(id) ON DELETE CASCADE,
+  exercise_id TEXT NOT NULL,
+  set_number INTEGER NOT NULL,
+  weight REAL NOT NULL,
+  reps INTEGER NOT NULL,
+  unit TEXT NOT NULL DEFAULT 'lbs',
+  estimated_1rm REAL NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const CREATE_EXERCISE_1RM_HISTORY = `
+CREATE TABLE IF NOT EXISTS wk_exercise_1rm_history (
+  id TEXT PRIMARY KEY,
+  exercise_id TEXT NOT NULL,
+  max_weight REAL NOT NULL,
+  max_reps INTEGER NOT NULL,
+  estimated_1rm REAL NOT NULL,
+  unit TEXT NOT NULL DEFAULT 'lbs',
+  achieved_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const CREATE_BODY_MEASUREMENTS = `
+CREATE TABLE IF NOT EXISTS wk_body_measurements (
+  id TEXT PRIMARY KEY,
+  type TEXT NOT NULL,
+  value REAL NOT NULL,
+  unit TEXT NOT NULL,
+  measured_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const CREATE_WORKOUT_PLANS = `
+CREATE TABLE IF NOT EXISTS wk_workout_plans (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  creator_id TEXT,
+  weeks_json TEXT NOT NULL DEFAULT '[]',
+  is_premium INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const CREATE_PLAN_SUBSCRIPTIONS = `
+CREATE TABLE IF NOT EXISTS wk_plan_subscriptions (
+  id TEXT PRIMARY KEY,
+  plan_id TEXT NOT NULL REFERENCES wk_workout_plans(id) ON DELETE CASCADE,
+  started_at TEXT NOT NULL,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
 export const CREATE_INDEXES = [
   `CREATE INDEX IF NOT EXISTS wk_workout_logs_focus_idx ON wk_workout_logs(focus)`,
   `CREATE INDEX IF NOT EXISTS wk_workout_logs_completed_idx ON wk_workout_logs(completed_at DESC)`,
@@ -87,6 +143,11 @@ export const CREATE_INDEXES = [
   `CREATE INDEX IF NOT EXISTS wk_workout_sessions_workout_idx ON wk_workout_sessions(workout_id)`,
   `CREATE INDEX IF NOT EXISTS wk_workout_sessions_completed_idx ON wk_workout_sessions(completed_at DESC)`,
   `CREATE INDEX IF NOT EXISTS wk_form_recordings_session_idx ON wk_form_recordings(session_id)`,
+  `CREATE INDEX IF NOT EXISTS wk_set_weights_session_exercise_idx ON wk_workout_set_weights(session_id, exercise_id)`,
+  `CREATE INDEX IF NOT EXISTS wk_1rm_history_exercise_idx ON wk_exercise_1rm_history(exercise_id)`,
+  `CREATE INDEX IF NOT EXISTS wk_body_measurements_type_measured_idx ON wk_body_measurements(type, measured_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS wk_workout_plans_created_idx ON wk_workout_plans(created_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS wk_plan_subscriptions_plan_active_idx ON wk_plan_subscriptions(plan_id, is_active)`,
 ];
 
 export const ALL_TABLES = [
@@ -96,4 +157,9 @@ export const ALL_TABLES = [
   CREATE_WORKOUTS,
   CREATE_WORKOUT_SESSIONS,
   CREATE_FORM_RECORDINGS,
+  CREATE_WORKOUT_SET_WEIGHTS,
+  CREATE_EXERCISE_1RM_HISTORY,
+  CREATE_BODY_MEASUREMENTS,
+  CREATE_WORKOUT_PLANS,
+  CREATE_PLAN_SUBSCRIPTIONS,
 ];

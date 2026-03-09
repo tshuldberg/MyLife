@@ -247,10 +247,324 @@ export const SUBSCRIPTION_INDEXES = [
   `CREATE INDEX IF NOT EXISTS bg_subscriptions_catalog_idx ON bg_subscriptions(catalog_id)`,
 ];
 
+// =====================================================================
+// V4 Tables — YNAB-style budget engine, reporting, alerts, multi-currency
+// =====================================================================
+
+// -- 12. Category Groups --
+export const CREATE_CATEGORY_GROUPS = `
+CREATE TABLE IF NOT EXISTS bg_category_groups (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    is_hidden INTEGER NOT NULL DEFAULT 0 CHECK (is_hidden IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+// -- 13. Budget Allocations (per-envelope per-month) --
+export const CREATE_BUDGET_ALLOCATIONS = `
+CREATE TABLE IF NOT EXISTS bg_budget_allocations (
+    id TEXT PRIMARY KEY,
+    envelope_id TEXT NOT NULL REFERENCES bg_envelopes(id) ON DELETE CASCADE,
+    month TEXT NOT NULL,
+    allocated INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(envelope_id, month)
+)`;
+
+// -- 14. Transaction Splits --
+export const CREATE_TRANSACTION_SPLITS = `
+CREATE TABLE IF NOT EXISTS bg_transaction_splits (
+    id TEXT PRIMARY KEY,
+    transaction_id TEXT NOT NULL REFERENCES bg_transactions(id) ON DELETE CASCADE,
+    envelope_id TEXT REFERENCES bg_envelopes(id) ON DELETE SET NULL,
+    amount INTEGER NOT NULL,
+    memo TEXT
+)`;
+
+// -- 15. Recurring Templates --
+export const CREATE_RECURRING_TEMPLATES = `
+CREATE TABLE IF NOT EXISTS bg_recurring_templates (
+    id TEXT PRIMARY KEY,
+    account_id TEXT NOT NULL REFERENCES bg_accounts(id) ON DELETE CASCADE,
+    envelope_id TEXT REFERENCES bg_envelopes(id) ON DELETE SET NULL,
+    payee TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    frequency TEXT NOT NULL CHECK (frequency IN ('weekly', 'biweekly', 'monthly', 'quarterly', 'annually')),
+    start_date TEXT NOT NULL,
+    end_date TEXT,
+    next_date TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    subscription_id TEXT REFERENCES bg_subscriptions(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+// -- 16. Payee Cache --
+export const CREATE_PAYEE_CACHE = `
+CREATE TABLE IF NOT EXISTS bg_payee_cache (
+    payee TEXT PRIMARY KEY NOT NULL,
+    last_envelope_id TEXT REFERENCES bg_envelopes(id) ON DELETE SET NULL,
+    use_count INTEGER NOT NULL DEFAULT 0,
+    last_used TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+// -- 17. CSV Import Profiles --
+export const CREATE_CSV_PROFILES = `
+CREATE TABLE IF NOT EXISTS bg_csv_profiles (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    date_column INTEGER NOT NULL,
+    payee_column INTEGER NOT NULL,
+    amount_column INTEGER NOT NULL,
+    memo_column INTEGER,
+    date_format TEXT NOT NULL,
+    amount_sign TEXT NOT NULL CHECK (amount_sign IN ('negative_is_outflow', 'positive_is_outflow', 'separate_columns')),
+    debit_column INTEGER,
+    credit_column INTEGER,
+    skip_rows INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+// -- 18. Price History --
+export const CREATE_PRICE_HISTORY = `
+CREATE TABLE IF NOT EXISTS bg_price_history (
+    id TEXT PRIMARY KEY,
+    subscription_id TEXT NOT NULL REFERENCES bg_subscriptions(id) ON DELETE CASCADE,
+    price INTEGER NOT NULL,
+    effective_date TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+// -- 19. Notification Log --
+export const CREATE_NOTIFICATION_LOG = `
+CREATE TABLE IF NOT EXISTS bg_notification_log (
+    id TEXT PRIMARY KEY,
+    subscription_id TEXT NOT NULL REFERENCES bg_subscriptions(id) ON DELETE CASCADE,
+    type TEXT NOT NULL CHECK (type IN ('renewal', 'trial_expiry', 'monthly_summary')),
+    scheduled_for TEXT NOT NULL,
+    sent_at TEXT,
+    UNIQUE(subscription_id, type, scheduled_for)
+)`;
+
+// -- 20. Transaction Rules --
+export const CREATE_TRANSACTION_RULES = `
+CREATE TABLE IF NOT EXISTS bg_transaction_rules (
+    id TEXT PRIMARY KEY,
+    payee_pattern TEXT NOT NULL,
+    match_type TEXT NOT NULL CHECK (match_type IN ('contains', 'exact', 'starts_with')),
+    envelope_id TEXT NOT NULL REFERENCES bg_envelopes(id) ON DELETE CASCADE,
+    is_enabled INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1)),
+    priority INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+// -- 21. Net Worth Snapshots --
+export const CREATE_NET_WORTH_SNAPSHOTS = `
+CREATE TABLE IF NOT EXISTS bg_net_worth_snapshots (
+    id TEXT PRIMARY KEY,
+    month TEXT NOT NULL,
+    assets INTEGER NOT NULL DEFAULT 0,
+    liabilities INTEGER NOT NULL DEFAULT 0,
+    net_worth INTEGER NOT NULL DEFAULT 0,
+    account_balances TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(month)
+)`;
+
+// -- 22. Debt Payoff Plans --
+export const CREATE_DEBT_PAYOFF_PLANS = `
+CREATE TABLE IF NOT EXISTS bg_debt_payoff_plans (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    strategy TEXT NOT NULL CHECK (strategy IN ('snowball', 'avalanche')),
+    extra_payment INTEGER NOT NULL DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+// -- 23. Debt Payoff Debts --
+export const CREATE_DEBT_PAYOFF_DEBTS = `
+CREATE TABLE IF NOT EXISTS bg_debt_payoff_debts (
+    id TEXT PRIMARY KEY,
+    plan_id TEXT NOT NULL REFERENCES bg_debt_payoff_plans(id) ON DELETE CASCADE,
+    account_id TEXT REFERENCES bg_accounts(id) ON DELETE SET NULL,
+    name TEXT NOT NULL,
+    balance INTEGER NOT NULL,
+    interest_rate INTEGER NOT NULL DEFAULT 0,
+    minimum_payment INTEGER NOT NULL DEFAULT 0,
+    compounding TEXT NOT NULL DEFAULT 'monthly' CHECK (compounding IN ('monthly', 'daily')),
+    sort_order INTEGER NOT NULL DEFAULT 0
+)`;
+
+// -- 24. Budget Rollovers --
+export const CREATE_BUDGET_ROLLOVERS = `
+CREATE TABLE IF NOT EXISTS bg_budget_rollovers (
+    id TEXT PRIMARY KEY,
+    envelope_id TEXT NOT NULL REFERENCES bg_envelopes(id) ON DELETE CASCADE,
+    from_month TEXT NOT NULL,
+    to_month TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(envelope_id, from_month)
+)`;
+
+// -- 25. Budget Alerts --
+export const CREATE_BUDGET_ALERTS = `
+CREATE TABLE IF NOT EXISTS bg_budget_alerts (
+    id TEXT PRIMARY KEY,
+    envelope_id TEXT NOT NULL REFERENCES bg_envelopes(id) ON DELETE CASCADE,
+    threshold_pct INTEGER NOT NULL DEFAULT 80,
+    is_enabled INTEGER NOT NULL DEFAULT 1 CHECK (is_enabled IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(envelope_id, threshold_pct)
+)`;
+
+// -- 26. Alert History --
+export const CREATE_ALERT_HISTORY = `
+CREATE TABLE IF NOT EXISTS bg_alert_history (
+    id TEXT PRIMARY KEY,
+    alert_id TEXT NOT NULL REFERENCES bg_budget_alerts(id) ON DELETE CASCADE,
+    envelope_id TEXT NOT NULL,
+    month TEXT NOT NULL,
+    threshold_pct INTEGER NOT NULL,
+    spent_pct INTEGER NOT NULL,
+    amount_spent INTEGER NOT NULL,
+    target_amount INTEGER NOT NULL,
+    notified_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(alert_id, month)
+)`;
+
+// -- 27. Currencies --
+export const CREATE_CURRENCIES = `
+CREATE TABLE IF NOT EXISTS bg_currencies (
+    code TEXT PRIMARY KEY NOT NULL,
+    name TEXT NOT NULL,
+    symbol TEXT NOT NULL DEFAULT '',
+    decimal_places INTEGER NOT NULL DEFAULT 2,
+    is_base INTEGER NOT NULL DEFAULT 0 CHECK (is_base IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+// -- 28. Exchange Rates --
+export const CREATE_EXCHANGE_RATES = `
+CREATE TABLE IF NOT EXISTS bg_exchange_rates (
+    id TEXT PRIMARY KEY,
+    from_currency TEXT NOT NULL REFERENCES bg_currencies(code) ON DELETE CASCADE,
+    to_currency TEXT NOT NULL REFERENCES bg_currencies(code) ON DELETE CASCADE,
+    rate INTEGER NOT NULL,
+    rate_decimal TEXT NOT NULL,
+    fetched_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(from_currency, to_currency)
+)`;
+
+// -- 29. Shared Envelopes (future: household sharing) --
+export const CREATE_SHARED_ENVELOPES = `
+CREATE TABLE IF NOT EXISTS bg_shared_envelopes (
+    id TEXT PRIMARY KEY,
+    envelope_id TEXT NOT NULL REFERENCES bg_envelopes(id) ON DELETE CASCADE,
+    device_id TEXT NOT NULL,
+    partner_device_id TEXT,
+    sharing_mode TEXT NOT NULL DEFAULT 'joint' CHECK (sharing_mode IN ('joint', 'split')),
+    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(envelope_id)
+)`;
+
+// -- V4 Table and Index Groups --
+export const V4_BUDGET_ENGINE_TABLES = [
+  CREATE_CATEGORY_GROUPS,
+  CREATE_BUDGET_ALLOCATIONS,
+  CREATE_TRANSACTION_SPLITS,
+  CREATE_RECURRING_TEMPLATES,
+  CREATE_PAYEE_CACHE,
+  CREATE_CSV_PROFILES,
+  CREATE_PRICE_HISTORY,
+  CREATE_NOTIFICATION_LOG,
+];
+
+export const V4_RULES_GOALS_TABLES = [
+  CREATE_TRANSACTION_RULES,
+];
+
+export const V4_REPORTING_TABLES = [
+  CREATE_NET_WORTH_SNAPSHOTS,
+  CREATE_DEBT_PAYOFF_PLANS,
+  CREATE_DEBT_PAYOFF_DEBTS,
+  CREATE_BUDGET_ROLLOVERS,
+  CREATE_BUDGET_ALERTS,
+  CREATE_ALERT_HISTORY,
+  CREATE_CURRENCIES,
+  CREATE_EXCHANGE_RATES,
+  CREATE_SHARED_ENVELOPES,
+];
+
+export const V4_ALL_TABLES = [
+  ...V4_BUDGET_ENGINE_TABLES,
+  ...V4_RULES_GOALS_TABLES,
+  ...V4_REPORTING_TABLES,
+];
+
+export const V4_INDEXES = [
+  // Category groups
+  `CREATE INDEX IF NOT EXISTS bg_category_groups_sort_idx ON bg_category_groups(sort_order)`,
+  // Budget allocations
+  `CREATE INDEX IF NOT EXISTS bg_budget_allocations_envelope_month_idx ON bg_budget_allocations(envelope_id, month)`,
+  // Transaction splits
+  `CREATE INDEX IF NOT EXISTS bg_transaction_splits_txn_idx ON bg_transaction_splits(transaction_id)`,
+  `CREATE INDEX IF NOT EXISTS bg_transaction_splits_envelope_idx ON bg_transaction_splits(envelope_id)`,
+  // Recurring templates
+  `CREATE INDEX IF NOT EXISTS bg_recurring_templates_account_idx ON bg_recurring_templates(account_id)`,
+  `CREATE INDEX IF NOT EXISTS bg_recurring_templates_next_date_idx ON bg_recurring_templates(next_date)`,
+  `CREATE INDEX IF NOT EXISTS bg_recurring_templates_subscription_idx ON bg_recurring_templates(subscription_id)`,
+  // Payee cache
+  `CREATE INDEX IF NOT EXISTS bg_payee_cache_use_count_idx ON bg_payee_cache(use_count DESC)`,
+  // Price history
+  `CREATE INDEX IF NOT EXISTS bg_price_history_subscription_idx ON bg_price_history(subscription_id)`,
+  // Notification log
+  `CREATE INDEX IF NOT EXISTS bg_notification_log_subscription_idx ON bg_notification_log(subscription_id)`,
+  `CREATE INDEX IF NOT EXISTS bg_notification_log_scheduled_idx ON bg_notification_log(scheduled_for)`,
+  // Transaction rules
+  `CREATE INDEX IF NOT EXISTS bg_transaction_rules_enabled_idx ON bg_transaction_rules(is_enabled, priority)`,
+  `CREATE INDEX IF NOT EXISTS bg_transaction_rules_envelope_idx ON bg_transaction_rules(envelope_id)`,
+  // Net worth
+  `CREATE INDEX IF NOT EXISTS bg_net_worth_snapshots_month_idx ON bg_net_worth_snapshots(month)`,
+  // Debt payoff
+  `CREATE INDEX IF NOT EXISTS bg_debt_payoff_debts_plan_idx ON bg_debt_payoff_debts(plan_id)`,
+  // Budget rollovers
+  `CREATE INDEX IF NOT EXISTS bg_budget_rollovers_envelope_month_idx ON bg_budget_rollovers(envelope_id, from_month)`,
+  // Budget alerts
+  `CREATE INDEX IF NOT EXISTS bg_budget_alerts_envelope_idx ON bg_budget_alerts(envelope_id)`,
+  `CREATE INDEX IF NOT EXISTS bg_alert_history_alert_idx ON bg_alert_history(alert_id)`,
+  `CREATE INDEX IF NOT EXISTS bg_alert_history_month_idx ON bg_alert_history(month)`,
+  // Exchange rates
+  `CREATE INDEX IF NOT EXISTS bg_exchange_rates_pair_idx ON bg_exchange_rates(from_currency, to_currency)`,
+  // Shared envelopes
+  `CREATE INDEX IF NOT EXISTS bg_shared_envelopes_envelope_idx ON bg_shared_envelopes(envelope_id)`,
+];
+
+/** ALTER TABLE statements for V4 — add columns to existing tables. */
+export const V4_ALTER_STATEMENTS = [
+  // Add group_id to envelopes for YNAB-style grouping
+  `ALTER TABLE bg_envelopes ADD COLUMN group_id TEXT REFERENCES bg_category_groups(id)`,
+  // Add envelope linkage to subscriptions
+  `ALTER TABLE bg_subscriptions ADD COLUMN envelope_id TEXT REFERENCES bg_envelopes(id)`,
+  // Add cleared/transfer tracking to transactions
+  `ALTER TABLE bg_transactions ADD COLUMN is_cleared INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE bg_transactions ADD COLUMN is_transfer INTEGER NOT NULL DEFAULT 0`,
+  `ALTER TABLE bg_transactions ADD COLUMN transfer_id TEXT`,
+  // Add payee column to transactions (standalone uses payee, hub uses merchant — add alias)
+  `ALTER TABLE bg_transactions ADD COLUMN payee TEXT`,
+];
+
 export const ALL_TABLES = [
   ...CORE_TABLES,
   ...BANK_SYNC_TABLES,
   ...SUBSCRIPTION_TABLES,
+  ...V4_ALL_TABLES,
 ];
 
 /** Seed SQL for default settings. */

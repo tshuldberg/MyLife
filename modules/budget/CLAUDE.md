@@ -50,14 +50,15 @@ Envelope budgeting module with integrated subscription tracking and bank sync. Y
 
 ## Test Coverage
 
-- **Test files:** 10
-- **Covered:** Core budget CRUD (`__tests__/budget.test.ts`), bank sync audit log, cloud adapters, connector service, Plaid provider, provider router, server runtime, token vault, webhook security, bank sync types
-- **Gaps:** Subscription catalog search, recurring detector, subscription discovery
+- **Test files:** 15
+- **Total tests:** 176
+- **Covered:** Core budget CRUD, budget engine (calculateMonthBudget, getCarryForward, getTotalOverspent, moveMoneyBetweenCategories), schedule calculator, full budget cycle integration (multi-month carry-forward, overspending, savings accumulation), subscription engine (renewal, cost normalization, status state machine, upcoming renewals, cost summary by envelope), recurring charge detector (payee normalization, frequency detection, catalog matching, confidence scoring), bank sync (audit log, cloud adapters, connector service, Plaid provider, provider router, server runtime, token vault, webhook security, types)
+- **Gaps:** Subscription catalog search, subscription discovery
 
 ## Parity Status
 
-- **Standalone repo:** MyBudget (exists as standalone submodule)
-- **Hub integration:** wired
+- **Standalone repo:** Archived to `archive/MyBudget/` (2026-03-07)
+- **Hub integration:** Consolidated (V4 schema, full engine + subscription + bank-sync)
 
 ## Key Files
 
