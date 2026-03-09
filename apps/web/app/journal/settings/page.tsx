@@ -1,10 +1,13 @@
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import {
+  createJournalNotebook,
+  exportJournalData,
   getJournalDashboard,
   getJournalSetting,
-  listJournalEntries,
-  listJournalTags,
+  listJournalNotebooks,
+  listJournalPromptCategories,
+  serializeJournalExport,
   setJournalSetting,
 } from '@mylife/journal';
 import { getAdapter } from '@/lib/db';
@@ -19,26 +22,55 @@ const styles: Record<string, React.CSSProperties> = {
   sectionTitle: { fontSize: '1rem', fontWeight: 600, color: 'var(--text)', marginBottom: '0.5rem' },
   line: { color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 },
   button: { background: 'var(--accent-journal)', color: '#0A0A0F', border: 'none', borderRadius: '12px', padding: '0.75rem 1rem', fontWeight: 700, cursor: 'pointer', marginTop: '0.75rem' },
+  input: { padding: '0.7rem 0.85rem', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', width: '100%' },
+  chipRow: { display: 'flex', gap: '0.6rem', flexWrap: 'wrap' as const, marginTop: '0.75rem' },
+  chip: { padding: '0.45rem 0.8rem', borderRadius: '999px', border: '1px solid var(--border)', color: 'var(--text-secondary)', background: 'var(--surface)' },
+  pre: { whiteSpace: 'pre-wrap' as const, color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5, margin: 0 },
 };
 
 export default async function JournalSettingsPage() {
   const db = getAdapter();
-  const entries = listJournalEntries(db, { limit: 200 });
-  const tags = listJournalTags(db);
+  const notebooks = listJournalNotebooks(db);
   const dashboard = getJournalDashboard(db);
   const promptEnabled = getJournalSetting(db, 'dailyPromptEnabled') === 'true';
+  const promptCategory = getJournalSetting(db, 'dailyPromptCategory') ?? 'reflection';
+  const exportPreview = serializeJournalExport(exportJournalData(db), 'markdown').slice(0, 420);
 
   async function togglePromptPreference() {
     'use server';
 
     setJournalSetting(getAdapter(), 'dailyPromptEnabled', promptEnabled ? 'false' : 'true');
     revalidatePath('/journal/settings');
+    revalidatePath('/journal');
+  }
+
+  async function setPromptCategory(formData: FormData) {
+    'use server';
+
+    const category = String(formData.get('category') ?? 'reflection');
+    setJournalSetting(getAdapter(), 'dailyPromptCategory', category);
+    revalidatePath('/journal/settings');
+    revalidatePath('/journal');
+  }
+
+  async function addNotebook(formData: FormData) {
+    'use server';
+
+    const name = String(formData.get('name') ?? '').trim();
+    if (!name) {
+      return;
+    }
+
+    createJournalNotebook(getAdapter(), crypto.randomUUID(), { name });
+    revalidatePath('/journal/settings');
+    revalidatePath('/journal');
+    revalidatePath('/journal/entries');
   }
 
   return (
     <div style={styles.page}>
       <h1 style={styles.title}>Journal Settings</h1>
-      <p style={styles.subtitle}>Module snapshot and spec-gap check</p>
+      <p style={styles.subtitle}>Notebook management, prompt settings, and export preview</p>
 
       <div style={styles.nav}>
         <Link href="/journal" style={styles.navLink}>Today</Link>
@@ -49,36 +81,57 @@ export default async function JournalSettingsPage() {
 
       <div style={styles.card}>
         <div style={styles.sectionTitle}>Snapshot</div>
-        <div style={styles.line}>Entries: {entries.length}</div>
-        <div style={styles.line}>Tags: {tags.length}</div>
+        <div style={styles.line}>Entries: {dashboard.entryCount}</div>
+        <div style={styles.line}>Journals: {dashboard.journalCount}</div>
         <div style={styles.line}>Current streak: {dashboard.currentStreak}</div>
         <div style={styles.line}>Longest streak: {dashboard.longestStreak}</div>
       </div>
 
       <div style={styles.card}>
-        <div style={styles.sectionTitle}>Prompt Preference</div>
-        <div style={styles.line}>
-          Stored locally: {promptEnabled ? 'enabled' : 'disabled'}. This only persists the preference
-          for now. The spec-level 365-prompt rotation and prompt categories are still pending.
-        </div>
-        <form action={togglePromptPreference}>
-          <button type="submit" style={styles.button}>
-            {promptEnabled ? 'Disable prompt preference' : 'Enable prompt preference'}
-          </button>
+        <div style={styles.sectionTitle}>Notebooks</div>
+        {notebooks.map((journal) => (
+          <div key={journal.id} style={styles.line}>
+            {journal.name}{journal.isDefault ? ' · default' : ''}
+          </div>
+        ))}
+        <form action={addNotebook}>
+          <input name="name" placeholder="New notebook name" style={styles.input} />
+          <button type="submit" style={styles.button}>Create notebook</button>
         </form>
       </div>
 
       <div style={styles.card}>
-        <div style={styles.sectionTitle}>Spec Gap Check</div>
-        <div style={styles.line}>
-          Implemented now: dated local entries, tags, mood labels, basic settings, simple local search,
-          and streak plus word-count dashboard stats.
+        <div style={styles.sectionTitle}>Prompt Preference</div>
+        <div style={styles.line}>Stored locally: {promptEnabled ? 'enabled' : 'disabled'}.</div>
+        <form action={togglePromptPreference}>
+          <button type="submit" style={styles.button}>
+            {promptEnabled ? 'Disable daily prompts' : 'Enable daily prompts'}
+          </button>
+        </form>
+        <div style={styles.chipRow}>
+          {listJournalPromptCategories().map((category) => (
+            <form key={category} action={setPromptCategory}>
+              <input type="hidden" name="category" value={category} />
+              <button
+                type="submit"
+                style={{
+                  ...styles.chip,
+                  cursor: 'pointer',
+                  color: category === promptCategory ? '#0A0A0F' : 'var(--text-secondary)',
+                  background: category === promptCategory ? 'var(--accent-journal)' : 'var(--surface)',
+                  borderColor: category === promptCategory ? 'var(--accent-journal)' : 'var(--border)',
+                }}
+              >
+                {category}
+              </button>
+            </form>
+          ))}
         </div>
-        <div style={styles.line}>
-          Still missing from the full spec: rich markdown editor and reading view, multiple journals,
-          photo and voice attachment workflows, encryption with biometric lock, FTS5 search, calendar
-          heatmap, On This Day, export, CBT and gratitude flows, metadata capture, and printed-book output.
-        </div>
+      </div>
+
+      <div style={styles.card}>
+        <div style={styles.sectionTitle}>Export Preview</div>
+        <pre style={styles.pre}>{exportPreview}</pre>
       </div>
     </div>
   );

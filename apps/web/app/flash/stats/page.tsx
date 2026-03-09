@@ -29,6 +29,7 @@ export default function FlashStatsPage() {
       <div style={styles.nav}>
         <Link href="/flash" style={styles.navLink}>Study</Link>
         <Link href="/flash/decks" style={styles.navLink}>Decks</Link>
+        <Link href="/flash/browser" style={styles.navLink}>Browse</Link>
         <Link href="/flash/stats" style={styles.navLink}>Stats</Link>
         <Link href="/flash/settings" style={styles.navLink}>Settings</Link>
       </div>

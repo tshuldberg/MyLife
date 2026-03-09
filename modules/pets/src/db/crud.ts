@@ -1,35 +1,60 @@
 import type { DatabaseAdapter } from '@mylife/db';
 import {
+  CreateEmergencyContactInputSchema,
+  CreateExerciseLogInputSchema,
   CreateFeedingScheduleInputSchema,
+  CreateGroomingRecordInputSchema,
   CreateMedicationInputSchema,
   CreatePetExpenseInputSchema,
   CreatePetInputSchema,
+  CreatePetPhotoInputSchema,
+  CreateTrainingLogInputSchema,
   CreateVaccinationInputSchema,
   CreateVetVisitInputSchema,
   CreateWeightEntryInputSchema,
   PetListFilterSchema,
+  PetTimelineItemSchema,
   RecordMedicationLogInputSchema,
   UpdatePetInputSchema,
+  type CreateEmergencyContactInput,
+  type CreateExerciseLogInput,
   type CreateFeedingScheduleInput,
+  type CreateGroomingRecordInput,
   type CreateMedicationInput,
   type CreatePetExpenseInput,
   type CreatePetInput,
+  type CreatePetPhotoInput,
+  type CreateTrainingLogInput,
   type CreateVaccinationInput,
   type CreateVetVisitInput,
   type CreateWeightEntryInput,
+  type EmergencyContact,
+  type ExerciseLog,
   type FeedingSchedule,
+  type GroomingRecord,
   type Medication,
   type MedicationLog,
   type Pet,
   type PetDashboard,
+  type PetExportBundle,
   type PetExpense,
   type PetListFilter,
+  type PetPhoto,
+  type PetSitterCard,
+  type PetTimelineItem,
+  type GroomingReminder,
+  type TrainingLog,
   type Vaccination,
   type VaccinationReminder,
   type VetVisit,
   type WeightEntry,
 } from '../types';
-import { collectVaccinationReminders, computeNextMedicationDueAt } from '../engine/reminders';
+import {
+  collectVaccinationReminders,
+  computeNextMedicationDueAt,
+  getReminderStatus,
+} from '../engine/reminders';
+import { getBreedHealthAlerts } from '../engine/alerts';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -165,6 +190,79 @@ function rowToPetExpense(row: Record<string, unknown>): PetExpense {
   };
 }
 
+function rowToEmergencyContact(row: Record<string, unknown>): EmergencyContact {
+  return {
+    id: row.id as string,
+    petId: (row.pet_id as string) ?? null,
+    label: row.label as string,
+    clinicName: row.clinic_name as string,
+    phone: row.phone as string,
+    address: (row.address as string) ?? null,
+    hours: (row.hours as string) ?? null,
+    notes: (row.notes as string) ?? null,
+    isPrimary: Number(row.is_primary ?? 0) === 1,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
+function rowToExerciseLog(row: Record<string, unknown>): ExerciseLog {
+  return {
+    id: row.id as string,
+    petId: row.pet_id as string,
+    activityType: row.activity_type as ExerciseLog['activityType'],
+    durationMinutes: row.duration_minutes as number,
+    distanceKm: typeof row.distance_km === 'number' ? row.distance_km : row.distance_km === null ? null : Number(row.distance_km),
+    loggedAt: row.logged_at as string,
+    notes: (row.notes as string) ?? null,
+    createdAt: row.created_at as string,
+  };
+}
+
+function rowToGroomingRecord(row: Record<string, unknown>): GroomingRecord {
+  return {
+    id: row.id as string,
+    petId: row.pet_id as string,
+    groomingType: row.grooming_type as GroomingRecord['groomingType'],
+    groomedAt: row.groomed_at as string,
+    nextDueDate: (row.next_due_date as string) ?? null,
+    provider: (row.provider as string) ?? null,
+    costCents: (row.cost_cents as number) ?? null,
+    notes: (row.notes as string) ?? null,
+    createdAt: row.created_at as string,
+  };
+}
+
+function rowToTrainingLog(row: Record<string, unknown>): TrainingLog {
+  return {
+    id: row.id as string,
+    petId: row.pet_id as string,
+    commandName: row.command_name as string,
+    location: row.location as TrainingLog['location'],
+    durationMinutes: (row.duration_minutes as number) ?? null,
+    successRating: (row.success_rating as number) ?? null,
+    loggedAt: row.logged_at as string,
+    notes: (row.notes as string) ?? null,
+    createdAt: row.created_at as string,
+  };
+}
+
+function rowToPetPhoto(row: Record<string, unknown>): PetPhoto {
+  return {
+    id: row.id as string,
+    petId: row.pet_id as string,
+    imageUri: row.image_uri as string,
+    caption: (row.caption as string) ?? null,
+    milestoneTag: (row.milestone_tag as string) ?? null,
+    takenAt: (row.taken_at as string) ?? null,
+    createdAt: row.created_at as string,
+  };
+}
+
+function createTimelineDate(value: string): string {
+  return value.length === 10 ? `${value}T12:00:00.000Z` : value;
+}
+
 export function createPet(db: DatabaseAdapter, id: string, rawInput: CreatePetInput): Pet {
   const input = CreatePetInputSchema.parse(rawInput);
   const now = nowIso();
@@ -256,27 +354,45 @@ export function createVetVisit(db: DatabaseAdapter, id: string, rawInput: Create
   const input = CreateVetVisitInputSchema.parse(rawInput);
   const now = nowIso();
 
-  db.execute(
-    `INSERT INTO pt_vet_visits (
-      id, pet_id, visit_date, visit_type, reason, clinic_name, veterinarian, diagnosis, treatment,
-      weight_grams, cost_cents, notes, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      input.petId,
-      input.visitDate,
-      input.visitType,
-      input.reason,
-      input.clinicName,
-      input.veterinarian,
-      input.diagnosis,
-      input.treatment,
-      input.weightGrams,
-      input.costCents,
-      input.notes,
-      now,
-    ],
-  );
+  db.transaction(() => {
+    db.execute(
+      `INSERT INTO pt_vet_visits (
+        id, pet_id, visit_date, visit_type, reason, clinic_name, veterinarian, diagnosis, treatment,
+        weight_grams, cost_cents, notes, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        input.petId,
+        input.visitDate,
+        input.visitType,
+        input.reason,
+        input.clinicName,
+        input.veterinarian,
+        input.diagnosis,
+        input.treatment,
+        input.weightGrams,
+        input.costCents,
+        input.notes,
+        now,
+      ],
+    );
+
+    if (input.costCents !== null) {
+      db.execute(
+        `INSERT INTO pt_expenses (id, pet_id, category, label, amount_cents, spent_on, notes, created_at)
+         VALUES (?, ?, 'vet', ?, ?, ?, ?, ?)`,
+        [
+          createId('pt_expense'),
+          input.petId,
+          `Vet visit: ${input.reason}`,
+          input.costCents,
+          input.visitDate,
+          input.notes,
+          now,
+        ],
+      );
+    }
+  });
 
   return db
     .query<Record<string, unknown>>(`SELECT * FROM pt_vet_visits WHERE id = ?`, [id])
@@ -542,6 +658,406 @@ export function listExpensesForPet(db: DatabaseAdapter, petId: string): PetExpen
     .map(rowToPetExpense);
 }
 
+export function createEmergencyContact(
+  db: DatabaseAdapter,
+  id: string,
+  rawInput: CreateEmergencyContactInput,
+): EmergencyContact {
+  const input = CreateEmergencyContactInputSchema.parse(rawInput);
+  const now = nowIso();
+
+  if (input.isPrimary) {
+    db.execute(
+      `UPDATE pt_emergency_contacts SET is_primary = 0, updated_at = ? WHERE COALESCE(pet_id, '') = COALESCE(?, '')`,
+      [now, input.petId],
+    );
+  }
+
+  db.execute(
+    `INSERT INTO pt_emergency_contacts (
+      id, pet_id, label, clinic_name, phone, address, hours, notes, is_primary, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.petId,
+      input.label,
+      input.clinicName,
+      input.phone,
+      input.address,
+      input.hours,
+      input.notes,
+      input.isPrimary ? 1 : 0,
+      now,
+      now,
+    ],
+  );
+
+  return db
+    .query<Record<string, unknown>>(`SELECT * FROM pt_emergency_contacts WHERE id = ?`, [id])
+    .map(rowToEmergencyContact)[0];
+}
+
+export function listEmergencyContacts(
+  db: DatabaseAdapter,
+  petId?: string | null,
+): EmergencyContact[] {
+  const rows = petId === undefined
+    ? db.query<Record<string, unknown>>(
+      `SELECT * FROM pt_emergency_contacts
+       ORDER BY is_primary DESC, clinic_name ASC`,
+    )
+    : db.query<Record<string, unknown>>(
+      `SELECT * FROM pt_emergency_contacts
+       WHERE pet_id = ? OR pet_id IS NULL
+       ORDER BY CASE WHEN pet_id = ? THEN 0 ELSE 1 END ASC, is_primary DESC, clinic_name ASC`,
+      [petId, petId],
+    );
+
+  return rows.map(rowToEmergencyContact);
+}
+
+export function createExerciseLog(db: DatabaseAdapter, id: string, rawInput: CreateExerciseLogInput): ExerciseLog {
+  const input = CreateExerciseLogInputSchema.parse(rawInput);
+  const loggedAt = input.loggedAt ?? nowIso();
+  const createdAt = nowIso();
+
+  db.execute(
+    `INSERT INTO pt_exercise_logs (
+      id, pet_id, activity_type, duration_minutes, distance_km, logged_at, notes, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.petId,
+      input.activityType,
+      input.durationMinutes,
+      input.distanceKm,
+      loggedAt,
+      input.notes,
+      createdAt,
+    ],
+  );
+
+  return db
+    .query<Record<string, unknown>>(`SELECT * FROM pt_exercise_logs WHERE id = ?`, [id])
+    .map(rowToExerciseLog)[0];
+}
+
+export function listExerciseLogsForPet(db: DatabaseAdapter, petId: string): ExerciseLog[] {
+  return db
+    .query<Record<string, unknown>>(
+      `SELECT * FROM pt_exercise_logs WHERE pet_id = ? ORDER BY logged_at DESC`,
+      [petId],
+    )
+    .map(rowToExerciseLog);
+}
+
+export function createGroomingRecord(
+  db: DatabaseAdapter,
+  id: string,
+  rawInput: CreateGroomingRecordInput,
+): GroomingRecord {
+  const input = CreateGroomingRecordInputSchema.parse(rawInput);
+  const groomedAt = input.groomedAt ?? new Date().toISOString().slice(0, 10);
+  const createdAt = nowIso();
+
+  db.transaction(() => {
+    db.execute(
+      `INSERT INTO pt_grooming_records (
+        id, pet_id, grooming_type, groomed_at, next_due_date, provider, cost_cents, notes, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        input.petId,
+        input.groomingType,
+        groomedAt,
+        input.nextDueDate,
+        input.provider,
+        input.costCents,
+        input.notes,
+        createdAt,
+      ],
+    );
+
+    if (input.costCents !== null) {
+      db.execute(
+        `INSERT INTO pt_expenses (id, pet_id, category, label, amount_cents, spent_on, notes, created_at)
+         VALUES (?, ?, 'grooming', ?, ?, ?, ?, ?)`,
+        [
+          createId('pt_expense'),
+          input.petId,
+          `Grooming: ${input.groomingType.replaceAll('_', ' ')}`,
+          input.costCents,
+          groomedAt.slice(0, 10),
+          input.notes,
+          createdAt,
+        ],
+      );
+    }
+  });
+
+  return db
+    .query<Record<string, unknown>>(`SELECT * FROM pt_grooming_records WHERE id = ?`, [id])
+    .map(rowToGroomingRecord)[0];
+}
+
+export function listGroomingRecordsForPet(db: DatabaseAdapter, petId: string): GroomingRecord[] {
+  return db
+    .query<Record<string, unknown>>(
+      `SELECT * FROM pt_grooming_records WHERE pet_id = ? ORDER BY groomed_at DESC`,
+      [petId],
+    )
+    .map(rowToGroomingRecord);
+}
+
+export function listDueGroomingReminders(
+  db: DatabaseAdapter,
+  referenceDate = new Date().toISOString().slice(0, 10),
+  warningWindowDays = 14,
+): GroomingReminder[] {
+  const pets = new Map(listPets(db, { includeArchived: true }).map((pet) => [pet.id, pet.name]));
+
+  return db
+    .query<Record<string, unknown>>(
+      `SELECT * FROM pt_grooming_records
+       WHERE next_due_date IS NOT NULL
+         AND date(next_due_date) <= date(?, '+' || ? || ' days')
+       ORDER BY next_due_date ASC`,
+      [referenceDate, warningWindowDays],
+    )
+    .map(rowToGroomingRecord)
+    .map((record) => {
+      const reminder = getReminderStatus(record.nextDueDate!, referenceDate, warningWindowDays);
+      return {
+        petId: record.petId,
+        petName: pets.get(record.petId) ?? 'Unknown Pet',
+        groomingRecordId: record.id,
+        groomingType: record.groomingType,
+        nextDueDate: record.nextDueDate!,
+        status: reminder.status,
+        daysUntilDue: reminder.daysUntilDue,
+      };
+    });
+}
+
+export function createTrainingLog(db: DatabaseAdapter, id: string, rawInput: CreateTrainingLogInput): TrainingLog {
+  const input = CreateTrainingLogInputSchema.parse(rawInput);
+  const loggedAt = input.loggedAt ?? nowIso();
+  const createdAt = nowIso();
+
+  db.execute(
+    `INSERT INTO pt_training_logs (
+      id, pet_id, command_name, location, duration_minutes, success_rating, logged_at, notes, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.petId,
+      input.commandName,
+      input.location,
+      input.durationMinutes,
+      input.successRating,
+      loggedAt,
+      input.notes,
+      createdAt,
+    ],
+  );
+
+  return db
+    .query<Record<string, unknown>>(`SELECT * FROM pt_training_logs WHERE id = ?`, [id])
+    .map(rowToTrainingLog)[0];
+}
+
+export function listTrainingLogsForPet(db: DatabaseAdapter, petId: string): TrainingLog[] {
+  return db
+    .query<Record<string, unknown>>(
+      `SELECT * FROM pt_training_logs WHERE pet_id = ? ORDER BY logged_at DESC`,
+      [petId],
+    )
+    .map(rowToTrainingLog);
+}
+
+export function createPetPhoto(db: DatabaseAdapter, id: string, rawInput: CreatePetPhotoInput): PetPhoto {
+  const input = CreatePetPhotoInputSchema.parse(rawInput);
+  const createdAt = nowIso();
+
+  db.transaction(() => {
+    db.execute(
+      `INSERT INTO pt_pet_photos (id, pet_id, image_uri, caption, milestone_tag, taken_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, input.petId, input.imageUri, input.caption, input.milestoneTag, input.takenAt, createdAt],
+    );
+
+    const pet = getPetById(db, input.petId);
+    if (pet && !pet.imageUri) {
+      db.execute(`UPDATE pt_pets SET image_uri = ?, updated_at = ? WHERE id = ?`, [input.imageUri, createdAt, input.petId]);
+    }
+  });
+
+  return db
+    .query<Record<string, unknown>>(`SELECT * FROM pt_pet_photos WHERE id = ?`, [id])
+    .map(rowToPetPhoto)[0];
+}
+
+export function listPetPhotosForPet(db: DatabaseAdapter, petId: string): PetPhoto[] {
+  return db
+    .query<Record<string, unknown>>(
+      `SELECT * FROM pt_pet_photos
+       WHERE pet_id = ?
+       ORDER BY COALESCE(taken_at, created_at) DESC`,
+      [petId],
+    )
+    .map(rowToPetPhoto);
+}
+
+export function getPetHealthTimeline(
+  db: DatabaseAdapter,
+  petId: string,
+  limit = 50,
+): PetTimelineItem[] {
+  const medicationLogs = db
+    .query<Record<string, unknown>>(
+      `SELECT ml.id, m.pet_id, ml.logged_at, ml.status, m.name
+       FROM pt_medication_logs ml
+       INNER JOIN pt_medications m ON m.id = ml.medication_id
+       WHERE m.pet_id = ?
+       ORDER BY ml.logged_at DESC`,
+      [petId],
+    )
+    .map((row) => ({
+      id: row.id as string,
+      petId: row.pet_id as string,
+      occurredAt: row.logged_at as string,
+      kind: 'medication' as const,
+      title: `Medication ${row.status === 'given' ? 'given' : 'skipped'} · ${row.name as string}`,
+      detail: null,
+    }));
+
+  const items = [
+    ...listVetVisitsForPet(db, petId).map((visit) => ({
+      id: visit.id,
+      petId: visit.petId,
+      occurredAt: createTimelineDate(visit.visitDate),
+      kind: 'vet_visit' as const,
+      title: `Vet visit · ${visit.reason}`,
+      detail: visit.diagnosis ?? visit.clinicName,
+    })),
+    ...listVaccinationsForPet(db, petId).map((vaccination) => ({
+      id: vaccination.id,
+      petId: vaccination.petId,
+      occurredAt: createTimelineDate(vaccination.dateGiven),
+      kind: 'vaccination' as const,
+      title: `Vaccination · ${vaccination.name}`,
+      detail: vaccination.nextDueDate ? `Next due ${vaccination.nextDueDate}` : null,
+    })),
+    ...medicationLogs,
+    ...listWeightEntriesForPet(db, petId).map((entry) => ({
+      id: entry.id,
+      petId: entry.petId,
+      occurredAt: entry.loggedAt,
+      kind: 'weight' as const,
+      title: `Weight logged · ${(entry.weightGrams / 1000).toFixed(1)} kg`,
+      detail: entry.notes,
+    })),
+    ...listExerciseLogsForPet(db, petId).map((log) => ({
+      id: log.id,
+      petId: log.petId,
+      occurredAt: log.loggedAt,
+      kind: 'exercise' as const,
+      title: `${log.activityType.replaceAll('_', ' ')} · ${log.durationMinutes} min`,
+      detail: log.distanceKm !== null ? `${log.distanceKm.toFixed(1)} km` : log.notes,
+    })),
+    ...listGroomingRecordsForPet(db, petId).map((record) => ({
+      id: record.id,
+      petId: record.petId,
+      occurredAt: createTimelineDate(record.groomedAt),
+      kind: 'grooming' as const,
+      title: `Grooming · ${record.groomingType.replaceAll('_', ' ')}`,
+      detail: record.nextDueDate ? `Next due ${record.nextDueDate}` : record.provider,
+    })),
+    ...listTrainingLogsForPet(db, petId).map((log) => ({
+      id: log.id,
+      petId: log.petId,
+      occurredAt: log.loggedAt,
+      kind: 'training' as const,
+      title: `Training · ${log.commandName}`,
+      detail: log.successRating !== null ? `Success ${log.successRating}/5` : log.notes,
+    })),
+    ...listPetPhotosForPet(db, petId).map((photo) => ({
+      id: photo.id,
+      petId: photo.petId,
+      occurredAt: photo.takenAt ?? photo.createdAt,
+      kind: 'photo' as const,
+      title: 'Photo added',
+      detail: photo.caption ?? photo.milestoneTag,
+    })),
+  ]
+    .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+    .slice(0, limit)
+    .map((item) => PetTimelineItemSchema.parse(item));
+
+  return items;
+}
+
+export function buildPetSitterCard(db: DatabaseAdapter, petId: string): PetSitterCard | null {
+  const pet = getPetById(db, petId);
+  if (!pet) {
+    return null;
+  }
+
+  return {
+    pet,
+    activeMedications: listMedicationsForPet(db, petId, false),
+    feedingSchedules: listFeedingSchedulesForPet(db, petId),
+    emergencyContacts: listEmergencyContacts(db, petId),
+    breedAlerts: getBreedHealthAlerts(pet.species, pet.breed),
+  };
+}
+
+export function exportPetData(db: DatabaseAdapter, petId?: string): PetExportBundle {
+  const pets = petId
+    ? (() => {
+      const pet = getPetById(db, petId);
+      return pet ? [pet] : [];
+    })()
+    : listPets(db, { includeArchived: true });
+
+  const petIds = new Set(pets.map((pet) => pet.id));
+  const medicationIds = new Set<string>();
+
+  const vetVisits = pets.flatMap((pet) => listVetVisitsForPet(db, pet.id));
+  const vaccinations = pets.flatMap((pet) => listVaccinationsForPet(db, pet.id));
+  const medications = pets.flatMap((pet) => listMedicationsForPet(db, pet.id, true));
+  medications.forEach((medication) => medicationIds.add(medication.id));
+  const medicationLogs = Array.from(medicationIds).flatMap((medicationId) => listMedicationLogs(db, medicationId));
+  const weightEntries = pets.flatMap((pet) => listWeightEntriesForPet(db, pet.id));
+  const feedingSchedules = pets.flatMap((pet) => listFeedingSchedulesForPet(db, pet.id));
+  const expenses = pets.flatMap((pet) => listExpensesForPet(db, pet.id));
+  const exerciseLogs = pets.flatMap((pet) => listExerciseLogsForPet(db, pet.id));
+  const groomingRecords = pets.flatMap((pet) => listGroomingRecordsForPet(db, pet.id));
+  const trainingLogs = pets.flatMap((pet) => listTrainingLogsForPet(db, pet.id));
+  const photos = pets.flatMap((pet) => listPetPhotosForPet(db, pet.id));
+  const timeline = pets.flatMap((pet) => getPetHealthTimeline(db, pet.id, 200));
+  const emergencyContacts = listEmergencyContacts(db).filter(
+    (contact) => contact.petId === null || (contact.petId !== null && petIds.has(contact.petId)),
+  );
+
+  return {
+    pets,
+    vetVisits,
+    vaccinations,
+    medications,
+    medicationLogs,
+    weightEntries,
+    feedingSchedules,
+    expenses,
+    emergencyContacts,
+    exerciseLogs,
+    groomingRecords,
+    trainingLogs,
+    photos,
+    timeline,
+  };
+}
+
 export function getPetDashboard(
   db: DatabaseAdapter,
   petId: string,
@@ -587,6 +1103,27 @@ export function getPetDashboard(
     [petId],
   )[0]?.visit_date ?? null;
 
+  const lastExerciseAt = db.query<{ logged_at: string }>(
+    `SELECT logged_at FROM pt_exercise_logs WHERE pet_id = ? ORDER BY logged_at DESC LIMIT 1`,
+    [petId],
+  )[0]?.logged_at ?? null;
+
+  const nextGroomingDueDate = db.query<{ next_due_date: string }>(
+    `SELECT next_due_date
+     FROM pt_grooming_records
+     WHERE pet_id = ?
+       AND next_due_date IS NOT NULL
+       AND date(next_due_date) >= date(?)
+     ORDER BY next_due_date ASC
+     LIMIT 1`,
+    [petId, dateOnly],
+  )[0]?.next_due_date ?? null;
+
+  const photoCount = db.query<{ count: number }>(
+    `SELECT COUNT(*) as count FROM pt_pet_photos WHERE pet_id = ?`,
+    [petId],
+  )[0]?.count ?? 0;
+
   return {
     petId: pet.id,
     petName: pet.name,
@@ -596,5 +1133,8 @@ export function getPetDashboard(
     totalExpensesCents,
     lastVetVisitDate,
     latestWeightGrams: pet.currentWeightGrams,
+    lastExerciseAt,
+    nextGroomingDueDate,
+    photoCount,
   };
 }

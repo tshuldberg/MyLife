@@ -1,6 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { getFlashDashboard, listDecks, listDueFlashcards, rateFlashcard } from '@mylife/flash';
+import {
+  buryFlashNote,
+  buryFlashcard,
+  getFlashDashboard,
+  listDecks,
+  listDueFlashcards,
+  rateFlashcard,
+  suspendFlashcard,
+} from '@mylife/flash';
 import type { CardRating } from '@mylife/flash';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
@@ -43,8 +51,8 @@ export default function FlashStudyScreen() {
           <Stat label="Streak" value={String(dashboard.currentStreak)} />
         </View>
         <Text variant="caption" color={colors.textSecondary}>
-          Current hub scope uses a lightweight local scheduler with review logs and daily streaks.
-          Full FSRS tuning, cram modes, undo review, and sibling bury rules are still pending.
+          Current hub scope uses a lightweight local scheduler with review logs, streaks, browser search,
+          and queue controls. Full FSRS tuning, cram modes, rich media, and undo review are still pending.
         </Text>
       </Card>
 
@@ -98,9 +106,46 @@ export default function FlashStudyScreen() {
               </Text>
               <Text style={styles.cardText}>{revealed ? currentCard.back || 'No answer yet' : currentCard.front}</Text>
               <Text variant="caption" color={colors.textSecondary}>
+                {currentCard.cardType}
+                {currentCard.tags.length > 0 ? ` · ${currentCard.tags.join(', ')}` : ''}
+              </Text>
+              <Text variant="caption" color={colors.textSecondary}>
                 Tap card to {revealed ? 'see prompt again' : 'reveal answer'}
               </Text>
             </Pressable>
+
+            <View style={styles.actionRow}>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => {
+                  suspendFlashcard(db, currentCard.id);
+                  setRevealed(false);
+                  refresh();
+                }}
+              >
+                <Text variant="caption" color={colors.textSecondary}>Suspend</Text>
+              </Pressable>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => {
+                  buryFlashcard(db, currentCard.id, new Date().toISOString());
+                  setRevealed(false);
+                  refresh();
+                }}
+              >
+                <Text variant="caption" color={colors.textSecondary}>Bury Card</Text>
+              </Pressable>
+              <Pressable
+                style={styles.secondaryButton}
+                onPress={() => {
+                  buryFlashNote(db, currentCard.id, new Date().toISOString());
+                  setRevealed(false);
+                  refresh();
+                }}
+              >
+                <Text variant="caption" color={colors.textSecondary}>Bury Note</Text>
+              </Pressable>
+            </View>
 
             <View style={styles.ratingRow}>
               {RATINGS.map((rating) => (
@@ -198,6 +243,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  secondaryButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceElevated,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
   ratingButton: {
     flexGrow: 1,

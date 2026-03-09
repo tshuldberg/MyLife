@@ -1,21 +1,42 @@
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { searchJournalEntries } from '@mylife/journal';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { listJournalNotebooks, searchJournalEntries } from '@mylife/journal';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
+
+const JOURNAL_ACCENT = '#A78BFA';
 
 export default function JournalSearchScreen() {
   const db = useDatabase();
   const [query, setQuery] = useState('');
+  const [selectedJournalId, setSelectedJournalId] = useState<string | null>(null);
+  const notebooks = listJournalNotebooks(db);
+  const selectedJournal = notebooks.find((journal) => journal.id === selectedJournalId) ?? notebooks[0] ?? null;
   const results = useMemo(
-    () => (query.trim() ? searchJournalEntries(db, query.trim(), 25) : []),
-    [db, query],
+    () => (query.trim() ? searchJournalEntries(db, query.trim(), 25, selectedJournal?.id) : []),
+    [db, query, selectedJournal],
   );
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Card>
         <Text variant="subheading">Search Journal</Text>
+        <View style={styles.chipRow}>
+          {notebooks.map((journal) => {
+            const selected = selectedJournal?.id === journal.id;
+            return (
+              <Pressable
+                key={journal.id}
+                onPress={() => setSelectedJournalId(journal.id)}
+                style={[styles.chip, selected ? styles.chipActive : null]}
+              >
+                <Text variant="caption" color={selected ? colors.background : colors.textSecondary}>
+                  {journal.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
         <TextInput
           style={styles.input}
           value={query}
@@ -24,8 +45,7 @@ export default function JournalSearchScreen() {
           placeholderTextColor={colors.textTertiary}
         />
         <Text variant="caption" color={colors.textSecondary}>
-          Current hub build uses simple local text matching. The spec still calls for a dedicated
-          FTS5 index, stemming, and richer filters.
+          Search is still simple local text matching, but it now scopes cleanly by notebook.
         </Text>
       </Card>
 
@@ -68,6 +88,23 @@ const styles = StyleSheet.create({
   content: {
     padding: spacing.md,
     gap: spacing.md,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  chip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    backgroundColor: colors.surfaceElevated,
+  },
+  chipActive: {
+    backgroundColor: JOURNAL_ACCENT,
+    borderColor: JOURNAL_ACCENT,
   },
   input: {
     marginTop: spacing.sm,

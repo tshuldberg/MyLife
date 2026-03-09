@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { getJournalDashboard, listJournalEntries, listJournalTags } from '@mylife/journal';
+import { getJournalDashboard, listJournalEntries, listJournalNotebooks, listJournalTags, listOnThisDayEntries } from '@mylife/journal';
 import { getAdapter } from '@/lib/db';
 
 const styles: Record<string, React.CSSProperties> = {
@@ -18,19 +18,23 @@ const styles: Record<string, React.CSSProperties> = {
 export default async function JournalEntriesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tag?: string | string[] }>;
+  searchParams: Promise<{ tag?: string | string[]; journal?: string | string[] }>;
 }) {
   const params = await searchParams;
   const activeTag = Array.isArray(params.tag) ? params.tag[0] : params.tag;
+  const activeJournal = Array.isArray(params.journal) ? params.journal[0] : params.journal;
   const db = getAdapter();
-  const tags = listJournalTags(db);
-  const entries = listJournalEntries(db, { tag: activeTag || undefined, limit: 50 });
-  const dashboard = getJournalDashboard(db);
+  const notebooks = listJournalNotebooks(db);
+  const journalId = activeJournal ?? notebooks[0]?.id;
+  const tags = listJournalTags(db, journalId);
+  const entries = listJournalEntries(db, { journalId, tag: activeTag || undefined, limit: 50 });
+  const dashboard = getJournalDashboard(db, new Date().toISOString().slice(0, 10), journalId);
+  const onThisDay = listOnThisDayEntries(db, new Date().toISOString().slice(0, 10), journalId, 5);
 
   return (
     <div style={styles.page}>
       <h1 style={styles.title}>Journal Entries</h1>
-      <p style={styles.subtitle}>Recent writing, tags, and streak context</p>
+      <p style={styles.subtitle}>Notebook-aware browsing, tags, and On This Day review</p>
 
       <div style={styles.nav}>
         <Link href="/journal" style={styles.navLink}>Today</Link>
@@ -40,16 +44,32 @@ export default async function JournalEntriesPage({
       </div>
 
       <div style={styles.card}>
-        <div style={styles.sectionTitle}>Tag filters</div>
+        <div style={styles.sectionTitle}>Notebook filters</div>
         <div style={styles.line}>
           Total entries: {dashboard.entryCount} · Current streak: {dashboard.currentStreak} · Longest streak: {dashboard.longestStreak}
         </div>
         <div style={styles.chipRow}>
-          <Link href="/journal/entries" style={styles.chip}>All</Link>
+          {notebooks.map((journal) => (
+            <Link
+              key={journal.id}
+              href={`/journal/entries?journal=${encodeURIComponent(journal.id)}`}
+              style={{
+                ...styles.chip,
+                color: journal.id === journalId ? '#0A0A0F' : 'var(--text-secondary)',
+                background: journal.id === journalId ? 'var(--accent-journal)' : 'var(--surface)',
+                borderColor: journal.id === journalId ? 'var(--accent-journal)' : 'var(--border)',
+              }}
+            >
+              {journal.name}
+            </Link>
+          ))}
+        </div>
+        <div style={styles.chipRow}>
+          <Link href={`/journal/entries?journal=${encodeURIComponent(journalId ?? '')}`} style={styles.chip}>All tags</Link>
           {tags.map((tag) => (
             <Link
               key={tag.id}
-              href={`/journal/entries?tag=${encodeURIComponent(tag.name)}`}
+              href={`/journal/entries?journal=${encodeURIComponent(journalId ?? '')}&tag=${encodeURIComponent(tag.name)}`}
               style={{
                 ...styles.chip,
                 color: tag.name === activeTag ? '#0A0A0F' : 'var(--text-secondary)',
@@ -61,6 +81,17 @@ export default async function JournalEntriesPage({
             </Link>
           ))}
         </div>
+      </div>
+
+      <div style={styles.card}>
+        <div style={styles.sectionTitle}>On This Day</div>
+        {onThisDay.length === 0 ? (
+          <div style={styles.line}>No matching past entries for this date yet.</div>
+        ) : onThisDay.map((entry) => (
+          <div key={entry.id} style={styles.line}>
+            {entry.entryDate} · {entry.yearsAgo} year{entry.yearsAgo === 1 ? '' : 's'} ago · {entry.title ?? 'Untitled entry'}
+          </div>
+        ))}
       </div>
 
       {entries.length === 0 ? (

@@ -1,6 +1,15 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { calculatePetAgeYears, createPet, getPetDashboard, listPets, updatePet } from '@mylife/pets';
+import {
+  calculatePetAgeYears,
+  createPet,
+  createPetPhoto,
+  getBreedHealthAlerts,
+  getPetDashboard,
+  listPetPhotosForPet,
+  listPets,
+  updatePet,
+} from '@mylife/pets';
 import type { PetSpecies } from '@mylife/pets';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
@@ -24,6 +33,8 @@ export default function PetsHomeScreen() {
   const [birthDate, setBirthDate] = useState('');
   const [species, setSpecies] = useState<PetSpecies>('dog');
   const [selectedPetId, setSelectedPetId] = useState<string | null>(null);
+  const [photoUri, setPhotoUri] = useState('');
+  const [photoCaption, setPhotoCaption] = useState('');
   const [tick, setTick] = useState(0);
 
   const refresh = () => setTick((value) => value + 1);
@@ -36,6 +47,14 @@ export default function PetsHomeScreen() {
   const dashboard = useMemo(
     () => (selectedPet ? getPetDashboard(db, selectedPet.id) : null),
     [db, selectedPet, tick],
+  );
+  const photos = useMemo(
+    () => (selectedPet ? listPetPhotosForPet(db, selectedPet.id) : []),
+    [db, selectedPet, tick],
+  );
+  const breedAlerts = useMemo(
+    () => (selectedPet ? getBreedHealthAlerts(selectedPet.species, selectedPet.breed) : []),
+    [selectedPet],
   );
 
   const handleAddPet = () => {
@@ -150,10 +169,82 @@ export default function PetsHomeScreen() {
             <Stat label="Due Meds" value={String(dashboard.dueMedications)} />
             <Stat label="Spent" value={`$${(dashboard.totalExpensesCents / 100).toFixed(0)}`} />
             <Stat label="Weight" value={dashboard.latestWeightGrams ? `${(dashboard.latestWeightGrams / 1000).toFixed(1)}kg` : 'N/A'} />
+            <Stat label="Photos" value={String(dashboard.photoCount)} />
           </View>
           <Text variant="caption" color={colors.textSecondary}>
-            Next feeding: {dashboard.nextFeedingAt ?? 'Not set'} · Last vet visit: {dashboard.lastVetVisitDate ?? 'None'}
+            Next feeding: {dashboard.nextFeedingAt ?? 'Not set'} · Last walk: {dashboard.lastExerciseAt?.slice(0, 10) ?? 'None'}
           </Text>
+          <Text variant="caption" color={colors.textSecondary}>
+            Next grooming due: {dashboard.nextGroomingDueDate ?? 'Not scheduled'} · Last vet visit: {dashboard.lastVetVisitDate ?? 'None'}
+          </Text>
+        </Card>
+      ) : null}
+
+      {selectedPet ? (
+        <Card>
+          <Text variant="subheading">Photo Gallery</Text>
+          <View style={styles.formGrid}>
+            <TextInput
+              style={styles.input}
+              value={photoUri}
+              onChangeText={setPhotoUri}
+              placeholder="Local photo URI"
+              placeholderTextColor={colors.textTertiary}
+            />
+            <TextInput
+              style={styles.input}
+              value={photoCaption}
+              onChangeText={setPhotoCaption}
+              placeholder="Caption or milestone"
+              placeholderTextColor={colors.textTertiary}
+            />
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() => {
+                if (!photoUri.trim()) {
+                  return;
+                }
+
+                createPetPhoto(db, uuid(), {
+                  petId: selectedPet.id,
+                  imageUri: photoUri.trim(),
+                  caption: photoCaption.trim() || null,
+                });
+                setPhotoUri('');
+                setPhotoCaption('');
+                refresh();
+              }}
+            >
+              <Text variant="label" color={colors.background}>Add Photo</Text>
+            </Pressable>
+          </View>
+          <View style={styles.list}>
+            {photos.length === 0 ? (
+              <Text variant="caption" color={colors.textSecondary}>No local photos saved yet.</Text>
+            ) : (
+              photos.slice(0, 4).map((photo) => (
+                <Text key={photo.id} variant="caption" color={colors.textSecondary}>
+                  {photo.caption ?? 'Photo'} · {photo.imageUri}
+                </Text>
+              ))
+            )}
+          </View>
+        </Card>
+      ) : null}
+
+      {selectedPet && breedAlerts.length > 0 ? (
+        <Card>
+          <Text variant="subheading">Breed Health Alerts</Text>
+          <View style={styles.list}>
+            {breedAlerts.map((alert) => (
+              <View key={alert.id} style={styles.mainCopy}>
+                <Text variant="body">{alert.condition}</Text>
+                <Text variant="caption" color={colors.textSecondary}>
+                  {alert.severity} · {alert.description}
+                </Text>
+              </View>
+            ))}
+          </View>
         </Card>
       ) : null}
     </ScrollView>
@@ -258,7 +349,7 @@ const styles = StyleSheet.create({
   },
   statValue: {
     color: colors.text,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
   },
 });

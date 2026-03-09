@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const FlashCardTypeSchema = z.enum(['basic', 'reversed']);
+export const FlashCardTypeSchema = z.enum(['basic', 'reversed', 'cloze']);
 export type FlashCardType = z.infer<typeof FlashCardTypeSchema>;
 
 export const CardQueueSchema = z.enum(['new', 'learning', 'review', 'suspended', 'buried']);
@@ -33,6 +33,9 @@ export const FlashcardSchema = z.object({
   back: z.string(),
   tags: z.array(z.string()),
   queue: CardQueueSchema,
+  queueBeforeSuspend: CardQueueSchema.nullable(),
+  queueBeforeBury: CardQueueSchema.nullable(),
+  buriedUntil: z.string().nullable(),
   intervalDays: z.number(),
   ease: z.number(),
   dueAt: z.string().nullable(),
@@ -71,6 +74,23 @@ export const FlashDashboardSchema = z.object({
 });
 export type FlashDashboard = z.infer<typeof FlashDashboardSchema>;
 
+export const FlashBrowserSortSchema = z.enum([
+  'updated',
+  'created',
+  'due',
+  'alphabetical',
+  'interval',
+  'lapses',
+]);
+export type FlashBrowserSort = z.infer<typeof FlashBrowserSortSchema>;
+
+export const FlashBrowserCardSchema = FlashcardSchema.extend({
+  deckName: z.string(),
+  isDue: z.boolean(),
+  isLeech: z.boolean(),
+});
+export type FlashBrowserCard = z.infer<typeof FlashBrowserCardSchema>;
+
 export const CreateDeckInputSchema = z.object({
   name: z.string().min(1),
   description: z.string().nullable().default(null),
@@ -93,3 +113,45 @@ export const CreateFlashcardInputSchema = z.object({
   tags: z.array(z.string()).default([]),
 });
 export type CreateFlashcardInput = z.input<typeof CreateFlashcardInputSchema>;
+
+export const BrowseFlashcardsInputSchema = z.object({
+  query: z.string().default(''),
+  deckId: z.string().nullable().optional(),
+  sort: FlashBrowserSortSchema.default('updated'),
+  limit: z.number().int().positive().max(500).default(100),
+  leechThreshold: z.number().int().positive().default(8),
+  referenceAt: z.string().optional(),
+});
+export type BrowseFlashcardsInput = z.input<typeof BrowseFlashcardsInputSchema>;
+
+export const FlashExportRecordSchema = z.object({
+  id: z.string(),
+  deckId: z.string().nullable(),
+  fileName: z.string(),
+  fileSizeBytes: z.number().int(),
+  cardsExported: z.number().int(),
+  mediaExported: z.number().int(),
+  includeScheduling: z.boolean(),
+  includeMedia: z.boolean(),
+  includeTags: z.boolean(),
+  exportedAt: z.string(),
+  durationMs: z.number().int(),
+});
+export type FlashExportRecord = z.infer<typeof FlashExportRecordSchema>;
+
+export const ExportFlashDataInputSchema = z.object({
+  deckId: z.string().nullable().default(null),
+  includeScheduling: z.boolean().default(true),
+  includeMedia: z.boolean().default(false),
+  includeTags: z.boolean().default(true),
+});
+export type ExportFlashDataInput = z.input<typeof ExportFlashDataInputSchema>;
+
+export interface FlashExportBundle {
+  exportRecord: FlashExportRecord;
+  deck: Deck | null;
+  decks: Deck[];
+  cards: Flashcard[];
+  reviewLogs: ReviewLog[];
+  settings: FlashSetting[];
+}

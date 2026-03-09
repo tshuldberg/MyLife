@@ -2,14 +2,19 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createModuleTestDatabase, type InMemoryTestDatabase } from '@mylife/db';
 import { JOURNAL_MODULE } from '../definition';
 import {
+  createJournalNotebook,
   createJournalEntry,
   deleteJournalEntry,
+  exportJournalData,
   getEntriesForDate,
   getJournalDashboard,
   getJournalEntryById,
+  getJournalNotebookById,
   getJournalSetting,
+  listJournalNotebooks,
   listJournalEntries,
   listJournalTags,
+  listOnThisDayEntries,
   searchJournalEntries,
   setJournalSetting,
   updateJournalEntry,
@@ -18,6 +23,8 @@ import {
   calculateJournalStreak,
   countWords,
   estimateReadingTimeMinutes,
+  getDailyJournalPrompt,
+  serializeJournalExport,
   summarizeMoodDistribution,
 } from '..';
 
@@ -43,6 +50,7 @@ describe('Journal CRUD', () => {
 
     const entry = getJournalEntryById(testDb.adapter, 'entry-1');
     expect(entry?.title).toBe('Morning note');
+    expect(entry?.journalId).toBe('journal-default');
     expect(entry?.tags).toEqual(['morning', 'reflection']);
     expect(entry?.wordCount).toBe(6);
   });
@@ -127,6 +135,7 @@ describe('Journal settings and dashboard', () => {
     expect(dashboard.currentStreak).toBe(2);
     expect(dashboard.totalWords).toBe(7);
     expect(dashboard.latestMood).toBe('good');
+    expect(dashboard.journalCount).toBe(1);
   });
 });
 
@@ -275,6 +284,57 @@ describe('Journal search edge cases', () => {
 
   it('returns empty for whitespace-only query', () => {
     expect(searchJournalEntries(testDb.adapter, '   ')).toEqual([]);
+  });
+});
+
+describe('Multiple journals, prompts, and export', () => {
+  it('creates multiple notebooks and scopes entries to a notebook', () => {
+    createJournalNotebook(testDb.adapter, 'travel', {
+      name: 'Travel',
+      description: 'Trips and movement',
+      isDefault: false,
+    });
+    createJournalEntry(testDb.adapter, 'travel-entry', {
+      journalId: 'travel',
+      entryDate: '2026-03-08',
+      body: 'A long airport layover but a good view.',
+      tags: ['travel'],
+    });
+
+    expect(listJournalNotebooks(testDb.adapter)).toHaveLength(2);
+    expect(getJournalNotebookById(testDb.adapter, 'travel')?.name).toBe('Travel');
+    expect(listJournalEntries(testDb.adapter, { journalId: 'travel' })).toHaveLength(1);
+    expect(listJournalTags(testDb.adapter, 'travel').map((tag) => tag.name)).toEqual(['travel']);
+  });
+
+  it('returns on-this-day entries and exports notebook data', () => {
+    createJournalNotebook(testDb.adapter, 'gratitude', {
+      name: 'Gratitude',
+      isDefault: false,
+    });
+    createJournalEntry(testDb.adapter, 'old-entry', {
+      journalId: 'gratitude',
+      entryDate: '2025-03-08',
+      title: 'Last year',
+      body: 'I felt calmer after a slow morning walk.',
+      tags: ['memory'],
+    });
+
+    const onThisDay = listOnThisDayEntries(testDb.adapter, '2026-03-08', 'gratitude');
+    expect(onThisDay).toHaveLength(1);
+    expect(onThisDay[0].yearsAgo).toBe(1);
+
+    const bundle = exportJournalData(testDb.adapter, 'gratitude');
+    expect(bundle.journals).toHaveLength(1);
+    expect(bundle.entries).toHaveLength(1);
+    expect(serializeJournalExport(bundle, 'markdown')).toContain('# Last year');
+    expect(serializeJournalExport(bundle, 'text')).toContain('Date: 2025-03-08');
+  });
+
+  it('generates deterministic daily prompts', () => {
+    const prompt = getDailyJournalPrompt('2026-03-08', 'gratitude');
+    expect(prompt.category).toBe('gratitude');
+    expect(prompt.prompt.length).toBeGreaterThan(0);
   });
 });
 

@@ -2,24 +2,38 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createModuleTestDatabase, type InMemoryTestDatabase } from '@mylife/db';
 import { PETS_MODULE } from '../definition';
 import {
+  buildPetSitterCard,
   createFeedingSchedule,
+  createEmergencyContact,
+  createExerciseLog,
+  createGroomingRecord,
   createMedication,
   createPet,
   createPetExpense,
+  createPetPhoto,
+  createTrainingLog,
   createVaccination,
   createVetVisit,
   createWeightEntry,
   deletePet,
+  exportPetData,
   getMedicationById,
   getPetById,
   getPetDashboard,
+  getPetHealthTimeline,
+  listDueGroomingReminders,
   listDueMedications,
   listDueVaccinationReminders,
+  listEmergencyContacts,
   listExpensesForPet,
+  listExerciseLogsForPet,
   listFeedingSchedulesForPet,
+  listGroomingRecordsForPet,
   listMedicationLogs,
   listMedicationsForPet,
+  listPetPhotosForPet,
   listPets,
+  listTrainingLogsForPet,
   listVaccinationsForPet,
   listVetVisitsForPet,
   listWeightEntriesForPet,
@@ -31,7 +45,10 @@ import {
   calculatePetAgeYears,
   calculateWeightTrend,
   collectMedicationReminders,
+  formatPetSitterCard,
+  getBreedHealthAlerts,
   getReminderStatus,
+  serializePetExportCsvSections,
 } from '..';
 
 let testDb: InMemoryTestDatabase;
@@ -353,5 +370,115 @@ describe('Vet visits -- ordering', () => {
     const visits = listVetVisitsForPet(testDb.adapter, 'pet-1');
     expect(visits[0].reason).toBe('Follow up');
     expect(visits[1].reason).toBe('First visit');
+  });
+});
+
+describe('Expanded care tracking', () => {
+  beforeEach(() => {
+    createPet(testDb.adapter, 'pet-1', {
+      name: 'Sunny',
+      species: 'dog',
+      breed: 'Golden Retriever',
+      microchipId: 'MC-001',
+    });
+    createFeedingSchedule(testDb.adapter, 'feed-1', {
+      petId: 'pet-1',
+      label: 'Breakfast',
+      foodName: 'Chicken kibble',
+      feedAt: '07:00',
+    });
+    createMedication(testDb.adapter, 'med-1', {
+      petId: 'pet-1',
+      name: 'Joint supplement',
+      dosage: '1 chew',
+      frequency: 'daily',
+      startsOn: '2026-03-01',
+      nextDueAt: '2026-03-09T08:00:00.000Z',
+    });
+  });
+
+  it('stores emergency contacts, activities, photos, and export data', () => {
+    createEmergencyContact(testDb.adapter, 'contact-global', {
+      label: '24/7 ER',
+      clinicName: 'City Emergency Vet',
+      phone: '555-0100',
+      address: '123 Main St',
+      isPrimary: true,
+    });
+    createEmergencyContact(testDb.adapter, 'contact-pet', {
+      petId: 'pet-1',
+      label: 'Primary Clinic',
+      clinicName: 'Happy Paws',
+      phone: '555-0111',
+    });
+    createExerciseLog(testDb.adapter, 'exercise-1', {
+      petId: 'pet-1',
+      activityType: 'walk',
+      durationMinutes: 42,
+      distanceKm: 3.4,
+      loggedAt: '2026-03-08T07:30:00.000Z',
+    });
+    createGroomingRecord(testDb.adapter, 'groom-1', {
+      petId: 'pet-1',
+      groomingType: 'bath',
+      groomedAt: '2026-03-05',
+      nextDueDate: '2026-03-19',
+      costCents: 5500,
+    });
+    createTrainingLog(testDb.adapter, 'train-1', {
+      petId: 'pet-1',
+      commandName: 'Stay',
+      location: 'park',
+      successRating: 4,
+      loggedAt: '2026-03-07T10:00:00.000Z',
+    });
+    createPetPhoto(testDb.adapter, 'photo-1', {
+      petId: 'pet-1',
+      imageUri: 'file:///pets/sunny-park.jpg',
+      caption: 'At the park',
+      milestoneTag: 'Adventure',
+      takenAt: '2026-03-07T10:30:00.000Z',
+    });
+
+    expect(listEmergencyContacts(testDb.adapter, 'pet-1')).toHaveLength(2);
+    expect(listExerciseLogsForPet(testDb.adapter, 'pet-1')).toHaveLength(1);
+    expect(listGroomingRecordsForPet(testDb.adapter, 'pet-1')).toHaveLength(1);
+    expect(listTrainingLogsForPet(testDb.adapter, 'pet-1')).toHaveLength(1);
+    expect(listPetPhotosForPet(testDb.adapter, 'pet-1')).toHaveLength(1);
+
+    const groomingReminders = listDueGroomingReminders(testDb.adapter, '2026-03-08', 14);
+    expect(groomingReminders).toHaveLength(1);
+    expect(groomingReminders[0].status).toBe('due_soon');
+
+    const dashboard = getPetDashboard(testDb.adapter, 'pet-1', '2026-03-08T12:00:00.000Z');
+    expect(dashboard?.lastExerciseAt).toBe('2026-03-08T07:30:00.000Z');
+    expect(dashboard?.nextGroomingDueDate).toBe('2026-03-19');
+    expect(dashboard?.photoCount).toBe(1);
+    expect(dashboard?.totalExpensesCents).toBe(5500);
+
+    const timeline = getPetHealthTimeline(testDb.adapter, 'pet-1');
+    expect(timeline.some((item) => item.kind === 'exercise')).toBe(true);
+    expect(timeline.some((item) => item.kind === 'grooming')).toBe(true);
+    expect(timeline.some((item) => item.kind === 'training')).toBe(true);
+    expect(timeline.some((item) => item.kind === 'photo')).toBe(true);
+
+    const sitterCard = buildPetSitterCard(testDb.adapter, 'pet-1');
+    expect(sitterCard?.feedingSchedules).toHaveLength(1);
+    expect(sitterCard?.activeMedications).toHaveLength(1);
+    expect(sitterCard?.breedAlerts.length).toBeGreaterThan(0);
+    expect(formatPetSitterCard(sitterCard!)).toContain('City Emergency Vet');
+
+    const exportBundle = exportPetData(testDb.adapter, 'pet-1');
+    expect(exportBundle.exerciseLogs).toHaveLength(1);
+    expect(exportBundle.groomingRecords).toHaveLength(1);
+    expect(exportBundle.trainingLogs).toHaveLength(1);
+    expect(exportBundle.photos).toHaveLength(1);
+    expect(serializePetExportCsvSections(exportBundle).exerciseLogs).toContain('exercise_logs');
+  });
+
+  it('returns breed alerts for supported breeds', () => {
+    const alerts = getBreedHealthAlerts('dog', 'Golden Retriever');
+    expect(alerts).not.toHaveLength(0);
+    expect(alerts[0].condition).toBe('Hip dysplasia');
   });
 });

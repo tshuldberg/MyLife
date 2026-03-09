@@ -7,7 +7,7 @@ import { useDatabase } from '../../components/DatabaseProvider';
 import { uuid } from '../../lib/uuid';
 
 const FLASH_ACCENT = '#FBBF24';
-const CARD_TYPES: FlashCardType[] = ['basic', 'reversed'];
+const CARD_TYPES: FlashCardType[] = ['basic', 'reversed', 'cloze'];
 
 function splitTags(raw: string): string[] {
   return raw
@@ -40,6 +40,14 @@ export default function FlashDecksScreen() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+      <Card>
+        <Text variant="subheading">Creation Modes</Text>
+        <Text variant="caption" color={colors.textSecondary}>
+          Basic creates one prompt-answer card. Reversed creates both directions. Cloze builds
+          one card per marker, using syntax like {'{{c1::answer}}'}.
+        </Text>
+      </Card>
+
       <Card>
         <Text variant="subheading">Create Deck</Text>
         <View style={styles.formGrid}>
@@ -132,18 +140,23 @@ export default function FlashDecksScreen() {
               style={styles.input}
               value={front}
               onChangeText={setFront}
-              placeholder="Front"
+              placeholder={cardType === 'cloze' ? 'Prompt with {{c1::answer}} markers' : 'Front'}
               placeholderTextColor={colors.textTertiary}
             />
             <TextInput
               style={[styles.input, styles.bodyInput]}
               value={back}
               onChangeText={setBack}
-              placeholder="Back"
+              placeholder={cardType === 'cloze' ? 'Extra explanation shown on the answer side' : 'Back'}
               placeholderTextColor={colors.textTertiary}
               multiline
               textAlignVertical="top"
             />
+            {cardType === 'cloze' ? (
+              <Text variant="caption" color={colors.textSecondary}>
+                Example: {'{{c1::Paris}} is the capital of {{c2::France}}'}
+              </Text>
+            ) : null}
             <TextInput
               style={styles.input}
               value={tags}
@@ -191,7 +204,9 @@ export default function FlashDecksScreen() {
                   <Text variant="body">{card.front}</Text>
                   <Text variant="caption" color={colors.textSecondary}>
                     {card.cardType}
+                    {card.queue !== 'new' ? ` · ${card.queue}` : ''}
                     {card.templateOrdinal === 1 ? ' · reverse' : ''}
+                    {card.cardType === 'cloze' ? ` · cloze ${card.templateOrdinal + 1}` : ''}
                     {card.tags.length > 0 ? ` · ${card.tags.join(', ')}` : ''}
                   </Text>
                 </Card>

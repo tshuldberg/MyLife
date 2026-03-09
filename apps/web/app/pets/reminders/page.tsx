@@ -1,5 +1,12 @@
 import Link from 'next/link';
-import { collectMedicationReminders, listDueMedications, listDueVaccinationReminders, listPets } from '@mylife/pets';
+import {
+  collectMedicationReminders,
+  listDueGroomingReminders,
+  listDueMedications,
+  listDueVaccinationReminders,
+  listEmergencyContacts,
+  listPets,
+} from '@mylife/pets';
 import { getAdapter } from '@/lib/db';
 
 const styles: Record<string, React.CSSProperties> = {
@@ -24,11 +31,13 @@ export default function PetsRemindersPage() {
     new Date().toISOString(),
     2,
   );
+  const groomingReminders = listDueGroomingReminders(db, new Date().toISOString().slice(0, 10), 14);
+  const emergencyContacts = listEmergencyContacts(db);
 
   return (
     <div style={styles.page}>
       <h1 style={styles.title}>Care Reminders</h1>
-      <p style={styles.subtitle}>Upcoming vaccines and medications</p>
+      <p style={styles.subtitle}>Upcoming vaccines, medications, grooming, and emergency contacts</p>
 
       <div style={styles.nav}>
         <Link href="/pets" style={styles.navLink}>Pets</Link>
@@ -58,6 +67,32 @@ export default function PetsRemindersPage() {
           ) : medicationReminders.map((reminder) => (
             <div key={reminder.medicationId} style={styles.line}>
               {reminder.petName}: {reminder.medicationName} at {reminder.nextDueAt} ({reminder.status})
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={styles.card}>
+        <div style={styles.sectionTitle}>Grooming</div>
+        <div style={styles.list}>
+          {groomingReminders.length === 0 ? (
+            <div style={styles.line}>No grooming reminders due soon.</div>
+          ) : groomingReminders.map((reminder) => (
+            <div key={reminder.groomingRecordId} style={styles.line}>
+              {reminder.petName}: {reminder.groomingType.replaceAll('_', ' ')} on {reminder.nextDueDate} ({reminder.status})
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={styles.card}>
+        <div style={styles.sectionTitle}>Emergency Contacts</div>
+        <div style={styles.list}>
+          {emergencyContacts.length === 0 ? (
+            <div style={styles.line}>No emergency contacts saved.</div>
+          ) : emergencyContacts.map((contact) => (
+            <div key={contact.id} style={styles.line}>
+              {contact.label}: {contact.clinicName} · {contact.phone}
             </div>
           ))}
         </div>

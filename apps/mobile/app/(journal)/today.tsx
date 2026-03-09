@@ -1,6 +1,13 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { createJournalEntry, getEntriesForDate, getJournalDashboard } from '@mylife/journal';
+import {
+  createJournalEntry,
+  getDailyJournalPrompt,
+  getEntriesForDate,
+  getJournalDashboard,
+  getJournalSetting,
+  listJournalNotebooks,
+} from '@mylife/journal';
 import type { JournalMood } from '@mylife/journal';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
@@ -32,30 +39,87 @@ export default function JournalTodayScreen() {
   const [body, setBody] = useState('');
   const [tags, setTags] = useState('');
   const [mood, setMood] = useState<JournalMood | null>(null);
+  const [selectedJournalId, setSelectedJournalId] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
 
   const refresh = () => setTick((value) => value + 1);
+  const notebooks = useMemo(() => listJournalNotebooks(db), [db, tick]);
+  const selectedJournal = useMemo(
+    () => notebooks.find((journal) => journal.id === selectedJournalId) ?? notebooks[0] ?? null,
+    [notebooks, selectedJournalId],
+  );
+  const promptEnabled = getJournalSetting(db, 'dailyPromptEnabled') === 'true';
+  const promptCategory = getJournalSetting(db, 'dailyPromptCategory') ?? 'reflection';
+  const prompt = useMemo(
+    () => getDailyJournalPrompt(today, promptCategory as 'reflection' | 'gratitude' | 'therapy' | 'stoic'),
+    [today, promptCategory],
+  );
   const draftWordCount = useMemo(
     () => (body.trim() ? body.trim().split(/\s+/).length : 0),
     [body],
   );
-  const todayEntries = useMemo(() => getEntriesForDate(db, today), [db, tick, today]);
-  const dashboard = useMemo(() => getJournalDashboard(db, today), [db, tick, today]);
+  const todayEntries = useMemo(
+    () => getEntriesForDate(db, today, selectedJournal?.id),
+    [db, tick, today, selectedJournal],
+  );
+  const dashboard = useMemo(
+    () => getJournalDashboard(db, today, selectedJournal?.id),
+    [db, tick, today, selectedJournal],
+  );
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Card>
         <Text variant="subheading">Today&apos;s Writing</Text>
+        {selectedJournal ? (
+          <View style={styles.chipRow}>
+            {notebooks.map((journal) => {
+              const selected = selectedJournal.id === journal.id;
+              return (
+                <Pressable
+                  key={journal.id}
+                  onPress={() => setSelectedJournalId(journal.id)}
+                  style={[styles.chip, selected ? styles.chipActive : null]}
+                >
+                  <Text variant="caption" color={selected ? colors.background : colors.textSecondary}>
+                    {journal.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
         <View style={styles.statsGrid}>
           <Stat label="Entries Today" value={String(todayEntries.length)} />
           <Stat label="Current Streak" value={String(dashboard.currentStreak)} />
           <Stat label="Words This Month" value={String(dashboard.monthlyWords)} />
+          <Stat label="Journals" value={String(dashboard.journalCount)} />
         </View>
         <Text variant="caption" color={colors.textSecondary}>
-          Hub scope currently supports local text entries, tags, moods, and streak stats. The full
-          prompt library, attachments, and encryption workflow are still pending from the spec.
+          Notebook-aware entries, prompt rotation, On This Day, and export are now wired into the hub.
+          Encryption, voice capture, and richer markdown editing are still pending.
         </Text>
       </Card>
+
+      {promptEnabled ? (
+        <Card>
+          <Text variant="subheading">Daily Prompt</Text>
+          <Text variant="body">{prompt.prompt}</Text>
+          <Text variant="caption" color={colors.textSecondary}>
+            Category: {prompt.category}
+          </Text>
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => {
+              if (!body.includes(prompt.prompt)) {
+                setBody((current) => (current ? `${current}\n\n${prompt.prompt}\n` : `${prompt.prompt}\n`));
+              }
+            }}
+          >
+            <Text variant="label" color={colors.text}>Use Prompt</Text>
+          </Pressable>
+        </Card>
+      ) : null}
 
       <Card>
         <Text variant="subheading">New Entry</Text>
@@ -106,11 +170,12 @@ export default function JournalTodayScreen() {
             <Pressable
               style={styles.primaryButton}
               onPress={() => {
-                if (!body.trim()) {
+                if (!body.trim() || !selectedJournal) {
                   return;
                 }
 
                 createJournalEntry(db, uuid(), {
+                  journalId: selectedJournal.id,
                   entryDate: today,
                   title: title.trim() || null,
                   body: body.trim(),
@@ -208,6 +273,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+    marginTop: spacing.sm,
   },
   chip: {
     borderWidth: 1,
@@ -233,6 +299,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     alignItems: 'center',
+  },
+  secondaryButton: {
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+    backgroundColor: colors.surfaceElevated,
   },
   list: {
     marginTop: spacing.sm,

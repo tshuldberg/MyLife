@@ -53,6 +53,13 @@ export default function FlashLayout() {
           }}
         />
         <Tabs.Screen
+          name="browser"
+          options={{
+            title: 'Browse',
+            tabBarIcon: ({ focused }) => <TabIcon icon={'🔎'} focused={focused} />,
+          }}
+        />
+        <Tabs.Screen
           name="stats"
           options={{
             title: 'Stats',

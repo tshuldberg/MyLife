@@ -48,7 +48,22 @@ CREATE TABLE IF NOT EXISTS fl_settings (
   value TEXT NOT NULL
 )`;
 
-export const CREATE_INDEXES = [
+export const CREATE_EXPORT_RECORDS = `
+CREATE TABLE IF NOT EXISTS fl_export_records (
+  id TEXT PRIMARY KEY,
+  deck_id TEXT REFERENCES fl_decks(id) ON DELETE SET NULL,
+  file_name TEXT NOT NULL,
+  file_size_bytes INTEGER NOT NULL DEFAULT 0,
+  cards_exported INTEGER NOT NULL DEFAULT 0,
+  media_exported INTEGER NOT NULL DEFAULT 0,
+  include_scheduling INTEGER NOT NULL DEFAULT 1,
+  include_media INTEGER NOT NULL DEFAULT 0,
+  include_tags INTEGER NOT NULL DEFAULT 1,
+  exported_at TEXT NOT NULL DEFAULT (datetime('now')),
+  duration_ms INTEGER NOT NULL DEFAULT 0
+)`;
+
+export const BASE_INDEXES = [
   `CREATE INDEX IF NOT EXISTS fl_cards_deck_idx ON fl_cards(deck_id, queue, due_at)`,
   `CREATE INDEX IF NOT EXISTS fl_cards_note_idx ON fl_cards(note_id)`,
   `CREATE INDEX IF NOT EXISTS fl_review_logs_card_idx ON fl_review_logs(card_id, reviewed_at DESC)`,
@@ -61,13 +76,32 @@ export const SEED_SETTINGS = [
   `INSERT OR IGNORE INTO fl_settings (key, value) VALUES ('dailyStudyTarget', '1')`,
 ];
 
+export const EXPANDED_SETTINGS = [
+  `INSERT OR IGNORE INTO fl_settings (key, value) VALUES ('autoBurySiblings', '1')`,
+  `INSERT OR IGNORE INTO fl_settings (key, value) VALUES ('dailyReminderEnabled', '0')`,
+  `INSERT OR IGNORE INTO fl_settings (key, value) VALUES ('dailyReminderTime', '09:00')`,
+  `INSERT OR IGNORE INTO fl_settings (key, value) VALUES ('desiredRetention', '0.90')`,
+  `INSERT OR IGNORE INTO fl_settings (key, value) VALUES ('leechThreshold', '8')`,
+];
+
 export const DEFAULT_DECK_SEED = `
 INSERT OR IGNORE INTO fl_decks (id, name, description, parent_id, is_default, created_at, updated_at)
 VALUES ('${DEFAULT_FLASH_DECK_ID}', 'Default', 'Default study deck', NULL, 1, datetime('now'), datetime('now'))`;
 
-export const ALL_TABLES = [
+export const BASE_TABLES = [
   CREATE_DECKS,
   CREATE_CARDS,
   CREATE_REVIEW_LOGS,
   CREATE_SETTINGS,
+];
+
+export const V2_UP = [
+  `ALTER TABLE fl_cards ADD COLUMN queue_before_suspend TEXT`,
+  `ALTER TABLE fl_cards ADD COLUMN queue_before_bury TEXT`,
+  `ALTER TABLE fl_cards ADD COLUMN buried_until TEXT`,
+  CREATE_EXPORT_RECORDS,
+  `CREATE INDEX IF NOT EXISTS fl_cards_queue_idx ON fl_cards(queue, due_at)`,
+  `CREATE INDEX IF NOT EXISTS fl_cards_buried_until_idx ON fl_cards(buried_until)`,
+  `CREATE INDEX IF NOT EXISTS fl_export_records_date_idx ON fl_export_records(exported_at DESC)`,
+  ...EXPANDED_SETTINGS,
 ];

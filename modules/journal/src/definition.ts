@@ -1,16 +1,23 @@
 import type { ModuleDefinition, Migration } from '@mylife/module-registry';
-import { ALL_TABLES, CREATE_INDEXES, SEED_SETTINGS } from './db/schema';
+import { BASE_INDEXES, BASE_TABLES, SEED_SETTINGS, V2_UP } from './db/schema';
 
 const JOURNAL_MIGRATION_V1: Migration = {
   version: 1,
   description: 'Create journal entries, tags, links, and settings',
-  up: [...ALL_TABLES, ...CREATE_INDEXES, ...SEED_SETTINGS],
+  up: [...BASE_TABLES, ...BASE_INDEXES, ...SEED_SETTINGS],
   down: [
     'DROP TABLE IF EXISTS jn_settings',
     'DROP TABLE IF EXISTS jn_entry_tags',
     'DROP TABLE IF EXISTS jn_tags',
     'DROP TABLE IF EXISTS jn_entries',
   ],
+};
+
+const JOURNAL_MIGRATION_V2: Migration = {
+  version: 2,
+  description: 'Add multiple journals and notebook-aware entry indexing',
+  up: V2_UP,
+  down: ['DROP TABLE IF EXISTS jn_journals'],
 };
 
 export const JOURNAL_MODULE: ModuleDefinition = {
@@ -21,8 +28,8 @@ export const JOURNAL_MODULE: ModuleDefinition = {
   accentColor: '#A78BFA',
   tier: 'free',
   storageType: 'sqlite',
-  migrations: [JOURNAL_MIGRATION_V1],
-  schemaVersion: 1,
+  migrations: [JOURNAL_MIGRATION_V1, JOURNAL_MIGRATION_V2],
+  schemaVersion: 2,
   tablePrefix: 'jn_',
   navigation: {
     tabs: [

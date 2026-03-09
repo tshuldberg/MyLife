@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { buildClozeFlashcards, parseClozeText, renderClozeBack, renderClozeFront } from '../engine/cloze';
+import { parseFlashSearchQuery } from '../engine/search';
 import { calculateStudyStreak, scheduleFlashcard } from '../engine/scheduler';
 import type { Flashcard } from '../types';
 
@@ -13,6 +15,9 @@ function makeCard(overrides: Partial<Flashcard> = {}): Flashcard {
     back: 'A',
     tags: [],
     queue: 'new',
+    queueBeforeSuspend: null,
+    queueBeforeBury: null,
+    buriedUntil: null,
     intervalDays: 0,
     ease: 2.5,
     dueAt: null,
@@ -277,5 +282,52 @@ describe('calculateStudyStreak', () => {
       currentStreak: 2,
       longestStreak: 2,
     });
+  });
+});
+
+describe('cloze helpers', () => {
+  it('parses cloze markers with hints and unique numbers', () => {
+    const parsed = parseClozeText('{{c1::Paris::city}} is in {{c2::France}}');
+    expect(parsed.markers).toHaveLength(2);
+    expect(parsed.uniqueNumbers).toEqual([1, 2]);
+    expect(parsed.markers[0]).toMatchObject({
+      number: 1,
+      answer: 'Paris',
+      hint: 'city',
+    });
+  });
+
+  it('renders cloze fronts and backs for the active card', () => {
+    const source = '{{c1::mitochondria::organelle}} makes ATP';
+    expect(renderClozeFront(source, 1)).toBe('[organelle] makes ATP');
+    expect(renderClozeBack(source, 1)).toBe('[[mitochondria]] makes ATP');
+  });
+
+  it('builds cards with sparse ordinals from cloze markers', () => {
+    const cards = buildClozeFlashcards('{{c1::Paris}} and {{c3::France}}');
+    expect(cards).toHaveLength(2);
+    expect(cards[0]).toMatchObject({ templateOrdinal: 0, front: '[...] and France' });
+    expect(cards[1]).toMatchObject({ templateOrdinal: 2, front: 'Paris and [...]' });
+  });
+});
+
+describe('flash search parsing', () => {
+  it('parses combined structured filters', () => {
+    const parsed = parseFlashSearchQuery('deck:Biology tag:Exam is:due prop:lapses>5');
+    expect(parsed.tokens).toEqual([
+      { kind: 'deck', value: 'biology', negated: false },
+      { kind: 'tag', value: 'exam', negated: false },
+      { kind: 'state', value: 'due', negated: false },
+      { kind: 'property', field: 'lapses', operator: '>', value: 5, negated: false },
+    ]);
+  });
+
+  it('treats free text and invalid filters as text search terms', () => {
+    const parsed = parseFlashSearchQuery('mitochondria deck: -tag:ignore');
+    expect(parsed.tokens).toEqual([
+      { kind: 'text', value: 'mitochondria', negated: false },
+      { kind: 'text', value: 'deck:', negated: false },
+      { kind: 'tag', value: 'ignore', negated: true },
+    ]);
   });
 });

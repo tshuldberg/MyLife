@@ -1,18 +1,24 @@
 import type { DatabaseAdapter } from '@mylife/db';
 import {
   CreateJournalEntryInputSchema,
+  CreateJournalNotebookInputSchema,
   JournalEntryFilterSchema,
   UpdateJournalEntryInputSchema,
   type CreateJournalEntryInput,
+  type CreateJournalNotebookInput,
   type JournalDashboard,
   type JournalEntry,
   type JournalEntryFilter,
+  type JournalExportBundle,
+  type JournalNotebook,
+  type JournalOnThisDayItem,
   type JournalSearchResult,
   type JournalSetting,
   type JournalTag,
   type UpdateJournalEntryInput,
 } from '../types';
 import { calculateJournalStreak, countWords } from '../engine/stats';
+import { DEFAULT_JOURNAL_ID } from './schema';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -46,9 +52,22 @@ function parseImageUris(raw: unknown): string[] {
   }
 }
 
+function rowToJournal(row: Record<string, unknown>): JournalNotebook {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    description: (row.description as string) ?? null,
+    color: (row.color as string) ?? null,
+    isDefault: Number(row.is_default ?? 0) === 1,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  };
+}
+
 function rowToEntry(row: Record<string, unknown>, tags: string[] = []): JournalEntry {
   return {
     id: row.id as string,
+    journalId: (row.journal_id as string) ?? DEFAULT_JOURNAL_ID,
     entryDate: row.entry_date as string,
     title: (row.title as string) ?? null,
     body: row.body as string,
@@ -67,6 +86,40 @@ function rowToTag(row: Record<string, unknown>): JournalTag {
     name: row.name as string,
     color: (row.color as string) ?? null,
     createdAt: row.created_at as string,
+  };
+}
+
+function ensureDefaultJournal(db: DatabaseAdapter): JournalNotebook {
+  const existing = db.query<Record<string, unknown>>(
+    `SELECT * FROM jn_journals WHERE is_default = 1 ORDER BY created_at ASC LIMIT 1`,
+  )[0];
+  if (existing) {
+    return rowToJournal(existing);
+  }
+
+  const fallback = db.query<Record<string, unknown>>(
+    `SELECT * FROM jn_journals ORDER BY created_at ASC LIMIT 1`,
+  )[0];
+  if (fallback) {
+    db.execute(`UPDATE jn_journals SET is_default = 1, updated_at = ? WHERE id = ?`, [nowIso(), fallback.id]);
+    return rowToJournal({ ...fallback, is_default: 1 });
+  }
+
+  const createdAt = nowIso();
+  db.execute(
+    `INSERT INTO jn_journals (id, name, description, color, is_default, created_at, updated_at)
+     VALUES (?, ?, ?, ?, 1, ?, ?)`,
+    [DEFAULT_JOURNAL_ID, 'Daily Journal', 'Default notebook for daily writing', '#A78BFA', createdAt, createdAt],
+  );
+
+  return {
+    id: DEFAULT_JOURNAL_ID,
+    name: 'Daily Journal',
+    description: 'Default notebook for daily writing',
+    color: '#A78BFA',
+    isDefault: true,
+    createdAt,
+    updatedAt: createdAt,
   };
 }
 
@@ -102,6 +155,42 @@ function syncEntryTags(db: DatabaseAdapter, entryId: string, tags: string[], cre
   }
 }
 
+export function createJournalNotebook(
+  db: DatabaseAdapter,
+  id: string,
+  rawInput: CreateJournalNotebookInput,
+): JournalNotebook {
+  const input = CreateJournalNotebookInputSchema.parse(rawInput);
+  const createdAt = nowIso();
+
+  db.transaction(() => {
+    if (input.isDefault) {
+      db.execute(`UPDATE jn_journals SET is_default = 0, updated_at = ?`, [createdAt]);
+    }
+
+    db.execute(
+      `INSERT INTO jn_journals (id, name, description, color, is_default, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [id, input.name, input.description, input.color, input.isDefault ? 1 : 0, createdAt, createdAt],
+    );
+  });
+
+  return getJournalNotebookById(db, id)!;
+}
+
+export function getJournalNotebookById(db: DatabaseAdapter, id: string): JournalNotebook | null {
+  ensureDefaultJournal(db);
+  const row = db.query<Record<string, unknown>>(`SELECT * FROM jn_journals WHERE id = ?`, [id])[0];
+  return row ? rowToJournal(row) : null;
+}
+
+export function listJournalNotebooks(db: DatabaseAdapter): JournalNotebook[] {
+  ensureDefaultJournal(db);
+  return db
+    .query<Record<string, unknown>>(`SELECT * FROM jn_journals ORDER BY is_default DESC, name ASC`)
+    .map(rowToJournal);
+}
+
 export function createJournalEntry(
   db: DatabaseAdapter,
   id: string,
@@ -111,14 +200,16 @@ export function createJournalEntry(
   const now = nowIso();
   const entryDate = input.entryDate ?? dateOnly(now);
   const wordCount = countWords(input.body);
+  const journalId = input.journalId ?? ensureDefaultJournal(db).id;
 
   db.transaction(() => {
     db.execute(
       `INSERT INTO jn_entries (
-        id, entry_date, title, body, mood, image_uris_json, word_count, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        id, journal_id, entry_date, title, body, mood, image_uris_json, word_count, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
+        journalId,
         entryDate,
         input.title,
         input.body,
@@ -137,6 +228,7 @@ export function createJournalEntry(
 }
 
 export function getJournalEntryById(db: DatabaseAdapter, id: string): JournalEntry | null {
+  ensureDefaultJournal(db);
   const rows = db.query<Record<string, unknown>>(`SELECT * FROM jn_entries WHERE id = ?`, [id]);
   if (!rows[0]) {
     return null;
@@ -145,10 +237,15 @@ export function getJournalEntryById(db: DatabaseAdapter, id: string): JournalEnt
 }
 
 export function listJournalEntries(db: DatabaseAdapter, rawFilter?: JournalEntryFilter): JournalEntry[] {
+  ensureDefaultJournal(db);
   const filter = JournalEntryFilterSchema.parse(rawFilter ?? {});
   const conditions: string[] = [];
   const params: unknown[] = [];
 
+  if (filter.journalId) {
+    conditions.push('e.journal_id = ?');
+    params.push(filter.journalId);
+  }
   if (filter.startDate) {
     conditions.push('e.entry_date >= ?');
     params.push(filter.startDate);
@@ -193,13 +290,14 @@ export function searchJournalEntries(
   db: DatabaseAdapter,
   query: string,
   limit = 20,
+  journalId?: string,
 ): JournalSearchResult[] {
   const normalized = query.trim().toLowerCase();
   if (!normalized) {
     return [];
   }
 
-  return listJournalEntries(db, { search: normalized, limit }).map((entry) => ({
+  return listJournalEntries(db, { search: normalized, limit, journalId }).map((entry) => ({
     ...entry,
     matchedTagNames: entry.tags.filter((tag) => tag.includes(normalized)),
   }));
@@ -217,6 +315,7 @@ export function updateJournalEntry(
 
   const updates = UpdateJournalEntryInputSchema.parse(rawInput);
   const nextEntry = {
+    journalId: updates.journalId ?? existing.journalId,
     entryDate: updates.entryDate ?? existing.entryDate,
     title: updates.title === undefined ? existing.title : updates.title,
     body: updates.body ?? existing.body,
@@ -230,9 +329,10 @@ export function updateJournalEntry(
   db.transaction(() => {
     db.execute(
       `UPDATE jn_entries
-       SET entry_date = ?, title = ?, body = ?, mood = ?, image_uris_json = ?, word_count = ?, updated_at = ?
+       SET journal_id = ?, entry_date = ?, title = ?, body = ?, mood = ?, image_uris_json = ?, word_count = ?, updated_at = ?
        WHERE id = ?`,
       [
+        nextEntry.journalId,
         nextEntry.entryDate,
         nextEntry.title,
         nextEntry.body,
@@ -253,14 +353,25 @@ export function deleteJournalEntry(db: DatabaseAdapter, id: string): void {
   db.execute(`DELETE FROM jn_entries WHERE id = ?`, [id]);
 }
 
-export function getEntriesForDate(db: DatabaseAdapter, entryDate: string): JournalEntry[] {
-  return listJournalEntries(db, { startDate: entryDate, endDate: entryDate, limit: 50 });
+export function getEntriesForDate(db: DatabaseAdapter, entryDate: string, journalId?: string): JournalEntry[] {
+  return listJournalEntries(db, { journalId, startDate: entryDate, endDate: entryDate, limit: 50 });
 }
 
-export function listJournalTags(db: DatabaseAdapter): JournalTag[] {
-  return db
-    .query<Record<string, unknown>>(`SELECT * FROM jn_tags ORDER BY name ASC`)
-    .map(rowToTag);
+export function listJournalTags(db: DatabaseAdapter, journalId?: string): JournalTag[] {
+  ensureDefaultJournal(db);
+  const rows = journalId
+    ? db.query<Record<string, unknown>>(
+      `SELECT DISTINCT t.*
+       FROM jn_tags t
+       INNER JOIN jn_entry_tags et ON et.tag_id = t.id
+       INNER JOIN jn_entries e ON e.id = et.entry_id
+       WHERE e.journal_id = ?
+       ORDER BY t.name ASC`,
+      [journalId],
+    )
+    : db.query<Record<string, unknown>>(`SELECT * FROM jn_tags ORDER BY name ASC`);
+
+  return rows.map(rowToTag);
 }
 
 export function getJournalSetting(db: DatabaseAdapter, key: string): string | null {
@@ -281,20 +392,38 @@ export function setJournalSetting(db: DatabaseAdapter, key: string, value: strin
 export function getJournalDashboard(
   db: DatabaseAdapter,
   referenceDate = new Date().toISOString().slice(0, 10),
+  journalId?: string,
 ): JournalDashboard {
-  const entryCount = db.query<{ count: number }>(`SELECT COUNT(*) as count FROM jn_entries`)[0]?.count ?? 0;
-  const totalWords = db.query<{ total: number | null }>(`SELECT SUM(word_count) as total FROM jn_entries`)[0]?.total ?? 0;
+  ensureDefaultJournal(db);
+  const where = journalId ? `WHERE journal_id = ?` : '';
+  const params = journalId ? [journalId] : [];
+  const entryCount = db.query<{ count: number }>(
+    `SELECT COUNT(*) as count FROM jn_entries ${where}`,
+    params,
+  )[0]?.count ?? 0;
+  const totalWords = db.query<{ total: number | null }>(
+    `SELECT SUM(word_count) as total FROM jn_entries ${where}`,
+    params,
+  )[0]?.total ?? 0;
   const monthlyWords = db.query<{ total: number | null }>(
     `SELECT SUM(word_count) as total
      FROM jn_entries
-     WHERE substr(entry_date, 1, 7) = substr(?, 1, 7)`,
-    [referenceDate],
+     ${journalId ? 'WHERE journal_id = ? AND ' : 'WHERE '} substr(entry_date, 1, 7) = substr(?, 1, 7)`,
+    journalId ? [journalId, referenceDate] : [referenceDate],
   )[0]?.total ?? 0;
   const latestMood = db.query<{ mood: JournalDashboard['latestMood'] }>(
-    `SELECT mood FROM jn_entries WHERE mood IS NOT NULL ORDER BY entry_date DESC, updated_at DESC LIMIT 1`,
+    `SELECT mood
+     FROM jn_entries
+     ${journalId ? 'WHERE journal_id = ? AND mood IS NOT NULL' : 'WHERE mood IS NOT NULL'}
+     ORDER BY entry_date DESC, updated_at DESC LIMIT 1`,
+    journalId ? [journalId] : [],
   )[0]?.mood ?? null;
   const distinctDates = db.query<{ entry_date: string }>(
-    `SELECT DISTINCT entry_date FROM jn_entries ORDER BY entry_date DESC`,
+    `SELECT DISTINCT entry_date
+     FROM jn_entries
+     ${where}
+     ORDER BY entry_date DESC`,
+    params,
   ).map((row) => row.entry_date);
   const streak = calculateJournalStreak(distinctDates, referenceDate);
 
@@ -305,5 +434,56 @@ export function getJournalDashboard(
     totalWords,
     monthlyWords,
     latestMood,
+    journalCount: listJournalNotebooks(db).length,
+  };
+}
+
+export function listOnThisDayEntries(
+  db: DatabaseAdapter,
+  referenceDate = new Date().toISOString().slice(0, 10),
+  journalId?: string,
+  limit = 20,
+): JournalOnThisDayItem[] {
+  ensureDefaultJournal(db);
+  const rows = db.query<Record<string, unknown>>(
+    `SELECT *
+     FROM jn_entries
+     WHERE strftime('%m-%d', entry_date) = strftime('%m-%d', ?)
+       AND entry_date < ?
+       ${journalId ? 'AND journal_id = ?' : ''}
+     ORDER BY entry_date DESC
+     LIMIT ?`,
+    journalId ? [referenceDate, referenceDate, journalId, limit] : [referenceDate, referenceDate, limit],
+  );
+
+  return rows.map((row) => {
+    const entry = rowToEntry(row, getTagsForEntry(db, row.id as string));
+    return {
+      ...entry,
+      yearsAgo: Number(referenceDate.slice(0, 4)) - Number(entry.entryDate.slice(0, 4)),
+    };
+  });
+}
+
+export function exportJournalData(db: DatabaseAdapter, journalId?: string): JournalExportBundle {
+  const journals = journalId
+    ? (() => {
+      const journal = getJournalNotebookById(db, journalId);
+      return journal ? [journal] : [];
+    })()
+    : listJournalNotebooks(db);
+
+  const entries = listJournalEntries(db, { journalId, limit: 200 });
+  const tags = listJournalTags(db, journalId);
+  const settings = db
+    .query<Record<string, unknown>>(`SELECT * FROM jn_settings ORDER BY key ASC`)
+    .map((row) => ({ key: row.key as string, value: row.value as string }));
+
+  return {
+    journals,
+    entries,
+    tags,
+    settings,
+    onThisDay: listOnThisDayEntries(db, new Date().toISOString().slice(0, 10), journalId, 20),
   };
 }

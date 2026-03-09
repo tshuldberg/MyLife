@@ -1,6 +1,12 @@
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
-import { createPet, getPetDashboard, listPets } from '@mylife/pets';
+import {
+  createPet,
+  getBreedHealthAlerts,
+  getPetDashboard,
+  listPetPhotosForPet,
+  listPets,
+} from '@mylife/pets';
 import { getAdapter } from '@/lib/db';
 
 const styles: Record<string, React.CSSProperties> = {
@@ -20,6 +26,7 @@ const styles: Record<string, React.CSSProperties> = {
   button: { background: 'var(--accent-pets)', color: '#0A0A0F', border: 'none', borderRadius: '12px', padding: '0.75rem 1rem', fontWeight: 700, cursor: 'pointer' },
   petList: { display: 'grid', gap: '0.75rem' },
   small: { color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '0.25rem' },
+  badge: { display: 'inline-block', padding: '0.15rem 0.5rem', borderRadius: 999, background: 'rgba(245,158,11,0.14)', color: 'var(--accent-pets)', fontSize: '0.75rem', marginTop: '0.5rem', marginRight: '0.5rem' },
 };
 
 export default async function PetsPage() {
@@ -28,13 +35,17 @@ export default async function PetsPage() {
   const dashboards = pets.map((pet) => ({
     pet,
     dashboard: getPetDashboard(db, pet.id),
+    photos: listPetPhotosForPet(db, pet.id),
+    breedAlerts: getBreedHealthAlerts(pet.species, pet.breed),
   }));
 
   async function addPet(formData: FormData) {
     'use server';
 
     const name = String(formData.get('name') ?? '').trim();
-    if (!name) return;
+    if (!name) {
+      return;
+    }
 
     createPet(getAdapter(), crypto.randomUUID(), {
       name,
@@ -53,7 +64,7 @@ export default async function PetsPage() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.title}>MyPets</h1>
-        <p style={styles.subtitle}>Pet profiles, care tracking, and reminders</p>
+        <p style={styles.subtitle}>Pet profiles, care tracking, reminders, and local health context</p>
       </div>
 
       <div style={styles.nav}>
@@ -97,7 +108,7 @@ export default async function PetsPage() {
         {dashboards.length === 0 ? (
           <div style={styles.card}>No pets added yet.</div>
         ) : (
-          dashboards.map(({ pet, dashboard }) => (
+          dashboards.map(({ pet, dashboard, photos, breedAlerts }) => (
             <div key={pet.id} style={styles.card}>
               <div style={styles.sectionTitle}>{pet.name}</div>
               <div style={styles.small}>
@@ -109,8 +120,21 @@ export default async function PetsPage() {
                 <div style={{ marginTop: '0.75rem', display: 'grid', gap: '0.35rem' }}>
                   <div style={styles.small}>Due vaccines: {dashboard.dueVaccinations}</div>
                   <div style={styles.small}>Due meds: {dashboard.dueMedications}</div>
-                  <div style={styles.small}>Weight: {dashboard.latestWeightGrams ? `${(dashboard.latestWeightGrams / 1000).toFixed(1)} kg` : 'N/A'}</div>
-                  <div style={styles.small}>Expenses: ${(dashboard.totalExpensesCents / 100).toFixed(2)}</div>
+                  <div style={styles.small}>Photos: {dashboard.photoCount}</div>
+                  <div style={styles.small}>Next grooming due: {dashboard.nextGroomingDueDate ?? 'Not set'}</div>
+                  <div style={styles.small}>Last activity: {dashboard.lastExerciseAt?.slice(0, 10) ?? 'None'}</div>
+                </div>
+              ) : null}
+              {photos.length > 0 ? (
+                <div style={styles.small}>Latest photo: {photos[0].caption ?? photos[0].imageUri}</div>
+              ) : null}
+              {breedAlerts.length > 0 ? (
+                <div style={{ marginTop: '0.5rem' }}>
+                  {breedAlerts.map((alert) => (
+                    <span key={alert.id} style={styles.badge}>
+                      {alert.condition}
+                    </span>
+                  ))}
                 </div>
               ) : null}
             </div>

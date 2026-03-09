@@ -1,24 +1,40 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import {
+  createExerciseLog,
+  createGroomingRecord,
   createMedication,
+  createTrainingLog,
   createVaccination,
   createVetVisit,
   createWeightEntry,
+  getPetHealthTimeline,
+  listExerciseLogsForPet,
+  listGroomingRecordsForPet,
   listMedicationsForPet,
   listPets,
+  listTrainingLogsForPet,
   listVaccinationsForPet,
   listVetVisitsForPet,
   listWeightEntriesForPet,
   recordMedicationLog,
 } from '@mylife/pets';
-import type { MedicationFrequency, VetVisitType } from '@mylife/pets';
+import type {
+  ExerciseActivityType,
+  GroomingType,
+  MedicationFrequency,
+  TrainingLocation,
+  VetVisitType,
+} from '@mylife/pets';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
 import { uuid } from '../../lib/uuid';
 
 const VISIT_TYPES: VetVisitType[] = ['wellness', 'sick', 'emergency'];
 const MED_FREQUENCIES: MedicationFrequency[] = ['daily', 'weekly', 'monthly', 'as_needed'];
+const EXERCISE_TYPES: ExerciseActivityType[] = ['walk', 'run', 'play', 'hike'];
+const GROOMING_TYPES: GroomingType[] = ['bath', 'nail_trim', 'teeth_brushing'];
+const TRAINING_LOCATIONS: TrainingLocation[] = ['home', 'park', 'class'];
 
 export default function PetsHealthScreen() {
   const db = useDatabase();
@@ -31,6 +47,15 @@ export default function PetsHealthScreen() {
   const [medicationFrequency, setMedicationFrequency] = useState<MedicationFrequency>('monthly');
   const [medicationNextDue, setMedicationNextDue] = useState('');
   const [weightGrams, setWeightGrams] = useState('');
+  const [exerciseType, setExerciseType] = useState<ExerciseActivityType>('walk');
+  const [exerciseMinutes, setExerciseMinutes] = useState('');
+  const [exerciseDistance, setExerciseDistance] = useState('');
+  const [groomingType, setGroomingType] = useState<GroomingType>('bath');
+  const [groomingNextDue, setGroomingNextDue] = useState('');
+  const [groomingProvider, setGroomingProvider] = useState('');
+  const [trainingCommand, setTrainingCommand] = useState('');
+  const [trainingLocation, setTrainingLocation] = useState<TrainingLocation>('home');
+  const [trainingRating, setTrainingRating] = useState('');
   const [tick, setTick] = useState(0);
 
   const refresh = () => setTick((value) => value + 1);
@@ -54,6 +79,22 @@ export default function PetsHealthScreen() {
   );
   const weights = useMemo(
     () => (selectedPet ? listWeightEntriesForPet(db, selectedPet.id) : []),
+    [db, selectedPet, tick],
+  );
+  const exerciseLogs = useMemo(
+    () => (selectedPet ? listExerciseLogsForPet(db, selectedPet.id) : []),
+    [db, selectedPet, tick],
+  );
+  const groomingRecords = useMemo(
+    () => (selectedPet ? listGroomingRecordsForPet(db, selectedPet.id) : []),
+    [db, selectedPet, tick],
+  );
+  const trainingLogs = useMemo(
+    () => (selectedPet ? listTrainingLogsForPet(db, selectedPet.id) : []),
+    [db, selectedPet, tick],
+  );
+  const timeline = useMemo(
+    () => (selectedPet ? getPetHealthTimeline(db, selectedPet.id, 8) : []),
     [db, selectedPet, tick],
   );
 
@@ -121,7 +162,10 @@ export default function PetsHealthScreen() {
           <Pressable
             style={styles.primaryButton}
             onPress={() => {
-              if (!visitReason.trim()) return;
+              if (!visitReason.trim()) {
+                return;
+              }
+
               createVetVisit(db, uuid(), {
                 petId: selectedPet.id,
                 visitDate: new Date().toISOString().slice(0, 10),
@@ -169,7 +213,10 @@ export default function PetsHealthScreen() {
           <Pressable
             style={styles.primaryButton}
             onPress={() => {
-              if (!vaccineName.trim()) return;
+              if (!vaccineName.trim()) {
+                return;
+              }
+
               createVaccination(db, uuid(), {
                 petId: selectedPet.id,
                 name: vaccineName.trim(),
@@ -234,7 +281,10 @@ export default function PetsHealthScreen() {
           <Pressable
             style={styles.primaryButton}
             onPress={() => {
-              if (!medicationName.trim()) return;
+              if (!medicationName.trim()) {
+                return;
+              }
+
               createMedication(db, uuid(), {
                 petId: selectedPet.id,
                 name: medicationName.trim(),
@@ -288,7 +338,10 @@ export default function PetsHealthScreen() {
             style={styles.primaryButtonCompact}
             onPress={() => {
               const parsed = Number(weightGrams);
-              if (!parsed) return;
+              if (!parsed) {
+                return;
+              }
+
               createWeightEntry(db, uuid(), {
                 petId: selectedPet.id,
                 weightGrams: parsed,
@@ -306,6 +359,222 @@ export default function PetsHealthScreen() {
               {entry.loggedAt.slice(0, 10)} · {(entry.weightGrams / 1000).toFixed(1)} kg
             </Text>
           ))}
+        </View>
+      </Card>
+
+      <Card>
+        <Text variant="subheading">Exercise & Walks</Text>
+        <View style={styles.formGrid}>
+          <View style={styles.chipRow}>
+            {EXERCISE_TYPES.map((option) => {
+              const selected = option === exerciseType;
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => setExerciseType(option)}
+                  style={[styles.chip, selected ? styles.chipActive : null]}
+                >
+                  <Text variant="caption" color={selected ? colors.background : colors.textSecondary}>
+                    {option}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={styles.row}>
+            <TextInput
+              style={styles.input}
+              value={exerciseMinutes}
+              onChangeText={setExerciseMinutes}
+              placeholder="Minutes"
+              placeholderTextColor={colors.textTertiary}
+              keyboardType="numeric"
+            />
+            <TextInput
+              style={styles.input}
+              value={exerciseDistance}
+              onChangeText={setExerciseDistance}
+              placeholder="Distance km"
+              placeholderTextColor={colors.textTertiary}
+              keyboardType="numeric"
+            />
+          </View>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => {
+              const minutes = Number(exerciseMinutes);
+              if (!minutes) {
+                return;
+              }
+
+              createExerciseLog(db, uuid(), {
+                petId: selectedPet.id,
+                activityType: exerciseType,
+                durationMinutes: minutes,
+                distanceKm: exerciseDistance.trim() ? Number(exerciseDistance) : null,
+              });
+              setExerciseMinutes('');
+              setExerciseDistance('');
+              refresh();
+            }}
+          >
+            <Text variant="label" color={colors.background}>Log Activity</Text>
+          </Pressable>
+        </View>
+        <View style={styles.list}>
+          {exerciseLogs.slice(0, 3).map((entry) => (
+            <Text key={entry.id} variant="caption" color={colors.textSecondary}>
+              {entry.activityType} · {entry.durationMinutes} min
+              {entry.distanceKm !== null ? ` · ${entry.distanceKm.toFixed(1)} km` : ''}
+            </Text>
+          ))}
+        </View>
+      </Card>
+
+      <Card>
+        <Text variant="subheading">Grooming Schedule</Text>
+        <View style={styles.formGrid}>
+          <View style={styles.chipRow}>
+            {GROOMING_TYPES.map((option) => {
+              const selected = option === groomingType;
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => setGroomingType(option)}
+                  style={[styles.chip, selected ? styles.chipActive : null]}
+                >
+                  <Text variant="caption" color={selected ? colors.background : colors.textSecondary}>
+                    {option.replace('_', ' ')}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <TextInput
+            style={styles.input}
+            value={groomingNextDue}
+            onChangeText={setGroomingNextDue}
+            placeholder="Next due YYYY-MM-DD"
+            placeholderTextColor={colors.textTertiary}
+          />
+          <TextInput
+            style={styles.input}
+            value={groomingProvider}
+            onChangeText={setGroomingProvider}
+            placeholder="Salon or groomer (optional)"
+            placeholderTextColor={colors.textTertiary}
+          />
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => {
+              createGroomingRecord(db, uuid(), {
+                petId: selectedPet.id,
+                groomingType,
+                nextDueDate: groomingNextDue.trim() || null,
+                provider: groomingProvider.trim() || null,
+              });
+              setGroomingNextDue('');
+              setGroomingProvider('');
+              refresh();
+            }}
+          >
+            <Text variant="label" color={colors.background}>Log Grooming</Text>
+          </Pressable>
+        </View>
+        <View style={styles.list}>
+          {groomingRecords.slice(0, 3).map((entry) => (
+            <Text key={entry.id} variant="caption" color={colors.textSecondary}>
+              {entry.groomingType.replace('_', ' ')} · {entry.groomedAt}
+              {entry.nextDueDate ? ` · next ${entry.nextDueDate}` : ''}
+            </Text>
+          ))}
+        </View>
+      </Card>
+
+      <Card>
+        <Text variant="subheading">Training Log</Text>
+        <View style={styles.formGrid}>
+          <TextInput
+            style={styles.input}
+            value={trainingCommand}
+            onChangeText={setTrainingCommand}
+            placeholder="Command or skill"
+            placeholderTextColor={colors.textTertiary}
+          />
+          <View style={styles.chipRow}>
+            {TRAINING_LOCATIONS.map((option) => {
+              const selected = option === trainingLocation;
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => setTrainingLocation(option)}
+                  style={[styles.chip, selected ? styles.chipActive : null]}
+                >
+                  <Text variant="caption" color={selected ? colors.background : colors.textSecondary}>
+                    {option}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <TextInput
+            style={styles.input}
+            value={trainingRating}
+            onChangeText={setTrainingRating}
+            placeholder="Success rating 1-5"
+            placeholderTextColor={colors.textTertiary}
+            keyboardType="numeric"
+          />
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => {
+              if (!trainingCommand.trim()) {
+                return;
+              }
+
+              const rating = Number(trainingRating);
+              createTrainingLog(db, uuid(), {
+                petId: selectedPet.id,
+                commandName: trainingCommand.trim(),
+                location: trainingLocation,
+                successRating: rating >= 1 && rating <= 5 ? rating : null,
+              });
+              setTrainingCommand('');
+              setTrainingRating('');
+              refresh();
+            }}
+          >
+            <Text variant="label" color={colors.background}>Add Session</Text>
+          </Pressable>
+        </View>
+        <View style={styles.list}>
+          {trainingLogs.slice(0, 3).map((entry) => (
+            <Text key={entry.id} variant="caption" color={colors.textSecondary}>
+              {entry.commandName} · {entry.location}
+              {entry.successRating ? ` · ${entry.successRating}/5` : ''}
+            </Text>
+          ))}
+        </View>
+      </Card>
+
+      <Card>
+        <Text variant="subheading">Health Timeline</Text>
+        <View style={styles.list}>
+          {timeline.length === 0 ? (
+            <Text variant="caption" color={colors.textSecondary}>No health events recorded yet.</Text>
+          ) : (
+            timeline.map((item) => (
+              <View key={`${item.kind}-${item.id}`} style={styles.rowBetween}>
+                <View style={styles.mainCopy}>
+                  <Text variant="body">{item.title}</Text>
+                  <Text variant="caption" color={colors.textSecondary}>
+                    {item.occurredAt.slice(0, 10)}
+                    {item.detail ? ` · ${item.detail}` : ''}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
         </View>
       </Card>
     </ScrollView>

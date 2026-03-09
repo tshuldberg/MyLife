@@ -2,8 +2,10 @@ import { useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import {
   collectMedicationReminders,
+  listDueGroomingReminders,
   listDueMedications,
   listDueVaccinationReminders,
+  listEmergencyContacts,
   listFeedingSchedulesForPet,
   listPets,
 } from '@mylife/pets';
@@ -28,6 +30,11 @@ export default function PetsRemindersScreen() {
       ),
     [db, pets],
   );
+  const groomingReminders = useMemo(
+    () => listDueGroomingReminders(db, new Date().toISOString().slice(0, 10), 14),
+    [db],
+  );
+  const emergencyContacts = useMemo(() => listEmergencyContacts(db), [db]);
   const feedings = useMemo(
     () =>
       pets.flatMap((pet) =>
@@ -78,6 +85,24 @@ export default function PetsRemindersScreen() {
       </Card>
 
       <Card>
+        <Text variant="subheading">Grooming Due Soon</Text>
+        <View style={styles.list}>
+          {groomingReminders.length === 0 ? (
+            <Text variant="caption" color={colors.textSecondary}>No grooming reminders due soon.</Text>
+          ) : (
+            groomingReminders.map((reminder) => (
+              <View key={reminder.groomingRecordId} style={styles.row}>
+                <Text variant="body">{reminder.petName}</Text>
+                <Text variant="caption" color={colors.textSecondary}>
+                  {reminder.groomingType.replace('_', ' ')} · {reminder.status} · {reminder.nextDueDate}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+      </Card>
+
+      <Card>
         <Text variant="subheading">Feeding Schedule</Text>
         <View style={styles.list}>
           {feedings.length === 0 ? (
@@ -88,6 +113,24 @@ export default function PetsRemindersScreen() {
                 <Text variant="body">{feeding.petName}</Text>
                 <Text variant="caption" color={colors.textSecondary}>
                   {feeding.label} · {feeding.feedAt} · {feeding.foodName ?? 'Food not set'}
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+      </Card>
+
+      <Card>
+        <Text variant="subheading">Emergency Contacts</Text>
+        <View style={styles.list}>
+          {emergencyContacts.length === 0 ? (
+            <Text variant="caption" color={colors.textSecondary}>No emergency contacts saved yet.</Text>
+          ) : (
+            emergencyContacts.map((contact) => (
+              <View key={contact.id} style={styles.row}>
+                <Text variant="body">{contact.label}</Text>
+                <Text variant="caption" color={colors.textSecondary}>
+                  {contact.clinicName} · {contact.phone}
                 </Text>
               </View>
             ))

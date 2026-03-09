@@ -93,6 +93,7 @@ export default async function FlashDecksPage({
       <div style={styles.nav}>
         <Link href="/flash" style={styles.navLink}>Study</Link>
         <Link href="/flash/decks" style={styles.navLink}>Decks</Link>
+        <Link href="/flash/browser" style={styles.navLink}>Browse</Link>
         <Link href="/flash/stats" style={styles.navLink}>Stats</Link>
         <Link href="/flash/settings" style={styles.navLink}>Settings</Link>
       </div>
@@ -137,6 +138,7 @@ export default async function FlashDecksPage({
           <form action={addCard} style={styles.form}>
             <input type="hidden" name="deckId" value={activeDeck.id} />
             <div style={styles.small}>Target deck: {activeDeck.name}</div>
+            <div style={styles.small}>Cloze syntax: {'{{c1::answer}}'} creates one card per cloze marker.</div>
             <div style={styles.row}>
               <select name="cardType" defaultValue="basic" style={styles.input}>
                 {CARD_TYPES.map((cardType) => (
@@ -163,7 +165,9 @@ export default async function FlashDecksPage({
                 <div style={{ color: 'var(--text)', fontWeight: 600 }}>{card.front}</div>
                 <div style={styles.small}>
                   {card.cardType}
+                  {card.queue !== 'new' ? ` · ${card.queue}` : ''}
                   {card.templateOrdinal === 1 ? ' · reverse' : ''}
+                  {card.cardType === 'cloze' ? ` · cloze ${card.templateOrdinal + 1}` : ''}
                   {card.tags.length > 0 ? ` · ${card.tags.join(', ')}` : ''}
                 </div>
               </div>

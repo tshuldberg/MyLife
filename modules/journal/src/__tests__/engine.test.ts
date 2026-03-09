@@ -10,6 +10,7 @@ import type { JournalEntry } from '../types';
 function makeEntry(overrides: Partial<JournalEntry> = {}): JournalEntry {
   return {
     id: 'test-id',
+    journalId: 'journal-default',
     entryDate: '2026-03-08',
     title: null,
     body: 'Test body text',

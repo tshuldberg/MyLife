@@ -1,4 +1,7 @@
 export {
+  createJournalNotebook,
+  getJournalNotebookById,
+  listJournalNotebooks,
   createJournalEntry,
   getJournalEntryById,
   listJournalEntries,
@@ -10,6 +13,20 @@ export {
   getJournalSetting,
   setJournalSetting,
   getJournalDashboard,
+  listOnThisDayEntries,
+  exportJournalData,
 } from './crud';
 
-export { ALL_TABLES, CREATE_INDEXES, SEED_SETTINGS } from './schema';
+export {
+  BASE_INDEXES,
+  BASE_TABLES,
+  CREATE_ENTRIES,
+  CREATE_ENTRY_TAGS,
+  CREATE_JOURNALS,
+  CREATE_SETTINGS,
+  CREATE_TAGS,
+  DEFAULT_JOURNAL_ID,
+  JOURNAL_INDEXES,
+  SEED_SETTINGS,
+  V2_UP,
+} from './schema';

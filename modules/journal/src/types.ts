@@ -3,8 +3,28 @@ import { z } from 'zod';
 export const JournalMoodSchema = z.enum(['low', 'okay', 'good', 'great', 'grateful']);
 export type JournalMood = z.infer<typeof JournalMoodSchema>;
 
+export const JournalPromptCategorySchema = z.enum([
+  'reflection',
+  'gratitude',
+  'therapy',
+  'stoic',
+]);
+export type JournalPromptCategory = z.infer<typeof JournalPromptCategorySchema>;
+
+export const JournalNotebookSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  color: z.string().nullable(),
+  isDefault: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type JournalNotebook = z.infer<typeof JournalNotebookSchema>;
+
 export const JournalEntrySchema = z.object({
   id: z.string(),
+  journalId: z.string(),
   entryDate: z.string(),
   title: z.string().nullable(),
   body: z.string(),
@@ -31,10 +51,22 @@ export const JournalSettingSchema = z.object({
 });
 export type JournalSetting = z.infer<typeof JournalSettingSchema>;
 
+export const JournalPromptSchema = z.object({
+  id: z.string(),
+  category: JournalPromptCategorySchema,
+  prompt: z.string(),
+});
+export type JournalPrompt = z.infer<typeof JournalPromptSchema>;
+
 export const JournalSearchResultSchema = JournalEntrySchema.extend({
   matchedTagNames: z.array(z.string()),
 });
 export type JournalSearchResult = z.infer<typeof JournalSearchResultSchema>;
+
+export const JournalOnThisDayItemSchema = JournalEntrySchema.extend({
+  yearsAgo: z.number().int(),
+});
+export type JournalOnThisDayItem = z.infer<typeof JournalOnThisDayItemSchema>;
 
 export const JournalDashboardSchema = z.object({
   entryCount: z.number().int(),
@@ -43,10 +75,20 @@ export const JournalDashboardSchema = z.object({
   totalWords: z.number().int(),
   monthlyWords: z.number().int(),
   latestMood: JournalMoodSchema.nullable(),
+  journalCount: z.number().int(),
 });
 export type JournalDashboard = z.infer<typeof JournalDashboardSchema>;
 
+export const CreateJournalNotebookInputSchema = z.object({
+  name: z.string().min(1).max(80),
+  description: z.string().nullable().default(null),
+  color: z.string().nullable().default(null),
+  isDefault: z.boolean().default(false),
+});
+export type CreateJournalNotebookInput = z.input<typeof CreateJournalNotebookInputSchema>;
+
 export const CreateJournalEntryInputSchema = z.object({
+  journalId: z.string().optional(),
   entryDate: z.string().optional(),
   title: z.string().nullable().default(null),
   body: z.string().min(1),
@@ -57,6 +99,7 @@ export const CreateJournalEntryInputSchema = z.object({
 export type CreateJournalEntryInput = z.input<typeof CreateJournalEntryInputSchema>;
 
 export const UpdateJournalEntryInputSchema = z.object({
+  journalId: z.string().optional(),
   entryDate: z.string().optional(),
   title: z.string().nullable().optional(),
   body: z.string().min(1).optional(),
@@ -67,6 +110,7 @@ export const UpdateJournalEntryInputSchema = z.object({
 export type UpdateJournalEntryInput = z.input<typeof UpdateJournalEntryInputSchema>;
 
 export const JournalEntryFilterSchema = z.object({
+  journalId: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   tag: z.string().optional(),
@@ -76,3 +120,11 @@ export const JournalEntryFilterSchema = z.object({
   offset: z.number().int().min(0).default(0),
 });
 export type JournalEntryFilter = z.input<typeof JournalEntryFilterSchema>;
+
+export interface JournalExportBundle {
+  journals: JournalNotebook[];
+  entries: JournalEntry[];
+  tags: JournalTag[];
+  settings: JournalSetting[];
+  onThisDay: JournalOnThisDayItem[];
+}

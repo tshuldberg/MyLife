@@ -112,7 +112,71 @@ CREATE TABLE IF NOT EXISTS pt_expenses (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 )`;
 
-export const CREATE_INDEXES = [
+export const CREATE_EMERGENCY_CONTACTS = `
+CREATE TABLE IF NOT EXISTS pt_emergency_contacts (
+  id TEXT PRIMARY KEY,
+  pet_id TEXT REFERENCES pt_pets(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  clinic_name TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  address TEXT,
+  hours TEXT,
+  notes TEXT,
+  is_primary INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const CREATE_EXERCISE_LOGS = `
+CREATE TABLE IF NOT EXISTS pt_exercise_logs (
+  id TEXT PRIMARY KEY,
+  pet_id TEXT NOT NULL REFERENCES pt_pets(id) ON DELETE CASCADE,
+  activity_type TEXT NOT NULL,
+  duration_minutes INTEGER NOT NULL,
+  distance_km REAL,
+  logged_at TEXT NOT NULL,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const CREATE_GROOMING_RECORDS = `
+CREATE TABLE IF NOT EXISTS pt_grooming_records (
+  id TEXT PRIMARY KEY,
+  pet_id TEXT NOT NULL REFERENCES pt_pets(id) ON DELETE CASCADE,
+  grooming_type TEXT NOT NULL,
+  groomed_at TEXT NOT NULL,
+  next_due_date TEXT,
+  provider TEXT,
+  cost_cents INTEGER,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const CREATE_TRAINING_LOGS = `
+CREATE TABLE IF NOT EXISTS pt_training_logs (
+  id TEXT PRIMARY KEY,
+  pet_id TEXT NOT NULL REFERENCES pt_pets(id) ON DELETE CASCADE,
+  command_name TEXT NOT NULL,
+  location TEXT NOT NULL DEFAULT 'home',
+  duration_minutes INTEGER,
+  success_rating INTEGER,
+  logged_at TEXT NOT NULL,
+  notes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const CREATE_PET_PHOTOS = `
+CREATE TABLE IF NOT EXISTS pt_pet_photos (
+  id TEXT PRIMARY KEY,
+  pet_id TEXT NOT NULL REFERENCES pt_pets(id) ON DELETE CASCADE,
+  image_uri TEXT NOT NULL,
+  caption TEXT,
+  milestone_tag TEXT,
+  taken_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const BASE_INDEXES = [
   `CREATE INDEX IF NOT EXISTS pt_pets_archived_idx ON pt_pets(is_archived, name)`,
   `CREATE INDEX IF NOT EXISTS pt_vet_visits_pet_idx ON pt_vet_visits(pet_id, visit_date DESC)`,
   `CREATE INDEX IF NOT EXISTS pt_vaccinations_pet_idx ON pt_vaccinations(pet_id, next_due_date)`,
@@ -125,7 +189,16 @@ export const CREATE_INDEXES = [
   `CREATE INDEX IF NOT EXISTS pt_expenses_pet_idx ON pt_expenses(pet_id, spent_on DESC)`,
 ];
 
-export const ALL_TABLES = [
+export const EXPANDED_CARE_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS pt_emergency_contacts_pet_idx ON pt_emergency_contacts(pet_id, is_primary DESC, clinic_name ASC)`,
+  `CREATE INDEX IF NOT EXISTS pt_exercise_logs_pet_idx ON pt_exercise_logs(pet_id, logged_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS pt_grooming_records_pet_idx ON pt_grooming_records(pet_id, groomed_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS pt_grooming_records_due_idx ON pt_grooming_records(next_due_date)`,
+  `CREATE INDEX IF NOT EXISTS pt_training_logs_pet_idx ON pt_training_logs(pet_id, logged_at DESC)`,
+  `CREATE INDEX IF NOT EXISTS pt_pet_photos_pet_idx ON pt_pet_photos(pet_id, COALESCE(taken_at, created_at) DESC)`,
+];
+
+export const BASE_TABLES = [
   CREATE_PETS,
   CREATE_VET_VISITS,
   CREATE_VACCINATIONS,
@@ -135,3 +208,14 @@ export const ALL_TABLES = [
   CREATE_FEEDING_SCHEDULES,
   CREATE_EXPENSES,
 ];
+
+export const EXPANDED_CARE_TABLES = [
+  CREATE_EMERGENCY_CONTACTS,
+  CREATE_EXERCISE_LOGS,
+  CREATE_GROOMING_RECORDS,
+  CREATE_TRAINING_LOGS,
+  CREATE_PET_PHOTOS,
+];
+
+export const ALL_TABLES = [...BASE_TABLES, ...EXPANDED_CARE_TABLES];
+export const CREATE_INDEXES = [...BASE_INDEXES, ...EXPANDED_CARE_INDEXES];

@@ -1,6 +1,14 @@
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
-import { getFlashDashboard, listDecks, listDueFlashcards, rateFlashcard } from '@mylife/flash';
+import {
+  buryFlashNote,
+  buryFlashcard,
+  getFlashDashboard,
+  listDecks,
+  listDueFlashcards,
+  rateFlashcard,
+  suspendFlashcard,
+} from '@mylife/flash';
 import type { CardRating } from '@mylife/flash';
 import { getAdapter } from '@/lib/db';
 
@@ -21,8 +29,10 @@ const styles: Record<string, React.CSSProperties> = {
   chipRow: { display: 'flex', gap: '0.6rem', flexWrap: 'wrap' as const, marginTop: '0.75rem' },
   chip: { padding: '0.45rem 0.8rem', borderRadius: '999px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text-secondary)', background: 'var(--surface)' },
   answerBox: { marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' },
+  actionRow: { display: 'flex', gap: '0.75rem', flexWrap: 'wrap' as const, marginTop: '1rem' },
   ratingRow: { display: 'flex', gap: '0.75rem', flexWrap: 'wrap' as const, marginTop: '1rem' },
   button: { background: 'var(--accent-flash)', color: '#0A0A0F', border: 'none', borderRadius: '12px', padding: '0.75rem 1rem', fontWeight: 700, cursor: 'pointer' },
+  secondaryButton: { background: 'var(--surface)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: '999px', padding: '0.55rem 0.9rem', fontWeight: 600, cursor: 'pointer' },
 };
 
 export default async function FlashPage({
@@ -50,6 +60,32 @@ export default async function FlashPage({
 
     rateFlashcard(getAdapter(), cardId, rating, new Date().toISOString());
     revalidatePath('/flash');
+    revalidatePath('/flash/browser');
+    revalidatePath('/flash/decks');
+    revalidatePath('/flash/stats');
+    revalidatePath('/flash/settings');
+  }
+
+  async function manageCard(formData: FormData) {
+    'use server';
+
+    const cardId = String(formData.get('cardId') ?? '');
+    const actionType = String(formData.get('actionType') ?? '');
+    if (!cardId) {
+      return;
+    }
+
+    const actionDb = getAdapter();
+    if (actionType === 'suspend') {
+      suspendFlashcard(actionDb, cardId);
+    } else if (actionType === 'bury') {
+      buryFlashcard(actionDb, cardId, new Date().toISOString());
+    } else if (actionType === 'bury-note') {
+      buryFlashNote(actionDb, cardId, new Date().toISOString());
+    }
+
+    revalidatePath('/flash');
+    revalidatePath('/flash/browser');
     revalidatePath('/flash/decks');
     revalidatePath('/flash/stats');
     revalidatePath('/flash/settings');
@@ -65,6 +101,7 @@ export default async function FlashPage({
       <div style={styles.nav}>
         <Link href="/flash" style={styles.navLink}>Study</Link>
         <Link href="/flash/decks" style={styles.navLink}>Decks</Link>
+        <Link href="/flash/browser" style={styles.navLink}>Browse</Link>
         <Link href="/flash/stats" style={styles.navLink}>Stats</Link>
         <Link href="/flash/settings" style={styles.navLink}>Settings</Link>
       </div>
@@ -117,12 +154,28 @@ export default async function FlashPage({
             <div style={{ color: 'var(--text)', fontSize: '1.8rem', fontWeight: 700 }}>
               {currentCard.front}
             </div>
+            <div style={styles.small}>
+              {currentCard.cardType}
+              {currentCard.tags.length > 0 ? ` · ${currentCard.tags.join(', ')}` : ''}
+            </div>
             <div style={styles.answerBox}>
               <div style={styles.small}>Answer</div>
               <div style={{ color: 'var(--text)', fontSize: '1.2rem', fontWeight: 600 }}>
                 {currentCard.back || 'No answer yet'}
               </div>
             </div>
+            <form action={manageCard} style={styles.actionRow}>
+              <input type="hidden" name="cardId" value={currentCard.id} />
+              <button type="submit" name="actionType" value="suspend" style={styles.secondaryButton}>
+                Suspend
+              </button>
+              <button type="submit" name="actionType" value="bury" style={styles.secondaryButton}>
+                Bury Card
+              </button>
+              <button type="submit" name="actionType" value="bury-note" style={styles.secondaryButton}>
+                Bury Note
+              </button>
+            </form>
             <form action={submitRating} style={styles.ratingRow}>
               <input type="hidden" name="cardId" value={currentCard.id} />
               {RATINGS.map((rating) => (

@@ -1,7 +1,11 @@
 import Link from 'next/link';
 import {
+  getPetHealthTimeline,
+  listExerciseLogsForPet,
+  listGroomingRecordsForPet,
   listMedicationsForPet,
   listPets,
+  listTrainingLogsForPet,
   listVaccinationsForPet,
   listVetVisitsForPet,
   listWeightEntriesForPet,
@@ -27,7 +31,7 @@ export default function PetsHealthPage() {
   return (
     <div style={styles.page}>
       <h1 style={styles.title}>Pet Health</h1>
-      <p style={styles.subtitle}>Vet visits, vaccines, medications, and weight logs</p>
+      <p style={styles.subtitle}>Vet visits, vaccines, medications, weight, activity, grooming, and training</p>
 
       <div style={styles.nav}>
         <Link href="/pets" style={styles.navLink}>Pets</Link>
@@ -39,17 +43,29 @@ export default function PetsHealthPage() {
       {pets.length === 0 ? (
         <div style={styles.card}>No pets added yet.</div>
       ) : (
-        pets.map((pet) => (
-          <div key={pet.id} style={styles.card}>
-            <div style={styles.sectionTitle}>{pet.name}</div>
-            <div style={styles.list}>
-              <div style={styles.line}>Vet visits: {listVetVisitsForPet(db, pet.id).length}</div>
-              <div style={styles.line}>Vaccinations: {listVaccinationsForPet(db, pet.id).length}</div>
-              <div style={styles.line}>Medications: {listMedicationsForPet(db, pet.id, true).length}</div>
-              <div style={styles.line}>Weight logs: {listWeightEntriesForPet(db, pet.id).length}</div>
+        pets.map((pet) => {
+          const timeline = getPetHealthTimeline(db, pet.id, 3);
+
+          return (
+            <div key={pet.id} style={styles.card}>
+              <div style={styles.sectionTitle}>{pet.name}</div>
+              <div style={styles.list}>
+                <div style={styles.line}>Vet visits: {listVetVisitsForPet(db, pet.id).length}</div>
+                <div style={styles.line}>Vaccinations: {listVaccinationsForPet(db, pet.id).length}</div>
+                <div style={styles.line}>Medications: {listMedicationsForPet(db, pet.id, true).length}</div>
+                <div style={styles.line}>Weight logs: {listWeightEntriesForPet(db, pet.id).length}</div>
+                <div style={styles.line}>Exercise logs: {listExerciseLogsForPet(db, pet.id).length}</div>
+                <div style={styles.line}>Grooming records: {listGroomingRecordsForPet(db, pet.id).length}</div>
+                <div style={styles.line}>Training sessions: {listTrainingLogsForPet(db, pet.id).length}</div>
+                {timeline[0] ? (
+                  <div style={styles.line}>
+                    Latest timeline event: {timeline[0].title} on {timeline[0].occurredAt.slice(0, 10)}
+                  </div>
+                ) : null}
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
     </div>
   );

@@ -2,9 +2,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createModuleTestDatabase, type InMemoryTestDatabase } from '@mylife/db';
 import { FLASH_MODULE } from '../definition';
 import {
+  browseFlashcards,
+  buryFlashNote,
+  buryFlashcard,
   DEFAULT_FLASH_DECK_ID,
   createDeck,
   createFlashcards,
+  exportFlashData,
   getDeckById,
   getFlashcardById,
   getFlashDashboard,
@@ -12,9 +16,14 @@ import {
   listCardsForDeck,
   listDecks,
   listDueFlashcards,
+  listFlashExportRecords,
+  listFlashTags,
   listReviewLogsForCard,
   rateFlashcard,
   setFlashSetting,
+  suspendFlashcard,
+  unburyFlashcards,
+  unsuspendFlashcard,
   updateDeck,
 } from '..';
 
@@ -138,6 +147,22 @@ describe('Flash cards', () => {
     expect(cards).toHaveLength(1);
   });
 
+  it('creates cloze cards from one note', () => {
+    const cards = createFlashcards(testDb.adapter, {
+      deckId: DEFAULT_FLASH_DECK_ID,
+      front: '{{c1::Paris}} is in {{c2::France}}',
+      back: 'Remember the capital-country pair',
+      cardType: 'cloze',
+    });
+
+    expect(cards).toHaveLength(2);
+    expect(cards[0]?.templateOrdinal).toBe(0);
+    expect(cards[0]?.front).toBe('[...] is in France');
+    expect(cards[0]?.back).toContain('[[Paris]] is in France');
+    expect(cards[1]?.templateOrdinal).toBe(1);
+    expect(cards[1]?.front).toBe('Paris is in [...]');
+  });
+
   it('normalizes and deduplicates tags', () => {
     const [card] = createFlashcards(testDb.adapter, {
       deckId: DEFAULT_FLASH_DECK_ID,
@@ -247,6 +272,55 @@ describe('Flash scheduling and logs', () => {
     expect(due).toHaveLength(0);
   });
 
+  it('auto-buries sibling cards after a review when enabled', () => {
+    const [first, second] = createFlashcards(testDb.adapter, {
+      deckId: DEFAULT_FLASH_DECK_ID,
+      front: 'dog',
+      back: 'perro',
+      cardType: 'reversed',
+    });
+
+    rateFlashcard(testDb.adapter, first!.id, 'good', '2026-03-08T10:00:00.000Z');
+
+    const updatedSibling = getFlashcardById(testDb.adapter, second!.id);
+    expect(updatedSibling?.queue).toBe('buried');
+    expect(updatedSibling?.queueBeforeBury).toBe('new');
+  });
+
+  it('suspends and unsuspends a card while preserving the previous queue', () => {
+    const [card] = createFlashcards(testDb.adapter, {
+      deckId: DEFAULT_FLASH_DECK_ID,
+      front: 'Q',
+      back: 'A',
+    });
+
+    rateFlashcard(testDb.adapter, card!.id, 'good', '2026-03-08T10:00:00.000Z');
+    const suspended = suspendFlashcard(testDb.adapter, card!.id);
+    expect(suspended?.queue).toBe('suspended');
+    expect(suspended?.queueBeforeSuspend).toBe('review');
+
+    const unsuspended = unsuspendFlashcard(testDb.adapter, card!.id);
+    expect(unsuspended?.queue).toBe('review');
+    expect(unsuspended?.queueBeforeSuspend).toBeNull();
+  });
+
+  it('buries a note and later unburies it', () => {
+    const [first] = createFlashcards(testDb.adapter, {
+      deckId: DEFAULT_FLASH_DECK_ID,
+      front: 'dog',
+      back: 'perro',
+      cardType: 'reversed',
+    });
+
+    const buriedCards = buryFlashNote(testDb.adapter, first!.id, '2026-03-08T10:00:00.000Z');
+    expect(buriedCards).toHaveLength(2);
+    expect(buriedCards.every((card) => card.queue === 'buried')).toBe(true);
+
+    expect(unburyFlashcards(testDb.adapter, '2026-03-09T00:00:00.000Z')).toBe(2);
+    const restored = listCardsForDeck(testDb.adapter, DEFAULT_FLASH_DECK_ID);
+    expect(restored.every((card) => card.queue === 'new')).toBe(true);
+  });
+
   it('listDueFlashcards respects the limit parameter', () => {
     for (let i = 0; i < 5; i++) {
       createFlashcards(testDb.adapter, {
@@ -281,6 +355,8 @@ describe('Flash settings', () => {
     expect(getFlashSetting(testDb.adapter, 'dailyNewLimit')).toBe('20');
     expect(getFlashSetting(testDb.adapter, 'dailyReviewLimit')).toBe('200');
     expect(getFlashSetting(testDb.adapter, 'dailyStudyTarget')).toBe('1');
+    expect(getFlashSetting(testDb.adapter, 'autoBurySiblings')).toBe('1');
+    expect(getFlashSetting(testDb.adapter, 'dailyReminderTime')).toBe('09:00');
   });
 
   it('returns null for non-existent setting', () => {
@@ -353,5 +429,99 @@ describe('Flash dashboard', () => {
     const dashboard = getFlashDashboard(testDb.adapter, '2026-03-08');
     expect(dashboard.newCount).toBe(2);
     expect(dashboard.cardCount).toBe(2);
+  });
+});
+
+describe('Flash browser and export', () => {
+  it('lists global tags and browses cards with search filters', () => {
+    const biology = createDeck(testDb.adapter, 'deck-bio', { name: 'Biology' });
+    const spanish = createDeck(testDb.adapter, 'deck-spanish', { name: 'Spanish' });
+    createFlashcards(testDb.adapter, {
+      deckId: biology.id,
+      front: 'Mitochondria',
+      back: 'Powerhouse',
+      tags: ['Exam', 'Science'],
+    });
+    const [spanishCard] = createFlashcards(testDb.adapter, {
+      deckId: spanish.id,
+      front: 'Perro',
+      back: 'Dog',
+      tags: ['Exam', 'Language'],
+    });
+    rateFlashcard(testDb.adapter, spanishCard!.id, 'again', '2026-03-08T10:00:00.000Z');
+    rateFlashcard(testDb.adapter, spanishCard!.id, 'again', '2026-03-08T10:10:00.000Z');
+    rateFlashcard(testDb.adapter, spanishCard!.id, 'again', '2026-03-08T10:20:00.000Z');
+
+    expect(listFlashTags(testDb.adapter)).toEqual(['exam', 'language', 'science']);
+
+    const results = browseFlashcards(testDb.adapter, {
+      query: 'deck:Spanish tag:exam prop:lapses>2',
+      sort: 'lapses',
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({
+      deckName: 'Spanish',
+      isLeech: false,
+      lapseCount: 3,
+    });
+  });
+
+  it('can filter suspended cards in the browser', () => {
+    const [card] = createFlashcards(testDb.adapter, {
+      deckId: DEFAULT_FLASH_DECK_ID,
+      front: 'Q',
+      back: 'A',
+    });
+    suspendFlashcard(testDb.adapter, card!.id);
+
+    const results = browseFlashcards(testDb.adapter, { query: 'is:suspended' });
+    expect(results).toHaveLength(1);
+    expect(results[0]?.queue).toBe('suspended');
+  });
+
+  it('exports data, records export history, and can strip scheduling fields', () => {
+    const [card] = createFlashcards(testDb.adapter, {
+      deckId: DEFAULT_FLASH_DECK_ID,
+      front: 'Q',
+      back: 'A',
+      tags: ['Exam'],
+    });
+    rateFlashcard(testDb.adapter, card!.id, 'good', '2026-03-08T10:00:00.000Z');
+
+    const exported = exportFlashData(testDb.adapter, {
+      includeScheduling: false,
+      includeTags: false,
+    });
+
+    expect(exported.cards).toHaveLength(1);
+    expect(exported.cards[0]).toMatchObject({
+      queue: 'new',
+      tags: [],
+      reviewCount: 0,
+      dueAt: null,
+    });
+    expect(exported.reviewLogs).toHaveLength(0);
+
+    const history = listFlashExportRecords(testDb.adapter);
+    expect(history).toHaveLength(1);
+    expect(history[0]?.cardsExported).toBe(1);
+  });
+
+  it('buries a single card without affecting suspended cards', () => {
+    const [first] = createFlashcards(testDb.adapter, {
+      deckId: DEFAULT_FLASH_DECK_ID,
+      front: 'Q1',
+      back: 'A1',
+    });
+    const [second] = createFlashcards(testDb.adapter, {
+      deckId: DEFAULT_FLASH_DECK_ID,
+      front: 'Q2',
+      back: 'A2',
+    });
+    suspendFlashcard(testDb.adapter, second!.id);
+
+    const buried = buryFlashcard(testDb.adapter, first!.id, '2026-03-08T10:00:00.000Z');
+    expect(buried?.queue).toBe('buried');
+    expect(getFlashcardById(testDb.adapter, second!.id)?.queue).toBe('suspended');
   });
 });

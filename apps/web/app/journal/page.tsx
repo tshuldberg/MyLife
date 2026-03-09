@@ -1,6 +1,13 @@
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
-import { createJournalEntry, getEntriesForDate, getJournalDashboard } from '@mylife/journal';
+import {
+  createJournalEntry,
+  getDailyJournalPrompt,
+  getEntriesForDate,
+  getJournalDashboard,
+  getJournalSetting,
+  listJournalNotebooks,
+} from '@mylife/journal';
 import type { JournalMood } from '@mylife/journal';
 import { getAdapter } from '@/lib/db';
 
@@ -25,6 +32,8 @@ const styles: Record<string, React.CSSProperties> = {
   textarea: { minHeight: '180px', resize: 'vertical' as const },
   button: { background: JOURNAL_ACCENT, color: '#0A0A0F', border: 'none', borderRadius: '12px', padding: '0.75rem 1rem', fontWeight: 700, cursor: 'pointer' },
   list: { display: 'grid', gap: '0.75rem' },
+  chipRow: { display: 'flex', gap: '0.6rem', flexWrap: 'wrap' as const, marginTop: '0.75rem' },
+  chip: { padding: '0.45rem 0.8rem', borderRadius: '999px', border: '1px solid var(--border)', color: 'var(--text-secondary)', background: 'var(--surface)' },
 };
 
 function splitTags(raw: string): string[] {
@@ -37,8 +46,13 @@ function splitTags(raw: string): string[] {
 export default async function JournalPage() {
   const today = new Date().toISOString().slice(0, 10);
   const db = getAdapter();
-  const todayEntries = getEntriesForDate(db, today);
-  const dashboard = getJournalDashboard(db, today);
+  const notebooks = listJournalNotebooks(db);
+  const defaultNotebook = notebooks[0];
+  const todayEntries = getEntriesForDate(db, today, defaultNotebook?.id);
+  const dashboard = getJournalDashboard(db, today, defaultNotebook?.id);
+  const promptEnabled = getJournalSetting(db, 'dailyPromptEnabled') === 'true';
+  const promptCategory = (getJournalSetting(db, 'dailyPromptCategory') ?? 'reflection') as 'reflection' | 'gratitude' | 'therapy' | 'stoic';
+  const prompt = getDailyJournalPrompt(today, promptCategory);
 
   async function addEntry(formData: FormData) {
     'use server';
@@ -50,6 +64,7 @@ export default async function JournalPage() {
 
     const moodValue = String(formData.get('mood') ?? '').trim();
     createJournalEntry(getAdapter(), crypto.randomUUID(), {
+      journalId: String(formData.get('journalId') ?? defaultNotebook?.id ?? ''),
       entryDate: today,
       title: String(formData.get('title') ?? '').trim() || null,
       body,
@@ -67,7 +82,7 @@ export default async function JournalPage() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.title}>MyJournal</h1>
-        <p style={styles.subtitle}>Private local entries, tags, moods, and streak tracking</p>
+        <p style={styles.subtitle}>Private local entries with notebooks, prompts, and export-ready structure</p>
       </div>
 
       <div style={styles.nav}>
@@ -75,6 +90,17 @@ export default async function JournalPage() {
         <Link href="/journal/entries" style={styles.navLink}>Entries</Link>
         <Link href="/journal/search" style={styles.navLink}>Search</Link>
         <Link href="/journal/settings" style={styles.navLink}>Settings</Link>
+      </div>
+
+      <div style={styles.card}>
+        <div style={styles.sectionTitle}>Notebooks</div>
+        <div style={styles.chipRow}>
+          {notebooks.map((journal) => (
+            <span key={journal.id} style={styles.chip}>
+              {journal.name}{journal.isDefault ? ' · default' : ''}
+            </span>
+          ))}
+        </div>
       </div>
 
       <div style={styles.grid}>
@@ -90,11 +116,24 @@ export default async function JournalPage() {
           <div style={styles.statValue}>{dashboard.monthlyWords}</div>
           <div style={styles.small}>Words this month</div>
         </div>
+        <div style={styles.card}>
+          <div style={styles.statValue}>{dashboard.journalCount}</div>
+          <div style={styles.small}>Journals</div>
+        </div>
       </div>
+
+      {promptEnabled ? (
+        <div style={{ ...styles.card, marginBottom: '1.5rem' }}>
+          <div style={styles.sectionTitle}>Daily Prompt</div>
+          <div style={styles.small}>{prompt.prompt}</div>
+          <div style={styles.small}>Category: {prompt.category}</div>
+        </div>
+      ) : null}
 
       <div style={{ ...styles.card, marginBottom: '1.5rem' }}>
         <div style={styles.sectionTitle}>New entry</div>
         <form action={addEntry} style={styles.form}>
+          <input type="hidden" name="journalId" value={defaultNotebook?.id ?? ''} />
           <div style={styles.row}>
             <input name="title" placeholder="Title (optional)" style={styles.input} />
             <input name="tags" placeholder="Tags, comma separated" style={styles.input} />
