@@ -8,7 +8,7 @@ Emotional wellness tracker with granular mood logging (1-10 scale), Plutchik's 2
 
 | Name | Type | Description |
 |------|------|-------------|
-| `MOOD_MODULE` | ModuleDefinition | Module registration contract (id: `mood`, prefix: `mo_`, tier: premium) |
+| `MOOD_MODULE` | ModuleDefinition | Module registration contract (id: `mood`, prefix: `mo_`, tier: free) |
 | Schemas | Zod | 16 Zod schemas (entry, activity, emotion tag, entry-activity, streak, breathing pattern/session, setting, create/update inputs, filter) |
 | Entry CRUD | Functions | `createMoodEntry`, `getMoodEntryById`, `getMoodEntries`, `getMoodEntriesByDate`, `deleteMoodEntry`, `getMoodEntryCount` |
 | Emotion tags | Functions | `getEmotionTagsForEntry` |

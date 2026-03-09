@@ -4,7 +4,7 @@ import type {
   CycleDay,
   Symptom,
   CreateCycleInput,
-  CreateCycleDayInput,
+  CreateCycleDayRawInput,
   UpdateCycleDayInput,
   CycleStats,
 } from '../types';
@@ -55,9 +55,9 @@ function rowToSymptom(row: Record<string, unknown>): Symptom {
 
 export function createCycle(
   db: DatabaseAdapter,
+  id: string,
   input: CreateCycleInput,
 ): Cycle {
-  const id = crypto.randomUUID();
   const now = nowIso();
 
   let periodLength: number | null = null;
@@ -142,10 +142,10 @@ export function deleteCycle(db: DatabaseAdapter, id: string): boolean {
 
 export function createCycleDay(
   db: DatabaseAdapter,
-  rawInput: CreateCycleDayInput,
+  id: string,
+  rawInput: CreateCycleDayRawInput,
 ): CycleDay {
   const input = CreateCycleDayInputSchema.parse(rawInput);
-  const id = crypto.randomUUID();
   const now = nowIso();
 
   db.transaction(() => {
@@ -276,12 +276,12 @@ export function getSymptomsForDay(
 
 export function addSymptom(
   db: DatabaseAdapter,
+  id: string,
   cycleDayId: string,
   category: string,
   symptom: string,
   intensity = 'moderate',
 ): Symptom {
-  const id = crypto.randomUUID();
   const now = nowIso();
   db.execute(
     `INSERT INTO cy_symptoms (id, cycle_day_id, category, symptom, intensity, created_at)

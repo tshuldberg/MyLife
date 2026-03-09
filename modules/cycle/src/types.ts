@@ -78,6 +78,8 @@ export const CreateCycleDayInputSchema = z.object({
     .default([]),
 });
 export type CreateCycleDayInput = z.infer<typeof CreateCycleDayInputSchema>;
+/** Input type for createCycleDay - allows omitting fields with Zod defaults. */
+export type CreateCycleDayRawInput = z.input<typeof CreateCycleDayInputSchema>;
 
 export const UpdateCycleDayInputSchema = z.object({
   phase: CyclePhaseSchema.nullable().optional(),

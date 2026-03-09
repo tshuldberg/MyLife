@@ -12,6 +12,7 @@ export type {
   Symptom,
   CreateCycleInput,
   CreateCycleDayInput,
+  CreateCycleDayRawInput,
   UpdateCycleDayInput,
   CycleStats,
   CyclePrediction,

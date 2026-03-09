@@ -25,6 +25,13 @@ import { JOURNAL_MODULE } from '@mylife/journal';
 import { PETS_MODULE } from '@mylife/pets';
 import { RSVP_MODULE } from '@mylife/rsvp';
 import { TRAILS_MODULE } from '@mylife/trails';
+import { MOOD_MODULE } from '@mylife/mood';
+import { NOTES_MODULE } from '@mylife/notes';
+import { GARDEN_MODULE } from '@mylife/garden';
+import { CYCLE_MODULE } from '@mylife/cycle';
+import { STARS_MODULE } from '@mylife/stars';
+import { VOICE_MODULE } from '@mylife/voice';
+import { MAIL_MODULE } from '@mylife/mail';
 import { colors } from '@mylife/ui';
 import { createPaymentService } from '@mylife/subscription';
 import type { PaymentService } from '@mylife/subscription';
@@ -92,6 +99,13 @@ export default function RootLayout() {
     safeRegister(r, PETS_MODULE, 'pets');
     safeRegister(r, RSVP_MODULE, 'rsvp');
     safeRegister(r, TRAILS_MODULE, 'trails');
+    safeRegister(r, MOOD_MODULE, 'mood');
+    safeRegister(r, NOTES_MODULE, 'notes');
+    safeRegister(r, GARDEN_MODULE, 'garden');
+    safeRegister(r, CYCLE_MODULE, 'cycle');
+    safeRegister(r, STARS_MODULE, 'stars');
+    safeRegister(r, VOICE_MODULE, 'voice');
+    safeRegister(r, MAIL_MODULE, 'mail');
     return r;
   }, []);
 
@@ -141,6 +155,13 @@ export default function RootLayout() {
                 <Stack.Screen name="(pets)" />
                 <Stack.Screen name="(rsvp)" />
                 <Stack.Screen name="(trails)" />
+                <Stack.Screen name="(mood)" />
+                <Stack.Screen name="(notes)" />
+                <Stack.Screen name="(garden)" />
+                <Stack.Screen name="(cycle)" />
+                <Stack.Screen name="(stars)" />
+                <Stack.Screen name="(voice)" />
+                <Stack.Screen name="(mail)" />
                 <Stack.Screen name="(social)" />
               </Stack>
             </EntitlementsProvider>

@@ -33,8 +33,8 @@ afterEach(() => {
 
 describe('Cycles', () => {
   it('creates a new cycle', () => {
-    const cycle = createCycle(testDb.adapter, { startDate: '2026-03-01' });
-    expect(cycle.id).toBeTruthy();
+    const cycle = createCycle(testDb.adapter, 'c1', { startDate: '2026-03-01' });
+    expect(cycle.id).toBe('c1');
     expect(cycle.startDate).toBe('2026-03-01');
     expect(cycle.endDate).toBeNull();
     expect(cycle.lengthDays).toBeNull();
@@ -42,7 +42,7 @@ describe('Cycles', () => {
   });
 
   it('creates a cycle with period end date', () => {
-    const cycle = createCycle(testDb.adapter, {
+    const cycle = createCycle(testDb.adapter, 'c2', {
       startDate: '2026-03-01',
       periodEndDate: '2026-03-05',
     });
@@ -51,8 +51,8 @@ describe('Cycles', () => {
   });
 
   it('gets a cycle by id', () => {
-    const created = createCycle(testDb.adapter, { startDate: '2026-03-01' });
-    const found = getCycle(testDb.adapter, created.id);
+    createCycle(testDb.adapter, 'c3', { startDate: '2026-03-01' });
+    const found = getCycle(testDb.adapter, 'c3');
     expect(found).not.toBeNull();
     expect(found!.startDate).toBe('2026-03-01');
   });
@@ -62,9 +62,9 @@ describe('Cycles', () => {
   });
 
   it('lists cycles in reverse chronological order', () => {
-    createCycle(testDb.adapter, { startDate: '2026-01-01' });
-    createCycle(testDb.adapter, { startDate: '2026-02-01' });
-    createCycle(testDb.adapter, { startDate: '2026-03-01' });
+    createCycle(testDb.adapter, 'c4', { startDate: '2026-01-01' });
+    createCycle(testDb.adapter, 'c5', { startDate: '2026-02-01' });
+    createCycle(testDb.adapter, 'c6', { startDate: '2026-03-01' });
 
     const cycles = getCycles(testDb.adapter);
     expect(cycles).toHaveLength(3);
@@ -73,7 +73,7 @@ describe('Cycles', () => {
   });
 
   it('ends a cycle with computed length', () => {
-    const cycle = createCycle(testDb.adapter, { startDate: '2026-02-01' });
+    const cycle = createCycle(testDb.adapter, 'c7', { startDate: '2026-02-01' });
     const ended = endCycle(testDb.adapter, cycle.id, '2026-03-01');
     expect(ended).not.toBeNull();
     expect(ended!.lengthDays).toBe(28);
@@ -85,30 +85,30 @@ describe('Cycles', () => {
   });
 
   it('deletes a cycle', () => {
-    const cycle = createCycle(testDb.adapter, { startDate: '2026-03-01' });
-    deleteCycle(testDb.adapter, cycle.id);
-    expect(getCycle(testDb.adapter, cycle.id)).toBeNull();
+    createCycle(testDb.adapter, 'c8', { startDate: '2026-03-01' });
+    deleteCycle(testDb.adapter, 'c8');
+    expect(getCycle(testDb.adapter, 'c8')).toBeNull();
   });
 
   it('counts total cycles', () => {
     expect(getCycleCount(testDb.adapter)).toBe(0);
-    createCycle(testDb.adapter, { startDate: '2026-03-01' });
-    createCycle(testDb.adapter, { startDate: '2026-04-01' });
+    createCycle(testDb.adapter, 'c9', { startDate: '2026-03-01' });
+    createCycle(testDb.adapter, 'c10', { startDate: '2026-04-01' });
     expect(getCycleCount(testDb.adapter)).toBe(2);
   });
 });
 
 describe('Cycle Days', () => {
   it('creates a cycle day with date', () => {
-    const day = createCycleDay(testDb.adapter, { date: '2026-03-01' });
-    expect(day.id).toBeTruthy();
+    const day = createCycleDay(testDb.adapter, 'd1', { date: '2026-03-01' });
+    expect(day.id).toBe('d1');
     expect(day.date).toBe('2026-03-01');
     expect(day.flowLevel).toBeNull();
     expect(day.phase).toBeNull();
   });
 
   it('creates a cycle day with flow and phase', () => {
-    const day = createCycleDay(testDb.adapter, {
+    const day = createCycleDay(testDb.adapter, 'd2', {
       date: '2026-03-01',
       phase: 'menstrual',
       flowLevel: 'heavy',
@@ -120,7 +120,7 @@ describe('Cycle Days', () => {
   });
 
   it('creates a cycle day with symptoms', () => {
-    const day = createCycleDay(testDb.adapter, {
+    const day = createCycleDay(testDb.adapter, 'd3', {
       date: '2026-03-01',
       symptoms: [
         { category: 'physical', symptom: 'cramps', intensity: 'severe' },
@@ -135,14 +135,14 @@ describe('Cycle Days', () => {
   });
 
   it('gets cycle days by date', () => {
-    createCycleDay(testDb.adapter, { date: '2026-03-01' });
+    createCycleDay(testDb.adapter, 'd4', { date: '2026-03-01' });
     const days = getCycleDaysByDate(testDb.adapter, '2026-03-01');
     expect(days).toHaveLength(1);
     expect(days[0].date).toBe('2026-03-01');
   });
 
   it('gets a single cycle day by date', () => {
-    createCycleDay(testDb.adapter, { date: '2026-03-05' });
+    createCycleDay(testDb.adapter, 'd5', { date: '2026-03-05' });
     const found = getCycleDayByDate(testDb.adapter, '2026-03-05');
     expect(found).not.toBeNull();
     expect(found!.date).toBe('2026-03-05');
@@ -151,9 +151,9 @@ describe('Cycle Days', () => {
   });
 
   it('gets cycle days by cycle id', () => {
-    const cycle = createCycle(testDb.adapter, { startDate: '2026-03-01' });
-    createCycleDay(testDb.adapter, { date: '2026-03-01', cycleId: cycle.id });
-    createCycleDay(testDb.adapter, { date: '2026-03-02', cycleId: cycle.id });
+    const cycle = createCycle(testDb.adapter, 'c-days', { startDate: '2026-03-01' });
+    createCycleDay(testDb.adapter, 'd6', { date: '2026-03-01', cycleId: cycle.id });
+    createCycleDay(testDb.adapter, 'd7', { date: '2026-03-02', cycleId: cycle.id });
 
     const days = getCycleDaysByCycle(testDb.adapter, cycle.id);
     expect(days).toHaveLength(2);
@@ -162,7 +162,7 @@ describe('Cycle Days', () => {
   });
 
   it('updates a cycle day', () => {
-    const day = createCycleDay(testDb.adapter, { date: '2026-03-01' });
+    const day = createCycleDay(testDb.adapter, 'd8', { date: '2026-03-01' });
     const updated = updateCycleDay(testDb.adapter, day.id, {
       flowLevel: 'medium',
       notes: 'Updated notes',
@@ -177,14 +177,14 @@ describe('Cycle Days', () => {
   });
 
   it('returns unchanged day when no updates provided', () => {
-    const day = createCycleDay(testDb.adapter, { date: '2026-03-01', notes: 'original' });
+    const day = createCycleDay(testDb.adapter, 'd9', { date: '2026-03-01', notes: 'original' });
     const same = updateCycleDay(testDb.adapter, day.id, {});
     expect(same).not.toBeNull();
     expect(same!.notes).toBe('original');
   });
 
   it('deletes a cycle day and cascades symptoms', () => {
-    const day = createCycleDay(testDb.adapter, {
+    const day = createCycleDay(testDb.adapter, 'd10', {
       date: '2026-03-01',
       symptoms: [{ category: 'physical', symptom: 'cramps' }],
     });
@@ -198,8 +198,8 @@ describe('Cycle Days', () => {
 
 describe('Symptoms', () => {
   it('adds a symptom to an existing day', () => {
-    const day = createCycleDay(testDb.adapter, { date: '2026-03-01' });
-    const symptom = addSymptom(testDb.adapter, day.id, 'physical', 'headache', 'mild');
+    const day = createCycleDay(testDb.adapter, 'd-sym1', { date: '2026-03-01' });
+    const symptom = addSymptom(testDb.adapter, 's1', day.id, 'physical', 'headache', 'mild');
     expect(symptom.symptom).toBe('headache');
     expect(symptom.intensity).toBe('mild');
     expect(symptom.category).toBe('physical');
@@ -209,15 +209,15 @@ describe('Symptoms', () => {
   });
 
   it('uses default intensity of moderate', () => {
-    const day = createCycleDay(testDb.adapter, { date: '2026-03-01' });
-    const symptom = addSymptom(testDb.adapter, day.id, 'mood', 'anxious');
+    const day = createCycleDay(testDb.adapter, 'd-sym2', { date: '2026-03-01' });
+    const symptom = addSymptom(testDb.adapter, 's2', day.id, 'mood', 'anxious');
     expect(symptom.intensity).toBe('moderate');
   });
 
   it('deletes a symptom', () => {
-    const day = createCycleDay(testDb.adapter, { date: '2026-03-01' });
-    const s1 = addSymptom(testDb.adapter, day.id, 'physical', 'cramps');
-    const s2 = addSymptom(testDb.adapter, day.id, 'physical', 'headache');
+    const day = createCycleDay(testDb.adapter, 'd-sym3', { date: '2026-03-01' });
+    const s1 = addSymptom(testDb.adapter, 's3', day.id, 'physical', 'cramps');
+    const s2 = addSymptom(testDb.adapter, 's4', day.id, 'physical', 'headache');
     expect(getSymptomsForDay(testDb.adapter, day.id)).toHaveLength(2);
 
     deleteSymptom(testDb.adapter, s1.id);
@@ -239,20 +239,19 @@ describe('Analytics', () => {
   });
 
   it('computes stats from completed cycles', () => {
-    // Create and end 3 cycles
-    const c1 = createCycle(testDb.adapter, {
+    const c1 = createCycle(testDb.adapter, 'cs1', {
       startDate: '2026-01-01',
       periodEndDate: '2026-01-05',
     });
     endCycle(testDb.adapter, c1.id, '2026-01-29');
 
-    const c2 = createCycle(testDb.adapter, {
+    const c2 = createCycle(testDb.adapter, 'cs2', {
       startDate: '2026-01-29',
       periodEndDate: '2026-02-02',
     });
     endCycle(testDb.adapter, c2.id, '2026-02-26');
 
-    const c3 = createCycle(testDb.adapter, {
+    const c3 = createCycle(testDb.adapter, 'cs3', {
       startDate: '2026-02-26',
       periodEndDate: '2026-03-02',
     });
@@ -268,13 +267,13 @@ describe('Analytics', () => {
   });
 
   it('computes symptom frequencies', () => {
-    const d1 = createCycleDay(testDb.adapter, { date: '2026-03-01' });
-    addSymptom(testDb.adapter, d1.id, 'physical', 'cramps');
-    addSymptom(testDb.adapter, d1.id, 'mood', 'irritable');
+    const d1 = createCycleDay(testDb.adapter, 'd-freq1', { date: '2026-03-01' });
+    addSymptom(testDb.adapter, 'sf1', d1.id, 'physical', 'cramps');
+    addSymptom(testDb.adapter, 'sf2', d1.id, 'mood', 'irritable');
 
-    const d2 = createCycleDay(testDb.adapter, { date: '2026-03-02' });
-    addSymptom(testDb.adapter, d2.id, 'physical', 'cramps');
-    addSymptom(testDb.adapter, d2.id, 'physical', 'headache');
+    const d2 = createCycleDay(testDb.adapter, 'd-freq2', { date: '2026-03-02' });
+    addSymptom(testDb.adapter, 'sf3', d2.id, 'physical', 'cramps');
+    addSymptom(testDb.adapter, 'sf4', d2.id, 'physical', 'headache');
 
     const freqs = getSymptomFrequencies(testDb.adapter);
     expect(freqs[0].symptom).toBe('cramps');
