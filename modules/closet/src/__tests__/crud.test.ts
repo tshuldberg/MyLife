@@ -731,7 +731,7 @@ describe('CLOSET_MODULE definition', () => {
   });
 
   it('has migrations that create all expected tables', () => {
-    expect(CLOSET_MODULE.migrations).toHaveLength(1);
+    expect(CLOSET_MODULE.migrations).toHaveLength(2);
 
     // Verify tables were created by querying sqlite_master
     const tables = testDb.adapter.query<{ name: string }>(
@@ -741,8 +741,11 @@ describe('CLOSET_MODULE definition', () => {
     expect(tableNames).toEqual([
       'cl_item_tags',
       'cl_items',
+      'cl_laundry_events',
       'cl_outfit_items',
       'cl_outfits',
+      'cl_packing_list_items',
+      'cl_packing_lists',
       'cl_settings',
       'cl_tags',
       'cl_wear_log_items',

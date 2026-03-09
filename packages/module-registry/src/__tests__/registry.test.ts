@@ -178,7 +178,7 @@ describe('ModuleRegistry', () => {
 
     it('FREE_MODULES includes fast', () => {
       expect(FREE_MODULES).toContain('fast');
-      expect(FREE_MODULES).toHaveLength(1);
+      expect(FREE_MODULES).toHaveLength(5);
     });
 
     it('MODULE_METADATA has an entry for every MODULE_ID', () => {

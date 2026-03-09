@@ -10,6 +10,21 @@ vi.mock('@mylife/module-registry', () => ({
   useEnabledModules: () => enabledModules,
 }));
 
+vi.mock('@/components/UpdatePrompt', () => ({
+  UpdatePrompt: () => null,
+}));
+
+vi.mock('@/components/EntitlementsProvider', () => ({
+  useEntitlements: () => ({
+    hubUnlocked: true,
+    unlockedModules: new Set(['books', 'budget', 'surf', 'subs']),
+    storageTier: 'pro',
+    updateEntitled: false,
+    purchaseDate: null,
+  }),
+  usePayment: () => ({ paymentService: null, refreshEntitlements: vi.fn() }),
+}));
+
 describe('HubDashboard', () => {
   beforeEach(() => {
     enabledModules = [];
@@ -52,10 +67,10 @@ describe('HubDashboard', () => {
 
   it('filters out modules that are not web-supported', () => {
     const unsupportedModule = {
-      id: 'voice',
-      name: 'MyVoice',
-      tagline: 'Private voice notes',
-      icon: '🎙️',
+      id: 'subs',
+      name: 'MySubs',
+      tagline: 'Subscription tracker',
+      icon: '💳',
       accentColor: '#9CA3AF',
       tier: 'premium',
       storageType: 'sqlite',
@@ -85,6 +100,6 @@ describe('HubDashboard', () => {
     render(<HubDashboard />);
 
     expect(screen.getByText('1 module active')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /MyVoice/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /MySubs/i })).not.toBeInTheDocument();
   });
 });

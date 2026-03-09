@@ -11,7 +11,7 @@ import type {
   CreateMailDraftInput,
   UpdateMailDraftInput,
   CreateMailFolderInput,
-  MessageFilter,
+  MessageFilterInput,
 } from '../types';
 import { MessageFilterSchema } from '../types';
 
@@ -200,7 +200,7 @@ export function getMessage(db: DatabaseAdapter, id: string): MailMessage | null 
 
 export function getMessages(
   db: DatabaseAdapter,
-  rawFilter?: MessageFilter,
+  rawFilter?: MessageFilterInput,
 ): MailMessage[] {
   const filter = MessageFilterSchema.parse(rawFilter ?? {});
   const conditions: string[] = [];

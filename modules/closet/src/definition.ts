@@ -1,10 +1,17 @@
 import type { ModuleDefinition, Migration } from '@mylife/module-registry';
-import { ALL_TABLES, CREATE_INDEXES, SEED_SETTINGS } from './db/schema';
+import {
+  BASE_INDEXES,
+  BASE_SETTINGS,
+  BASE_TABLES,
+  EXPANDED_INDEXES,
+  EXPANDED_SETTINGS,
+  EXPANDED_TABLES,
+} from './db/schema';
 
 const CLOSET_MIGRATION_V1: Migration = {
   version: 1,
   description: 'Create closet items, outfits, wear logs, tags, and settings',
-  up: [...ALL_TABLES, ...CREATE_INDEXES, ...SEED_SETTINGS],
+  up: [...BASE_TABLES, ...BASE_INDEXES, ...BASE_SETTINGS],
   down: [
     'DROP TABLE IF EXISTS cl_settings',
     'DROP TABLE IF EXISTS cl_item_tags',
@@ -17,6 +24,17 @@ const CLOSET_MIGRATION_V1: Migration = {
   ],
 };
 
+const CLOSET_MIGRATION_V2: Migration = {
+  version: 2,
+  description: 'Add laundry tracking, packing lists, and expanded closet settings',
+  up: [...EXPANDED_TABLES, ...EXPANDED_INDEXES, ...EXPANDED_SETTINGS],
+  down: [
+    'DROP TABLE IF EXISTS cl_packing_list_items',
+    'DROP TABLE IF EXISTS cl_packing_lists',
+    'DROP TABLE IF EXISTS cl_laundry_events',
+  ],
+};
+
 export const CLOSET_MODULE: ModuleDefinition = {
   id: 'closet',
   name: 'MyCloset',
@@ -25,8 +43,8 @@ export const CLOSET_MODULE: ModuleDefinition = {
   accentColor: '#E879A8',
   tier: 'premium',
   storageType: 'sqlite',
-  migrations: [CLOSET_MIGRATION_V1],
-  schemaVersion: 1,
+  migrations: [CLOSET_MIGRATION_V1, CLOSET_MIGRATION_V2],
+  schemaVersion: 2,
   tablePrefix: 'cl_',
   navigation: {
     tabs: [
@@ -40,6 +58,7 @@ export const CLOSET_MODULE: ModuleDefinition = {
       { name: 'item-detail', title: 'Item' },
       { name: 'outfit-detail', title: 'Outfit' },
       { name: 'add-item', title: 'Add Item' },
+      { name: 'packing-list', title: 'Packing List' },
     ],
   },
   requiresAuth: false,

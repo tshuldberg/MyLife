@@ -1,7 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { createClothingItem, getClosetDashboard, listClothingItems } from '@mylife/closet';
-import type { ClothingCategory } from '@mylife/closet';
+import {
+  createClothingItem,
+  getClosetDashboard,
+  listClothingItems,
+  listDirtyClothingItems,
+} from '@mylife/closet';
+import type { CareInstruction, ClothingCategory, LaundryStatus } from '@mylife/closet';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
 import { uuid } from '../../lib/uuid';
@@ -15,8 +20,11 @@ const CATEGORIES: ClothingCategory[] = [
   'shoes',
   'accessories',
   'activewear',
+  'underwear',
   'other',
 ];
+const CARE_OPTIONS: CareInstruction[] = ['machine_wash', 'hand_wash', 'dry_clean', 'delicate'];
+const LAUNDRY_FILTERS: Array<'all' | LaundryStatus> = ['all', 'clean', 'dirty'];
 
 function splitTags(raw: string): string[] {
   return raw
@@ -41,11 +49,25 @@ export default function ClosetWardrobeScreen() {
   const [color, setColor] = useState('');
   const [price, setPrice] = useState('');
   const [tags, setTags] = useState('');
+  const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ClothingCategory>('tops');
+  const [careInstructions, setCareInstructions] = useState<CareInstruction>('machine_wash');
+  const [autoDirtyOnWear, setAutoDirtyOnWear] = useState(true);
+  const [laundryFilter, setLaundryFilter] = useState<'all' | LaundryStatus>('all');
   const [tick, setTick] = useState(0);
 
   const refresh = () => setTick((value) => value + 1);
-  const items = useMemo(() => listClothingItems(db, { status: 'active', limit: 200 }), [db, tick]);
+  const items = useMemo(
+    () =>
+      listClothingItems(db, {
+        status: 'active',
+        limit: 200,
+        search: search.trim() || undefined,
+        laundryStatus: laundryFilter === 'all' ? undefined : laundryFilter,
+      }),
+    [db, tick, search, laundryFilter],
+  );
+  const dirtyItems = useMemo(() => listDirtyClothingItems(db), [db, tick]);
   const dashboard = useMemo(() => getClosetDashboard(db), [db, tick]);
 
   return (
@@ -54,8 +76,37 @@ export default function ClosetWardrobeScreen() {
         <Text variant="subheading">Wardrobe Snapshot</Text>
         <View style={styles.statsGrid}>
           <Stat label="Items" value={String(dashboard.totalItems)} />
-          <Stat label="Outfits" value={String(dashboard.totalOutfits)} />
+          <Stat label="Dirty" value={String(dirtyItems.length)} />
           <Stat label="Value" value={`$${(dashboard.wardrobeValueCents / 100).toFixed(0)}`} />
+        </View>
+      </Card>
+
+      <Card>
+        <Text variant="subheading">Catalog Filters</Text>
+        <View style={styles.formGrid}>
+          <TextInput
+            style={styles.input}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Search name, brand, or color"
+            placeholderTextColor={colors.textTertiary}
+          />
+          <View style={styles.chipRow}>
+            {LAUNDRY_FILTERS.map((option) => {
+              const selected = option === laundryFilter;
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => setLaundryFilter(option)}
+                  style={[styles.chip, selected ? styles.chipActive : null]}
+                >
+                  <Text variant="caption" color={selected ? colors.background : colors.textSecondary}>
+                    {option}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
       </Card>
 
@@ -80,6 +131,41 @@ export default function ClosetWardrobeScreen() {
                 >
                   <Text variant="caption" color={selected ? colors.background : colors.textSecondary}>
                     {option}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={styles.chipRow}>
+            {CARE_OPTIONS.map((option) => {
+              const selected = option === careInstructions;
+              return (
+                <Pressable
+                  key={option}
+                  onPress={() => setCareInstructions(option)}
+                  style={[styles.chip, selected ? styles.chipActive : null]}
+                >
+                  <Text variant="caption" color={selected ? colors.background : colors.textSecondary}>
+                    {option.replace('_', ' ')}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={styles.chipRow}>
+            {[
+              { label: 'Auto dirty on wear', value: true },
+              { label: 'Track only', value: false },
+            ].map((option) => {
+              const selected = option.value === autoDirtyOnWear;
+              return (
+                <Pressable
+                  key={option.label}
+                  onPress={() => setAutoDirtyOnWear(option.value)}
+                  style={[styles.chip, selected ? styles.chipActive : null]}
+                >
+                  <Text variant="caption" color={selected ? colors.background : colors.textSecondary}>
+                    {option.label}
                   </Text>
                 </Pressable>
               );
@@ -128,12 +214,16 @@ export default function ClosetWardrobeScreen() {
                 color: color.trim() || null,
                 purchasePriceCents: price.trim() ? Math.round(Number(price) * 100) : null,
                 tags: splitTags(tags),
+                careInstructions,
+                autoDirtyOnWear,
               });
               setName('');
               setBrand('');
               setColor('');
               setPrice('');
               setTags('');
+              setCareInstructions('machine_wash');
+              setAutoDirtyOnWear(true);
               refresh();
             }}
           >
@@ -157,6 +247,9 @@ export default function ClosetWardrobeScreen() {
                   {item.category}
                   {item.brand ? ` · ${item.brand}` : ''}
                   {item.color ? ` · ${item.color}` : ''}
+                </Text>
+                <Text variant="caption" color={colors.textSecondary}>
+                  {item.laundryStatus} · {item.careInstructions.replace('_', ' ')} · wears since wash {item.wearsSinceWash}
                 </Text>
                 <Text variant="caption" color={colors.textSecondary}>
                   Worn {item.timesWorn} times

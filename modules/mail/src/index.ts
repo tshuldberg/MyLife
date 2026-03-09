@@ -18,6 +18,7 @@ export type {
   UpdateMailDraftInput,
   CreateMailFolderInput,
   MessageFilter,
+  MessageFilterInput,
 } from './types';
 
 export {

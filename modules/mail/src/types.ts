@@ -156,6 +156,7 @@ export const MessageFilterSchema = z.object({
   offset: z.number().int().min(0).default(0),
 });
 export type MessageFilter = z.infer<typeof MessageFilterSchema>;
+export type MessageFilterInput = z.input<typeof MessageFilterSchema>;
 
 // ── Default System Folders ────────────────────────────────────────────
 

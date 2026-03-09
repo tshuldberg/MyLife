@@ -1,29 +1,47 @@
 import type { DatabaseAdapter } from '@mylife/db';
+import { summarizeClosetDashboard } from '../engine/analytics';
+import { serializeClosetExport } from '../engine/export';
+import { calculateAverageWearsBetweenWashes } from '../engine/laundry';
+import { generatePackingSuggestions, inferPackingSeason } from '../engine/packing';
 import {
   ClosetDashboardSchema,
   ClosetSettingSchema,
   ClothingItemFilterSchema,
   ClothingItemSchema,
   ClosetTagSchema,
+  AddPackingListCustomItemInputSchema,
   CreateClothingItemInputSchema,
   CreateOutfitInputSchema,
+  CreatePackingListInputSchema,
   CreateWearLogInputSchema,
+  ExportClosetDataInputSchema,
+  MarkLaundryItemsCleanInputSchema,
   OutfitSchema,
+  PackingListItemSchema,
+  PackingListSchema,
   UpdateClothingItemInputSchema,
   WearLogSchema,
+  LaundryEventSchema,
+  type AddPackingListCustomItemInput,
   type ClosetDashboard,
+  type ClosetExportBundle,
   type ClosetSetting,
   type ClosetTag,
   type ClothingItem,
   type ClothingItemFilter,
   type CreateClothingItemInput,
   type CreateOutfitInput,
+  type CreatePackingListInput,
   type CreateWearLogInput,
+  type ExportClosetDataInput,
+  type LaundryEvent,
+  type MarkLaundryItemsCleanInput,
   type Outfit,
+  type PackingList,
+  type PackingListItem,
   type UpdateClothingItemInput,
   type WearLog,
 } from '../types';
-import { summarizeClosetDashboard } from '../engine/analytics';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -34,9 +52,9 @@ function dateOnly(value: string): string {
 }
 
 function createId(prefix: string): string {
-  const c = globalThis.crypto as { randomUUID?: () => string } | undefined;
-  if (typeof c?.randomUUID === 'function') {
-    return c.randomUUID();
+  const cryptoApi = globalThis.crypto as { randomUUID?: () => string } | undefined;
+  if (typeof cryptoApi?.randomUUID === 'function') {
+    return cryptoApi.randomUUID();
   }
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -45,13 +63,30 @@ function normalizeTagName(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function parseBoolean(raw: unknown): boolean {
+  return raw === 1 || raw === '1' || raw === true;
+}
+
+function parseNumber(raw: unknown, fallback = 0): number {
+  if (typeof raw === 'number') {
+    return raw;
+  }
+  if (typeof raw === 'string' && raw.trim()) {
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+}
+
 function parseStringArray(raw: unknown): string[] {
   if (typeof raw !== 'string') {
     return [];
   }
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((value): value is string => typeof value === 'string') : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((value): value is string => typeof value === 'string')
+      : [];
   } catch {
     return [];
   }
@@ -91,16 +126,34 @@ function syncItemTags(db: DatabaseAdapter, itemId: string, tags: string[], creat
 
 function getOutfitItemIds(db: DatabaseAdapter, outfitId: string): string[] {
   return db.query<{ item_id: string }>(
-    `SELECT item_id FROM cl_outfit_items WHERE outfit_id = ? ORDER BY created_at ASC`,
+    `SELECT item_id
+     FROM cl_outfit_items
+     WHERE outfit_id = ?
+     ORDER BY created_at ASC`,
     [outfitId],
   ).map((row) => row.item_id);
 }
 
 function getWearLogItemIds(db: DatabaseAdapter, wearLogId: string): string[] {
   return db.query<{ item_id: string }>(
-    `SELECT item_id FROM cl_wear_log_items WHERE wear_log_id = ? ORDER BY created_at ASC`,
+    `SELECT item_id
+     FROM cl_wear_log_items
+     WHERE wear_log_id = ?
+     ORDER BY created_at ASC`,
     [wearLogId],
   ).map((row) => row.item_id);
+}
+
+function getPackingListItems(db: DatabaseAdapter, packingListId: string): PackingListItem[] {
+  return db
+    .query<Record<string, unknown>>(
+      `SELECT *
+       FROM cl_packing_list_items
+       WHERE packing_list_id = ?
+       ORDER BY category_group ASC, sort_order ASC, created_at ASC`,
+      [packingListId],
+    )
+    .map(rowToPackingListItem);
 }
 
 function rowToItem(row: Record<string, unknown>, tags: string[] = []): ClothingItem {
@@ -118,7 +171,10 @@ function rowToItem(row: Record<string, unknown>, tags: string[] = []): ClothingI
     condition: row.condition,
     status: row.status,
     laundryStatus: row.laundry_status,
-    timesWorn: Number(row.times_worn ?? 0),
+    careInstructions: row.care_instructions ?? 'machine_wash',
+    autoDirtyOnWear: parseBoolean(row.auto_dirty_on_wear ?? 1),
+    wearsSinceWash: parseNumber(row.wears_since_wash),
+    timesWorn: parseNumber(row.times_worn),
     lastWornDate: row.last_worn_date ?? null,
     notes: row.notes ?? null,
     tags,
@@ -152,13 +208,61 @@ function rowToWearLog(db: DatabaseAdapter, row: Record<string, unknown>): WearLo
   });
 }
 
+function rowToLaundryEvent(row: Record<string, unknown>): LaundryEvent {
+  return LaundryEventSchema.parse({
+    id: row.id,
+    clothingItemId: row.clothing_item_id,
+    eventType: row.event_type,
+    eventDate: row.event_date,
+    wearsBeforeWash: parseNumber(row.wears_before_wash),
+    createdAt: row.created_at,
+  });
+}
+
+function rowToPackingListItem(row: Record<string, unknown>): PackingListItem {
+  return PackingListItemSchema.parse({
+    id: row.id,
+    packingListId: row.packing_list_id,
+    clothingItemId: row.clothing_item_id ?? null,
+    customName: row.custom_name ?? null,
+    categoryGroup: row.category_group,
+    quantity: parseNumber(row.quantity, 1),
+    isPacked: parseBoolean(row.is_packed),
+    sortOrder: parseNumber(row.sort_order),
+    createdAt: row.created_at,
+  });
+}
+
+function rowToPackingList(db: DatabaseAdapter, row: Record<string, unknown>): PackingList {
+  return PackingListSchema.parse({
+    id: row.id,
+    name: row.name,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    occasions: parseStringArray(row.occasions_json),
+    season: row.season,
+    mode: row.mode,
+    items: getPackingListItems(db, row.id as string),
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  });
+}
+
 function rowToTag(row: Record<string, unknown>): ClosetTag {
   return ClosetTagSchema.parse({
     id: row.id,
     name: row.name,
-    usageCount: Number(row.usage_count ?? 0),
+    usageCount: parseNumber(row.usage_count),
     createdAt: row.created_at,
   });
+}
+
+function getLaundryAutoDirtyEnabled(db: DatabaseAdapter): boolean {
+  return getClosetSetting(db, 'laundryAutoDirty') !== '0';
+}
+
+function getLaundryWearThreshold(db: DatabaseAdapter): number {
+  return Math.max(1, Number(getClosetSetting(db, 'laundryWearsBeforeDirty') ?? '1'));
 }
 
 export function createClothingItem(
@@ -173,9 +277,9 @@ export function createClothingItem(
     db.execute(
       `INSERT INTO cl_items (
         id, name, category, color, brand, purchase_price_cents, purchase_date, image_uri,
-        seasons_json, occasions_json, condition, status, laundry_status, times_worn, last_worn_date,
-        notes, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, NULL, ?, ?, ?)`,
+        seasons_json, occasions_json, condition, status, laundry_status, care_instructions,
+        auto_dirty_on_wear, wears_since_wash, times_worn, last_worn_date, notes, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, NULL, ?, ?, ?)`,
       [
         id,
         input.name.trim(),
@@ -190,6 +294,8 @@ export function createClothingItem(
         input.condition,
         input.status,
         input.laundryStatus,
+        input.careInstructions,
+        input.autoDirtyOnWear ? 1 : 0,
         input.notes,
         now,
         now,
@@ -211,6 +317,7 @@ export function updateClothingItem(
   if (!existing) {
     return null;
   }
+
   const input = UpdateClothingItemInputSchema.parse(rawInput);
   const now = nowIso();
   const next = {
@@ -227,6 +334,9 @@ export function updateClothingItem(
     condition: input.condition ?? existing.condition,
     status: input.status ?? existing.status,
     laundryStatus: input.laundryStatus ?? existing.laundryStatus,
+    careInstructions: input.careInstructions ?? existing.careInstructions,
+    autoDirtyOnWear: input.autoDirtyOnWear ?? existing.autoDirtyOnWear,
+    wearsSinceWash: input.wearsSinceWash ?? existing.wearsSinceWash,
     timesWorn: input.timesWorn ?? existing.timesWorn,
     lastWornDate: input.lastWornDate === undefined ? existing.lastWornDate : input.lastWornDate,
     notes: input.notes === undefined ? existing.notes : input.notes,
@@ -238,7 +348,8 @@ export function updateClothingItem(
       `UPDATE cl_items
        SET name = ?, category = ?, color = ?, brand = ?, purchase_price_cents = ?, purchase_date = ?,
            image_uri = ?, seasons_json = ?, occasions_json = ?, condition = ?, status = ?,
-           laundry_status = ?, times_worn = ?, last_worn_date = ?, notes = ?, updated_at = ?
+           laundry_status = ?, care_instructions = ?, auto_dirty_on_wear = ?, wears_since_wash = ?,
+           times_worn = ?, last_worn_date = ?, notes = ?, updated_at = ?
        WHERE id = ?`,
       [
         next.name,
@@ -253,6 +364,9 @@ export function updateClothingItem(
         next.condition,
         next.status,
         next.laundryStatus,
+        next.careInstructions,
+        next.autoDirtyOnWear ? 1 : 0,
+        next.wearsSinceWash,
         next.timesWorn,
         next.lastWornDate,
         next.notes,
@@ -287,6 +401,10 @@ export function listClothingItems(
     conditions.push(`i.status = ?`);
     params.push(filter.status);
   }
+  if (filter.laundryStatus) {
+    conditions.push(`i.laundry_status = ?`);
+    params.push(filter.laundryStatus);
+  }
   if (filter.tag) {
     conditions.push(
       `i.id IN (
@@ -298,15 +416,34 @@ export function listClothingItems(
     );
     params.push(normalizeTagName(filter.tag));
   }
+  if (filter.search?.trim()) {
+    conditions.push(
+      `(LOWER(i.name) LIKE ? OR LOWER(COALESCE(i.brand, '')) LIKE ? OR LOWER(COALESCE(i.color, '')) LIKE ?)`,
+    );
+    const term = `%${filter.search.trim().toLowerCase()}%`;
+    params.push(term, term, term);
+  }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   return db
     .query<Record<string, unknown>>(
-      `SELECT i.* FROM cl_items i
+      `SELECT i.*
+       FROM cl_items i
        ${where}
        ORDER BY i.created_at DESC
        LIMIT ?`,
       [...params, filter.limit],
+    )
+    .map((row) => rowToItem(row, getItemTags(db, row.id as string)));
+}
+
+export function listDirtyClothingItems(db: DatabaseAdapter): ClothingItem[] {
+  return db
+    .query<Record<string, unknown>>(
+      `SELECT *
+       FROM cl_items
+       WHERE status = 'active' AND laundry_status = 'dirty'
+       ORDER BY care_instructions ASC, wears_since_wash DESC, times_worn DESC, updated_at DESC`,
     )
     .map((row) => rowToItem(row, getItemTags(db, row.id as string)));
 }
@@ -367,6 +504,8 @@ export function logWearEvent(
   const date = input.date ?? dateOnly(now);
   const outfitItemIds = input.outfitId ? getOutfitItemIds(db, input.outfitId) : [];
   const itemIds = [...new Set([...input.itemIds, ...outfitItemIds])];
+  const autoDirtyEnabled = getLaundryAutoDirtyEnabled(db);
+  const wearThreshold = getLaundryWearThreshold(db);
 
   db.transaction(() => {
     db.execute(
@@ -379,11 +518,29 @@ export function logWearEvent(
         `INSERT OR IGNORE INTO cl_wear_log_items (id, wear_log_id, item_id, created_at) VALUES (?, ?, ?, ?)`,
         [createId('cl_wear_log_item'), id, itemId, now],
       );
+
+      const item = getClothingItemById(db, itemId);
+      if (!item) {
+        continue;
+      }
+
+      const nextWearsSinceWash = item.wearsSinceWash + 1;
+      const shouldDirty =
+        item.laundryStatus === 'dirty'
+        || (autoDirtyEnabled && item.autoDirtyOnWear && nextWearsSinceWash >= wearThreshold);
+
       db.execute(
         `UPDATE cl_items
-         SET times_worn = times_worn + 1, last_worn_date = ?, updated_at = ?
+         SET times_worn = ?, last_worn_date = ?, laundry_status = ?, wears_since_wash = ?, updated_at = ?
          WHERE id = ?`,
-        [date, now, itemId],
+        [
+          item.timesWorn + 1,
+          date,
+          shouldDirty ? 'dirty' : item.laundryStatus,
+          nextWearsSinceWash,
+          now,
+          itemId,
+        ],
       );
     }
   });
@@ -415,13 +572,203 @@ export function listWearLogs(
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   return db
     .query<Record<string, unknown>>(
-      `SELECT * FROM cl_wear_logs
+      `SELECT *
+       FROM cl_wear_logs
        ${where}
        ORDER BY date DESC, created_at DESC
        LIMIT ?`,
       [...params, options?.limit ?? 60],
     )
     .map((row) => rowToWearLog(db, row));
+}
+
+export function listLaundryEventsForItem(db: DatabaseAdapter, itemId: string): LaundryEvent[] {
+  return db
+    .query<Record<string, unknown>>(
+      `SELECT *
+       FROM cl_laundry_events
+       WHERE clothing_item_id = ?
+       ORDER BY event_date DESC, created_at DESC`,
+      [itemId],
+    )
+    .map(rowToLaundryEvent);
+}
+
+export function markLaundryItemsClean(
+  db: DatabaseAdapter,
+  rawInput: MarkLaundryItemsCleanInput,
+): number {
+  const input = MarkLaundryItemsCleanInputSchema.parse(rawInput);
+  const now = nowIso();
+  const eventDate = input.eventDate ?? dateOnly(now);
+  const itemIds = [...new Set(input.itemIds)];
+  let updatedCount = 0;
+
+  db.transaction(() => {
+    for (const itemId of itemIds) {
+      const item = getClothingItemById(db, itemId);
+      if (!item) {
+        continue;
+      }
+
+      db.execute(
+        `INSERT INTO cl_laundry_events (
+          id, clothing_item_id, event_type, event_date, wears_before_wash, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        [createId('cl_laundry'), itemId, input.eventType, eventDate, item.wearsSinceWash, now],
+      );
+
+      db.execute(
+        `UPDATE cl_items
+         SET laundry_status = 'clean', wears_since_wash = 0, updated_at = ?
+         WHERE id = ?`,
+        [now, itemId],
+      );
+
+      updatedCount += 1;
+    }
+  });
+
+  return updatedCount;
+}
+
+export function getAverageWearsBetweenWashes(db: DatabaseAdapter, itemId: string): number | null {
+  return calculateAverageWearsBetweenWashes(listLaundryEventsForItem(db, itemId));
+}
+
+export function createPackingList(
+  db: DatabaseAdapter,
+  id: string,
+  rawInput: CreatePackingListInput,
+): PackingList {
+  const input = CreatePackingListInputSchema.parse(rawInput);
+  const now = nowIso();
+  const season = inferPackingSeason(input.startDate);
+  const items = listClothingItems(db, { status: 'active', limit: 5000 });
+  const suggestions = generatePackingSuggestions(items, input);
+
+  db.transaction(() => {
+    db.execute(
+      `INSERT INTO cl_packing_lists (
+        id, name, start_date, end_date, occasions_json, season, mode, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        input.name.trim(),
+        input.startDate,
+        input.endDate,
+        JSON.stringify(input.occasions),
+        season,
+        input.mode,
+        now,
+        now,
+      ],
+    );
+
+    for (const suggestion of suggestions) {
+      db.execute(
+        `INSERT INTO cl_packing_list_items (
+          id, packing_list_id, clothing_item_id, custom_name, category_group, quantity, is_packed, sort_order, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+        [
+          createId('cl_packing_item'),
+          id,
+          suggestion.clothingItemId,
+          suggestion.customName,
+          suggestion.categoryGroup,
+          suggestion.quantity,
+          suggestion.sortOrder,
+          now,
+        ],
+      );
+    }
+  });
+
+  return getPackingListById(db, id)!;
+}
+
+export function getPackingListById(db: DatabaseAdapter, packingListId: string): PackingList | null {
+  const row = db.query<Record<string, unknown>>(
+    `SELECT * FROM cl_packing_lists WHERE id = ?`,
+    [packingListId],
+  )[0];
+  return row ? rowToPackingList(db, row) : null;
+}
+
+export function listPackingLists(db: DatabaseAdapter): PackingList[] {
+  const today = dateOnly(nowIso());
+  return db
+    .query<Record<string, unknown>>(`SELECT * FROM cl_packing_lists`)
+    .map((row) => rowToPackingList(db, row))
+    .sort((left, right) => {
+      const leftActive = left.endDate >= today;
+      const rightActive = right.endDate >= today;
+      if (leftActive !== rightActive) {
+        return leftActive ? -1 : 1;
+      }
+      if (leftActive) {
+        return left.startDate.localeCompare(right.startDate);
+      }
+      return right.startDate.localeCompare(left.startDate);
+    });
+}
+
+export function togglePackingListItemPacked(
+  db: DatabaseAdapter,
+  packingListItemId: string,
+): PackingListItem | null {
+  const existing = db.query<Record<string, unknown>>(
+    `SELECT * FROM cl_packing_list_items WHERE id = ?`,
+    [packingListItemId],
+  )[0];
+  if (!existing) {
+    return null;
+  }
+
+  const next = parseBoolean(existing.is_packed) ? 0 : 1;
+  db.execute(
+    `UPDATE cl_packing_list_items SET is_packed = ? WHERE id = ?`,
+    [next, packingListItemId],
+  );
+
+  const updated = db.query<Record<string, unknown>>(
+    `SELECT * FROM cl_packing_list_items WHERE id = ?`,
+    [packingListItemId],
+  )[0];
+  return updated ? rowToPackingListItem(updated) : null;
+}
+
+export function addPackingListCustomItem(
+  db: DatabaseAdapter,
+  packingListId: string,
+  rawInput: AddPackingListCustomItemInput,
+): PackingListItem | null {
+  const input = AddPackingListCustomItemInputSchema.parse(rawInput);
+  const existingList = getPackingListById(db, packingListId);
+  if (!existingList) {
+    return null;
+  }
+
+  const nextSortOrder =
+    db.query<{ max_sort: number | null }>(
+      `SELECT MAX(sort_order) AS max_sort FROM cl_packing_list_items WHERE packing_list_id = ?`,
+      [packingListId],
+    )[0]?.max_sort ?? -1;
+
+  const id = createId('cl_packing_item');
+  const now = nowIso();
+  db.execute(
+    `INSERT INTO cl_packing_list_items (
+      id, packing_list_id, clothing_item_id, custom_name, category_group, quantity, is_packed, sort_order, created_at
+    ) VALUES (?, ?, NULL, ?, ?, ?, 0, ?, ?)`,
+    [id, packingListId, input.customName, input.categoryGroup, input.quantity, nextSortOrder + 1, now],
+  );
+
+  const row = db.query<Record<string, unknown>>(
+    `SELECT * FROM cl_packing_list_items WHERE id = ?`,
+    [id],
+  )[0];
+  return row ? rowToPackingListItem(row) : null;
 }
 
 export function getClosetSetting(db: DatabaseAdapter, key: string): string | null {
@@ -438,6 +785,12 @@ export function setClosetSetting(db: DatabaseAdapter, key: string, value: string
   return ClosetSettingSchema.parse({ key, value });
 }
 
+export function listClosetSettings(db: DatabaseAdapter): ClosetSetting[] {
+  return db
+    .query<Record<string, unknown>>(`SELECT key, value FROM cl_settings ORDER BY key ASC`)
+    .map((row) => ClosetSettingSchema.parse({ key: row.key, value: row.value }));
+}
+
 export function listDonationCandidates(
   db: DatabaseAdapter,
   referenceDate = dateOnly(nowIso()),
@@ -449,7 +802,8 @@ export function listDonationCandidates(
 
   return db
     .query<Record<string, unknown>>(
-      `SELECT * FROM cl_items
+      `SELECT *
+       FROM cl_items
        WHERE status = 'active'
          AND (last_worn_date IS NULL OR last_worn_date < ?)
        ORDER BY COALESCE(last_worn_date, '0000-00-00') ASC, created_at ASC`,
@@ -458,11 +812,38 @@ export function listDonationCandidates(
     .map((row) => rowToItem(row, getItemTags(db, row.id as string)));
 }
 
+export function exportClosetData(
+  db: DatabaseAdapter,
+  rawInput?: ExportClosetDataInput,
+): ClosetExportBundle {
+  const input = ExportClosetDataInputSchema.parse(rawInput ?? {});
+  const bundle = {
+    exportVersion: '1.0' as const,
+    exportedAt: nowIso(),
+    module: 'closet' as const,
+    items: input.includeItems ? listClothingItems(db, { limit: 5000 }) : [],
+    outfits: input.includeOutfits ? listOutfits(db) : [],
+    wearLogs: input.includeWearLogs ? listWearLogs(db, { limit: 5000 }) : [],
+    laundryEvents: input.includeLaundryEvents
+      ? db.query<Record<string, unknown>>(
+        `SELECT * FROM cl_laundry_events ORDER BY event_date DESC, created_at DESC`,
+      ).map(rowToLaundryEvent)
+      : [],
+    packingLists: input.includePackingLists ? listPackingLists(db) : [],
+    settings: input.includeSettings ? listClosetSettings(db) : [],
+  };
+
+  return {
+    ...bundle,
+    items: [...bundle.items].sort((left, right) => left.createdAt.localeCompare(right.createdAt)),
+  };
+}
+
 export function getClosetDashboard(
   db: DatabaseAdapter,
   referenceDate = dateOnly(nowIso()),
 ): ClosetDashboard {
-  const items = listClothingItems(db, { status: 'active', limit: 500 });
+  const items = listClothingItems(db, { status: 'active', limit: 5000 });
   const totalOutfits = db.query<{ count: number }>(`SELECT COUNT(*) as count FROM cl_outfits`)[0]?.count ?? 0;
   const windowStart = new Date(`${referenceDate}T00:00:00Z`);
   windowStart.setUTCDate(windowStart.getUTCDate() - 29);
@@ -480,3 +861,5 @@ export function getClosetDashboard(
     summarizeClosetDashboard(items, totalOutfits, itemsWorn30Days, donationCandidateCount),
   );
 }
+
+export { serializeClosetExport };

@@ -24,6 +24,23 @@ export type ClothingCondition = z.infer<typeof ClothingConditionSchema>;
 export const LaundryStatusSchema = z.enum(['clean', 'dirty', 'washing']);
 export type LaundryStatus = z.infer<typeof LaundryStatusSchema>;
 
+export const CareInstructionSchema = z.enum([
+  'machine_wash',
+  'hand_wash',
+  'dry_clean',
+  'delicate',
+]);
+export type CareInstruction = z.infer<typeof CareInstructionSchema>;
+
+export const LaundryEventTypeSchema = z.enum(['washed', 'dry_cleaned']);
+export type LaundryEventType = z.infer<typeof LaundryEventTypeSchema>;
+
+export const PackingListModeSchema = z.enum(['quick_list', 'outfit_planning']);
+export type PackingListMode = z.infer<typeof PackingListModeSchema>;
+
+export const PackingListSeasonSchema = z.enum(['spring', 'summer', 'fall', 'winter']);
+export type PackingListSeason = z.infer<typeof PackingListSeasonSchema>;
+
 export const ClothingItemSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -38,6 +55,9 @@ export const ClothingItemSchema = z.object({
   condition: ClothingConditionSchema,
   status: ClothingStatusSchema,
   laundryStatus: LaundryStatusSchema,
+  careInstructions: CareInstructionSchema,
+  autoDirtyOnWear: z.boolean(),
+  wearsSinceWash: z.number().int().min(0),
   timesWorn: z.number().int(),
   lastWornDate: z.string().nullable(),
   notes: z.string().nullable(),
@@ -69,6 +89,43 @@ export const WearLogSchema = z.object({
   createdAt: z.string(),
 });
 export type WearLog = z.infer<typeof WearLogSchema>;
+
+export const LaundryEventSchema = z.object({
+  id: z.string(),
+  clothingItemId: z.string(),
+  eventType: LaundryEventTypeSchema,
+  eventDate: z.string(),
+  wearsBeforeWash: z.number().int().min(0),
+  createdAt: z.string(),
+});
+export type LaundryEvent = z.infer<typeof LaundryEventSchema>;
+
+export const PackingListItemSchema = z.object({
+  id: z.string(),
+  packingListId: z.string(),
+  clothingItemId: z.string().nullable(),
+  customName: z.string().nullable(),
+  categoryGroup: z.string(),
+  quantity: z.number().int().min(1).max(20),
+  isPacked: z.boolean(),
+  sortOrder: z.number().int().min(0),
+  createdAt: z.string(),
+});
+export type PackingListItem = z.infer<typeof PackingListItemSchema>;
+
+export const PackingListSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  startDate: z.string(),
+  endDate: z.string(),
+  occasions: z.array(z.string()),
+  season: PackingListSeasonSchema,
+  mode: PackingListModeSchema,
+  items: z.array(PackingListItemSchema),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type PackingList = z.infer<typeof PackingListSchema>;
 
 export const ClosetTagSchema = z.object({
   id: z.string(),
@@ -106,6 +163,8 @@ export const CreateClothingItemInputSchema = z.object({
   condition: ClothingConditionSchema.default('good'),
   status: ClothingStatusSchema.default('active'),
   laundryStatus: LaundryStatusSchema.default('clean'),
+  careInstructions: CareInstructionSchema.default('machine_wash'),
+  autoDirtyOnWear: z.boolean().default(true),
   notes: z.string().nullable().default(null),
   tags: z.array(z.string()).default([]),
 });
@@ -124,6 +183,9 @@ export const UpdateClothingItemInputSchema = z.object({
   condition: ClothingConditionSchema.optional(),
   status: ClothingStatusSchema.optional(),
   laundryStatus: LaundryStatusSchema.optional(),
+  careInstructions: CareInstructionSchema.optional(),
+  autoDirtyOnWear: z.boolean().optional(),
+  wearsSinceWash: z.number().int().min(0).optional(),
   timesWorn: z.number().int().min(0).optional(),
   lastWornDate: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
@@ -135,7 +197,9 @@ export const ClothingItemFilterSchema = z.object({
   category: ClothingCategorySchema.optional(),
   tag: z.string().optional(),
   status: ClothingStatusSchema.optional(),
-  limit: z.number().int().min(1).max(500).default(100),
+  laundryStatus: LaundryStatusSchema.optional(),
+  search: z.string().optional(),
+  limit: z.number().int().min(1).max(5000).default(100),
 });
 export type ClothingItemFilter = z.input<typeof ClothingItemFilterSchema>;
 
@@ -156,3 +220,63 @@ export const CreateWearLogInputSchema = z.object({
   notes: z.string().nullable().default(null),
 });
 export type CreateWearLogInput = z.input<typeof CreateWearLogInputSchema>;
+
+export const MarkLaundryItemsCleanInputSchema = z.object({
+  itemIds: z.array(z.string()).min(1),
+  eventType: LaundryEventTypeSchema.default('washed'),
+  eventDate: z.string().optional(),
+});
+export type MarkLaundryItemsCleanInput = z.input<typeof MarkLaundryItemsCleanInputSchema>;
+
+export const CreatePackingListInputSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  startDate: z.string(),
+  endDate: z.string(),
+  occasions: z.array(z.string()).default([]),
+  mode: PackingListModeSchema.default('quick_list'),
+}).superRefine((value, ctx) => {
+  const start = new Date(`${value.startDate}T00:00:00Z`);
+  const end = new Date(`${value.endDate}T00:00:00Z`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid trip dates' });
+    return;
+  }
+  if (end < start) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'endDate must be greater than or equal to startDate',
+      path: ['endDate'],
+    });
+  }
+});
+export type CreatePackingListInput = z.input<typeof CreatePackingListInputSchema>;
+
+export const AddPackingListCustomItemInputSchema = z.object({
+  customName: z.string().trim().min(1).max(200),
+  categoryGroup: z.string().trim().min(1).max(50).default('Essentials'),
+  quantity: z.number().int().min(1).max(20).default(1),
+});
+export type AddPackingListCustomItemInput = z.input<typeof AddPackingListCustomItemInputSchema>;
+
+export const ExportClosetDataInputSchema = z.object({
+  includeItems: z.boolean().default(true),
+  includeOutfits: z.boolean().default(true),
+  includeWearLogs: z.boolean().default(true),
+  includeLaundryEvents: z.boolean().default(true),
+  includePackingLists: z.boolean().default(true),
+  includeSettings: z.boolean().default(true),
+});
+export type ExportClosetDataInput = z.input<typeof ExportClosetDataInputSchema>;
+
+export const ClosetExportBundleSchema = z.object({
+  exportVersion: z.literal('1.0'),
+  exportedAt: z.string(),
+  module: z.literal('closet'),
+  items: z.array(ClothingItemSchema),
+  outfits: z.array(OutfitSchema),
+  wearLogs: z.array(WearLogSchema),
+  laundryEvents: z.array(LaundryEventSchema),
+  packingLists: z.array(PackingListSchema),
+  settings: z.array(ClosetSettingSchema),
+});
+export type ClosetExportBundle = z.infer<typeof ClosetExportBundleSchema>;

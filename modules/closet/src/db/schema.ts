@@ -81,7 +81,53 @@ CREATE TABLE IF NOT EXISTS cl_settings (
   value TEXT NOT NULL
 )`;
 
-export const CREATE_INDEXES = [
+export const ADD_ITEM_CARE_INSTRUCTIONS = `
+ALTER TABLE cl_items ADD COLUMN care_instructions TEXT NOT NULL DEFAULT 'machine_wash'`;
+
+export const ADD_ITEM_AUTO_DIRTY = `
+ALTER TABLE cl_items ADD COLUMN auto_dirty_on_wear INTEGER NOT NULL DEFAULT 1`;
+
+export const ADD_ITEM_WEARS_SINCE_WASH = `
+ALTER TABLE cl_items ADD COLUMN wears_since_wash INTEGER NOT NULL DEFAULT 0`;
+
+export const CREATE_LAUNDRY_EVENTS = `
+CREATE TABLE IF NOT EXISTS cl_laundry_events (
+  id TEXT PRIMARY KEY,
+  clothing_item_id TEXT NOT NULL REFERENCES cl_items(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL DEFAULT 'washed',
+  event_date TEXT NOT NULL,
+  wears_before_wash INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const CREATE_PACKING_LISTS = `
+CREATE TABLE IF NOT EXISTS cl_packing_lists (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  start_date TEXT NOT NULL,
+  end_date TEXT NOT NULL,
+  occasions_json TEXT NOT NULL DEFAULT '[]',
+  season TEXT NOT NULL,
+  mode TEXT NOT NULL DEFAULT 'quick_list',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const CREATE_PACKING_LIST_ITEMS = `
+CREATE TABLE IF NOT EXISTS cl_packing_list_items (
+  id TEXT PRIMARY KEY,
+  packing_list_id TEXT NOT NULL REFERENCES cl_packing_lists(id) ON DELETE CASCADE,
+  clothing_item_id TEXT REFERENCES cl_items(id) ON DELETE SET NULL,
+  custom_name TEXT,
+  category_group TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  is_packed INTEGER NOT NULL DEFAULT 0,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(packing_list_id, clothing_item_id)
+)`;
+
+export const BASE_INDEXES = [
   `CREATE INDEX IF NOT EXISTS cl_items_category_idx ON cl_items(category, status)`,
   `CREATE INDEX IF NOT EXISTS cl_items_last_worn_idx ON cl_items(last_worn_date, status)`,
   `CREATE INDEX IF NOT EXISTS cl_outfit_items_outfit_idx ON cl_outfit_items(outfit_id)`,
@@ -91,11 +137,34 @@ export const CREATE_INDEXES = [
   `CREATE INDEX IF NOT EXISTS cl_item_tags_tag_idx ON cl_item_tags(tag_id)`,
 ];
 
-export const SEED_SETTINGS = [
+export const EXPANDED_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS cl_items_laundry_idx ON cl_items(laundry_status, care_instructions, wears_since_wash DESC)`,
+  `CREATE INDEX IF NOT EXISTS cl_laundry_events_item_idx ON cl_laundry_events(clothing_item_id, event_date DESC)`,
+  `CREATE INDEX IF NOT EXISTS cl_laundry_events_date_idx ON cl_laundry_events(event_date DESC)`,
+  `CREATE INDEX IF NOT EXISTS cl_packing_lists_date_idx ON cl_packing_lists(start_date ASC, end_date ASC)`,
+  `CREATE INDEX IF NOT EXISTS cl_packing_list_items_list_idx ON cl_packing_list_items(packing_list_id, category_group, sort_order)`,
+];
+
+export const BASE_SETTINGS = [
   `INSERT OR IGNORE INTO cl_settings (key, value) VALUES ('donationThresholdDays', '365')`,
 ];
 
-export const ALL_TABLES = [
+export const EXPANDED_SETTINGS = [
+  `INSERT OR IGNORE INTO cl_settings (key, value) VALUES ('viewMode', 'grid')`,
+  `INSERT OR IGNORE INTO cl_settings (key, value) VALUES ('gridColumns', '2')`,
+  `INSERT OR IGNORE INTO cl_settings (key, value) VALUES ('showWardrobeValue', '1')`,
+  `INSERT OR IGNORE INTO cl_settings (key, value) VALUES ('currency', 'USD')`,
+  `INSERT OR IGNORE INTO cl_settings (key, value) VALUES ('defaultCondition', 'good')`,
+  `INSERT OR IGNORE INTO cl_settings (key, value) VALUES ('catalogRequirePhoto', '0')`,
+  `INSERT OR IGNORE INTO cl_settings (key, value) VALUES ('wearAutoMarkLoggedOutfit', '1')`,
+  `INSERT OR IGNORE INTO cl_settings (key, value) VALUES ('wearLoggingReminder', 'none')`,
+  `INSERT OR IGNORE INTO cl_settings (key, value) VALUES ('laundryAutoDirty', '1')`,
+  `INSERT OR IGNORE INTO cl_settings (key, value) VALUES ('laundryWearsBeforeDirty', '1')`,
+  `INSERT OR IGNORE INTO cl_settings (key, value) VALUES ('laundryReminder', 'none')`,
+  `INSERT OR IGNORE INTO cl_settings (key, value) VALUES ('laundryReminderDay', '0')`,
+];
+
+export const BASE_TABLES = [
   CREATE_ITEMS,
   CREATE_OUTFITS,
   CREATE_OUTFIT_ITEMS,
@@ -105,3 +174,14 @@ export const ALL_TABLES = [
   CREATE_ITEM_TAGS,
   CREATE_SETTINGS,
 ];
+
+export const EXPANDED_TABLES = [
+  ADD_ITEM_CARE_INSTRUCTIONS,
+  ADD_ITEM_AUTO_DIRTY,
+  ADD_ITEM_WEARS_SINCE_WASH,
+  CREATE_LAUNDRY_EVENTS,
+  CREATE_PACKING_LISTS,
+  CREATE_PACKING_LIST_ITEMS,
+];
+
+export const ALL_TABLES = [...BASE_TABLES, ...EXPANDED_TABLES];

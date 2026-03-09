@@ -1,10 +1,12 @@
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
-import { createClothingItem, getClosetDashboard, listClothingItems } from '@mylife/closet';
-import type { ClothingCategory } from '@mylife/closet';
+import { createClothingItem, getClosetDashboard, listClothingItems, listDirtyClothingItems } from '@mylife/closet';
+import type { CareInstruction, ClothingCategory, LaundryStatus } from '@mylife/closet';
 import { getAdapter } from '@/lib/db';
 
 const CATEGORIES: ClothingCategory[] = ['tops', 'bottoms', 'dresses', 'outerwear', 'shoes', 'accessories', 'activewear', 'other'];
+const CARE_OPTIONS: CareInstruction[] = ['machine_wash', 'hand_wash', 'dry_clean', 'delicate'];
+const LAUNDRY_FILTERS: Array<'all' | LaundryStatus> = ['all', 'clean', 'dirty'];
 
 const styles: Record<string, React.CSSProperties> = {
   page: { padding: '2rem', maxWidth: 980, margin: '0 auto' },
@@ -23,6 +25,8 @@ const styles: Record<string, React.CSSProperties> = {
   button: { background: 'var(--accent-closet)', color: '#0A0A0F', border: 'none', borderRadius: '12px', padding: '0.75rem 1rem', fontWeight: 700, cursor: 'pointer' },
   small: { color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: 1.5 },
   list: { display: 'grid', gap: '0.75rem' },
+  chipRow: { display: 'flex', gap: '0.6rem', flexWrap: 'wrap' as const, marginTop: '0.75rem' },
+  chip: { padding: '0.45rem 0.8rem', borderRadius: '999px', border: '1px solid var(--border)', textDecoration: 'none', color: 'var(--text-secondary)', background: 'var(--surface)' },
 };
 
 function splitTags(raw: string): string[] {
@@ -32,17 +36,34 @@ function splitTags(raw: string): string[] {
     .filter(Boolean);
 }
 
-export default async function ClosetPage() {
+export default async function ClosetPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ laundry?: string | string[]; q?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const search = Array.isArray(params.q) ? params.q[0] ?? '' : params.q ?? '';
+  const requestedLaundry = Array.isArray(params.laundry) ? params.laundry[0] : params.laundry;
+  const laundryFilter = LAUNDRY_FILTERS.includes((requestedLaundry ?? 'all') as 'all' | LaundryStatus)
+    ? (requestedLaundry as 'all' | LaundryStatus)
+    : 'all';
   const db = getAdapter();
-  const items = listClothingItems(db, { status: 'active', limit: 200 });
+  const items = listClothingItems(db, {
+    status: 'active',
+    limit: 200,
+    search: search || undefined,
+    laundryStatus: laundryFilter === 'all' ? undefined : laundryFilter,
+  });
   const dashboard = getClosetDashboard(db);
+  const dirtyItems = listDirtyClothingItems(db);
 
   async function addItem(formData: FormData) {
     'use server';
 
     const name = String(formData.get('name') ?? '').trim();
     const category = String(formData.get('category') ?? 'tops') as ClothingCategory;
-    if (!name || !CATEGORIES.includes(category)) {
+    const careInstructions = String(formData.get('careInstructions') ?? 'machine_wash') as CareInstruction;
+    if (!name || !CATEGORIES.includes(category) || !CARE_OPTIONS.includes(careInstructions)) {
       return;
     }
 
@@ -54,6 +75,8 @@ export default async function ClosetPage() {
       color: String(formData.get('color') ?? '').trim() || null,
       purchasePriceCents: price ? Math.round(Number(price) * 100) : null,
       tags: splitTags(String(formData.get('tags') ?? '')),
+      careInstructions,
+      autoDirtyOnWear: String(formData.get('autoDirtyOnWear') ?? '1') === '1',
     });
 
     revalidatePath('/closet');
@@ -67,7 +90,7 @@ export default async function ClosetPage() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.title}>MyCloset</h1>
-        <p style={styles.subtitle}>Local wardrobe catalog, outfits, and wear analytics</p>
+        <p style={styles.subtitle}>Local wardrobe catalog, outfits, laundry tracking, and trip planning</p>
       </div>
 
       <div style={styles.nav}>
@@ -84,8 +107,8 @@ export default async function ClosetPage() {
           <div style={styles.small}>Active items</div>
         </div>
         <div style={styles.card}>
-          <div style={styles.statValue}>{dashboard.totalOutfits}</div>
-          <div style={styles.small}>Outfits</div>
+          <div style={styles.statValue}>{dirtyItems.length}</div>
+          <div style={styles.small}>Dirty items</div>
         </div>
         <div style={styles.card}>
           <div style={styles.statValue}>${(dashboard.wardrobeValueCents / 100).toFixed(0)}</div>
@@ -103,12 +126,36 @@ export default async function ClosetPage() {
                 <option key={category} value={category}>{category}</option>
               ))}
             </select>
+            <select name="careInstructions" defaultValue="machine_wash" style={styles.input}>
+              {CARE_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option.replace('_', ' ')}</option>
+              ))}
+            </select>
+            <select name="autoDirtyOnWear" defaultValue="1" style={styles.input}>
+              <option value="1">Auto dirty on wear</option>
+              <option value="0">Track only</option>
+            </select>
             <input name="brand" placeholder="Brand" style={styles.input} />
             <input name="color" placeholder="Color" style={styles.input} />
             <input name="price" placeholder="Price in dollars" style={styles.input} />
             <input name="tags" placeholder="Tags, comma separated" style={styles.input} />
           </div>
           <button type="submit" style={styles.button}>Save item</button>
+        </form>
+      </div>
+
+      <div style={styles.card}>
+        <div style={styles.sectionTitle}>Catalog filters</div>
+        <form method="get" style={styles.form}>
+          <div style={styles.row}>
+            <input name="q" defaultValue={search} placeholder="Search name, brand, or color" style={styles.input} />
+            <select name="laundry" defaultValue={laundryFilter} style={styles.input}>
+              {LAUNDRY_FILTERS.map((value) => (
+                <option key={value} value={value}>{value}</option>
+              ))}
+            </select>
+            <button type="submit" style={styles.button}>Apply</button>
+          </div>
         </form>
       </div>
 
@@ -124,6 +171,9 @@ export default async function ClosetPage() {
                 {item.category}
                 {item.brand ? ` · ${item.brand}` : ''}
                 {item.color ? ` · ${item.color}` : ''}
+              </div>
+              <div style={styles.small}>
+                {item.laundryStatus} · {item.careInstructions.replace('_', ' ')} · wears since wash {item.wearsSinceWash}
               </div>
               <div style={styles.small}>
                 Worn {item.timesWorn} times

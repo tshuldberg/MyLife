@@ -1,11 +1,24 @@
 import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { listClothingItems, listOutfits, listWearLogs, logWearEvent } from '@mylife/closet';
+import {
+  createPackingList,
+  getAverageWearsBetweenWashes,
+  listClothingItems,
+  listDirtyClothingItems,
+  listOutfits,
+  listPackingLists,
+  listWearLogs,
+  logWearEvent,
+  markLaundryItemsClean,
+  togglePackingListItemPacked,
+} from '@mylife/closet';
+import type { PackingListMode } from '@mylife/closet';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
 import { uuid } from '../../lib/uuid';
 
 const CLOSET_ACCENT = '#E879A8';
+const PACKING_MODES: PackingListMode[] = ['quick_list', 'outfit_planning'];
 
 function toggleItem(values: string[], itemId: string): string[] {
   return values.includes(itemId)
@@ -13,18 +26,33 @@ function toggleItem(values: string[], itemId: string): string[] {
     : [...values, itemId];
 }
 
+function splitList(raw: string): string[] {
+  return raw
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
 export default function ClosetCalendarScreen() {
   const db = useDatabase();
   const today = new Date().toISOString().slice(0, 10);
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [selectedDirtyItemIds, setSelectedDirtyItemIds] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
+  const [tripName, setTripName] = useState('');
+  const [tripStartDate, setTripStartDate] = useState(today);
+  const [tripEndDate, setTripEndDate] = useState(today);
+  const [tripOccasions, setTripOccasions] = useState('');
+  const [tripMode, setTripMode] = useState<PackingListMode>('quick_list');
   const [tick, setTick] = useState(0);
 
   const refresh = () => setTick((value) => value + 1);
   const items = useMemo(() => listClothingItems(db, { status: 'active', limit: 200 }), [db, tick]);
   const outfits = useMemo(() => listOutfits(db), [db, tick]);
   const wearLogs = useMemo(() => listWearLogs(db, { limit: 20 }), [db, tick]);
+  const dirtyItems = useMemo(() => listDirtyClothingItems(db), [db, tick]);
+  const packingLists = useMemo(() => listPackingLists(db), [db, tick]);
   const itemMap = useMemo(() => new Map(items.map((item) => [item.id, item])), [items]);
 
   return (
@@ -94,6 +122,164 @@ export default function ClosetCalendarScreen() {
           >
             <Text variant="label" color={colors.background}>Log Wear</Text>
           </Pressable>
+        </View>
+      </Card>
+
+      <Card>
+        <Text variant="subheading">Laundry Day</Text>
+        {dirtyItems.length === 0 ? (
+          <Text variant="caption" color={colors.textSecondary}>
+            Everything is clean. No laundry needed.
+          </Text>
+        ) : (
+          <View style={styles.formGrid}>
+            <View style={styles.list}>
+              {dirtyItems.map((item) => {
+                const selected = selectedDirtyItemIds.includes(item.id);
+                const average = getAverageWearsBetweenWashes(db, item.id);
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => setSelectedDirtyItemIds((value) => toggleItem(value, item.id))}
+                    style={[styles.innerCard, selected ? styles.selectedCard : null]}
+                  >
+                    <Text variant="body">{item.name}</Text>
+                    <Text variant="caption" color={colors.textSecondary}>
+                      {item.careInstructions.replace('_', ' ')} · wears since wash {item.wearsSinceWash}
+                    </Text>
+                    <Text variant="caption" color={colors.textSecondary}>
+                      Average wears between washes: {average ?? 'N/A'}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() => {
+                if (selectedDirtyItemIds.length === 0) {
+                  return;
+                }
+
+                markLaundryItemsClean(db, {
+                  itemIds: selectedDirtyItemIds,
+                  eventDate: today,
+                });
+                setSelectedDirtyItemIds([]);
+                refresh();
+              }}
+            >
+              <Text variant="label" color={colors.background}>Mark Selected Clean</Text>
+            </Pressable>
+          </View>
+        )}
+      </Card>
+
+      <Card>
+        <Text variant="subheading">Packing Lists</Text>
+        <View style={styles.formGrid}>
+          <TextInput
+            style={styles.input}
+            value={tripName}
+            onChangeText={setTripName}
+            placeholder="Trip name"
+            placeholderTextColor={colors.textTertiary}
+          />
+          <TextInput
+            style={styles.input}
+            value={tripStartDate}
+            onChangeText={setTripStartDate}
+            placeholder="Start date YYYY-MM-DD"
+            placeholderTextColor={colors.textTertiary}
+          />
+          <TextInput
+            style={styles.input}
+            value={tripEndDate}
+            onChangeText={setTripEndDate}
+            placeholder="End date YYYY-MM-DD"
+            placeholderTextColor={colors.textTertiary}
+          />
+          <TextInput
+            style={styles.input}
+            value={tripOccasions}
+            onChangeText={setTripOccasions}
+            placeholder="Occasions, comma separated"
+            placeholderTextColor={colors.textTertiary}
+          />
+          <View style={styles.chipRow}>
+            {PACKING_MODES.map((mode) => {
+              const selected = mode === tripMode;
+              return (
+                <Pressable
+                  key={mode}
+                  onPress={() => setTripMode(mode)}
+                  style={[styles.chip, selected ? styles.chipActive : null]}
+                >
+                  <Text variant="caption" color={selected ? colors.background : colors.textSecondary}>
+                    {mode.replace('_', ' ')}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Pressable
+            style={styles.primaryButton}
+            onPress={() => {
+              if (!tripName.trim() || !tripStartDate.trim() || !tripEndDate.trim()) {
+                return;
+              }
+
+              createPackingList(db, uuid(), {
+                name: tripName.trim(),
+                startDate: tripStartDate.trim(),
+                endDate: tripEndDate.trim(),
+                occasions: splitList(tripOccasions),
+                mode: tripMode,
+              });
+              setTripName('');
+              setTripOccasions('');
+              setTripMode('quick_list');
+              refresh();
+            }}
+          >
+            <Text variant="label" color={colors.background}>Create Packing List</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.list}>
+          {packingLists.length === 0 ? (
+            <Text variant="caption" color={colors.textSecondary}>
+              No trips planned yet.
+            </Text>
+          ) : (
+            packingLists.map((list) => {
+              const packedCount = list.items.filter((item) => item.isPacked).length;
+              return (
+                <Card key={list.id} style={styles.innerCard}>
+                  <Text variant="body">{list.name}</Text>
+                  <Text variant="caption" color={colors.textSecondary}>
+                    {list.startDate} to {list.endDate} · {packedCount}/{list.items.length} packed
+                  </Text>
+                  <View style={styles.chipRow}>
+                    {list.items.slice(0, 8).map((item) => (
+                      <Pressable
+                        key={item.id}
+                        onPress={() => {
+                          togglePackingListItemPacked(db, item.id);
+                          refresh();
+                        }}
+                        style={[styles.chip, item.isPacked ? styles.chipActive : null]}
+                      >
+                        <Text variant="caption" color={item.isPacked ? colors.background : colors.textSecondary}>
+                          {item.customName ?? itemMap.get(item.clothingItemId ?? '')?.name ?? 'Wardrobe item'}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </Card>
+              );
+            })
+          )}
         </View>
       </Card>
 
@@ -174,5 +360,8 @@ const styles = StyleSheet.create({
   },
   innerCard: {
     gap: spacing.xs,
+  },
+  selectedCard: {
+    borderColor: CLOSET_ACCENT,
   },
 });
