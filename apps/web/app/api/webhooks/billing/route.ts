@@ -12,6 +12,7 @@ import {
   deriveEntitlementFromBillingEvent,
   issueSignedEntitlement,
 } from '@/lib/billing/entitlement-issuer';
+import { verifyStripeWebhookSignature } from '@/lib/billing/webhook-signature';
 import { requireEnvVar } from '@/lib/env-guard';
 
 export const runtime = 'nodejs';
@@ -21,24 +22,34 @@ function idempotencyKey(eventId: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  let webhookKey: string;
+  let webhookSecret: string;
   let signingSecret: string;
   try {
-    webhookKey = requireEnvVar('MYLIFE_BILLING_WEBHOOK_KEY');
+    webhookSecret = requireEnvVar('STRIPE_WEBHOOK_SECRET');
     signingSecret = requireEnvVar('MYLIFE_ENTITLEMENT_SECRET');
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Required secrets not configured.';
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: 'Required secrets not configured.' }, { status: 500 });
   }
 
-  const providedKey = request.headers.get('x-billing-webhook-key');
-  if (!providedKey || providedKey !== webhookKey) {
-    return NextResponse.json({ error: 'Invalid webhook key.' }, { status: 401 });
+  let rawBody: string;
+  try {
+    rawBody = await request.text();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
+  }
+
+  const signatureCheck = verifyStripeWebhookSignature({
+    payload: rawBody,
+    signatureHeader: request.headers.get('stripe-signature'),
+    secret: webhookSecret,
+  });
+  if (!signatureCheck.ok) {
+    return NextResponse.json({ error: 'Invalid webhook signature.' }, { status: 401 });
   }
 
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(rawBody) as unknown;
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body.' }, { status: 400 });
   }

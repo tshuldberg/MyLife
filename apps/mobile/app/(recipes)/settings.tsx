@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
 import { getSetting, setSetting } from '@mylife/recipes';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
@@ -8,6 +9,7 @@ const ACCENT = colors.modules.recipes;
 
 export default function RecipesSettingsScreen() {
   const db = useDatabase();
+  const router = useRouter();
 
   const [defaultServings, setDefaultServings] = useState('4');
   const [measurementSystem, setMeasurementSystem] = useState('us');
@@ -71,7 +73,7 @@ export default function RecipesSettingsScreen() {
         <View style={styles.separator} />
         <Pressable
           style={styles.settingsRow}
-          onPress={() => Alert.alert('Coming Soon', 'Import will be available in a future update.')}
+          onPress={() => router.push('/(recipes)/import-source')}
         >
           <Text variant="body">Import Recipes</Text>
         </Pressable>

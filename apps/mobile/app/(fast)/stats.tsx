@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useState, type RefObject } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { captureRef } from 'react-native-view-shot';
-import * as Sharing from 'expo-sharing';
 import {
   adherenceRate,
   averageDuration,
@@ -100,6 +99,8 @@ export default function FastStatsScreen() {
     summary: SummaryStats,
     label: string,
   ) => {
+    const text = formatSummaryShareText(summary, label);
+
     try {
       const uri = await captureRef(summaryRef, {
         format: 'png',
@@ -107,19 +108,16 @@ export default function FastStatsScreen() {
         result: 'tmpfile',
       });
 
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          mimeType: 'image/png',
-          UTI: 'public.png',
-          dialogTitle: `${label} Summary`,
-        });
-        return;
-      }
+      await Share.share({
+        title: `${label} Summary`,
+        url: uri,
+        message: text,
+      });
+      return;
     } catch {
       // Fall through to text share.
     }
 
-    const text = formatSummaryShareText(summary, label);
     await Share.share({
       title: `${label} Summary`,
       message: text,

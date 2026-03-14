@@ -1,44 +1,160 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { useAuth } from '@mylife/auth';
+import {
+  getSocialClient,
+  useActivityFeed,
+  useMyKudosForActivities,
+  useMyProfile,
+  useProfilesByIds,
+} from '@mylife/social';
 import { ActivityCard } from '@/components/social/ActivityCard';
-import { SocialOnboarding } from '@/components/social/SocialOnboarding';
-import type { ActivityItem } from '@/components/social/types';
+import { SocialProfileSetupCard } from '@/components/social/SocialProfileSetupCard';
+import { SocialStateCard } from '@/components/social/SocialStateCard';
+import { indexProfiles, toActivityItem } from '@/components/social/types';
 
-// TODO: Replace with useSocialEnabled() hook from @mylife/social
-function useSocialEnabled(): [boolean, (v: boolean) => void] {
-  const [enabled, setEnabled] = useState(false);
-  return [enabled, setEnabled];
-}
+function getInitialDisplayName(
+  email: string | undefined,
+  metadataDisplayName: unknown,
+): string {
+  if (typeof metadataDisplayName === 'string' && metadataDisplayName.trim().length > 0) {
+    return metadataDisplayName.trim();
+  }
 
-// TODO: Replace with useFeed() hook from @mylife/social
-function useFeed(): { activities: ActivityItem[]; loading: boolean } {
-  return { activities: MOCK_ACTIVITIES, loading: false };
+  if (!email) return '';
+  return email.split('@')[0] ?? '';
 }
 
 export default function SocialFeedPage() {
-  const [socialEnabled, setSocialEnabled] = useSocialEnabled();
-  const { activities, loading } = useFeed();
+  const auth = useAuth();
+  const myProfile = useMyProfile();
+  const feed = useActivityFeed({ limit: 20 });
+  const authors = useProfilesByIds((feed.data ?? []).map((activity) => activity.profileId));
+  const myKudos = useMyKudosForActivities((feed.data ?? []).map((activity) => activity.id));
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  if (!socialEnabled) {
-    return <SocialOnboarding onComplete={(opted) => setSocialEnabled(opted)} />;
+  if (auth.isLoading || myProfile.isLoading) {
+    return <p style={styles.loadingText}>Loading social feed...</p>;
+  }
+
+  if (myProfile.error === 'Social client not initialized') {
+    return (
+      <SocialStateCard
+        title="Social is not configured"
+        description="Social features require Supabase configuration in the host app environment before feed, follows, and challenges can load."
+      />
+    );
+  }
+
+  if (myProfile.error === 'Not authenticated' || !auth.isAuthenticated) {
+    return (
+      <SocialStateCard
+        title="Sign in to use social"
+        description="Social features are part of the cloud experience. Connect your MyLife account first, then opt in with a social profile."
+        actionHref="/settings/data-sync"
+        actionLabel="Open data sync"
+      />
+    );
+  }
+
+  if (myProfile.error && myProfile.error !== 'Not authenticated') {
+    return (
+      <SocialStateCard
+        title="Unable to load your social profile"
+        description={myProfile.error}
+      />
+    );
+  }
+
+  if (!myProfile.data) {
+    return (
+      <SocialProfileSetupCard
+        initialDisplayName={getInitialDisplayName(
+          auth.user?.email,
+          auth.user?.user_metadata?.display_name,
+        )}
+        onCreated={() => {
+          void myProfile.refetch();
+        }}
+      />
+    );
+  }
+
+  if (feed.isLoading) {
+    return <p style={styles.loadingText}>Loading feed...</p>;
+  }
+
+  if (feed.error) {
+    return (
+      <SocialStateCard
+        title="Unable to load the feed"
+        description={feed.error}
+      />
+    );
+  }
+
+  const authorMap = indexProfiles(authors.data);
+  const kudosMap = myKudos.data ?? {};
+  const items = (feed.data ?? []).map((activity) =>
+    toActivityItem(activity, authorMap, {
+      hasKudosed: kudosMap[activity.id] ?? false,
+    }),
+  );
+
+  async function handleKudos(activityId: string, nextActive: boolean) {
+    const client = getSocialClient();
+    if (!client) {
+      setActionError('Social client not initialized.');
+      return;
+    }
+
+    const result = nextActive
+      ? await client.giveKudos(activityId, 'clap')
+      : await client.removeKudos(activityId);
+
+    if (!result.ok) {
+      setActionError(result.error);
+      return;
+    }
+
+    setActionError(null);
+    void Promise.all([feed.refetch(), myKudos.refetch()]);
   }
 
   return (
-    <div>
-      {loading ? (
-        <p style={styles.loadingText}>Loading feed...</p>
-      ) : activities.length === 0 ? (
+    <div style={styles.container}>
+      <div style={styles.hero}>
+        <div>
+          <h2 style={styles.heroTitle}>Friends feed</h2>
+          <p style={styles.heroText}>
+            Activity from you and the people you follow appears here. Manage
+            your network from the <Link href="/social/friends" style={styles.inlineLink}>friends</Link> tab.
+          </p>
+        </div>
+      </div>
+
+      {actionError ? <p style={styles.errorText}>{actionError}</p> : null}
+
+      {items.length === 0 ? (
         <div style={styles.empty}>
           <p style={styles.emptyTitle}>No activity yet</p>
           <p style={styles.emptyText}>
-            Follow friends to see their activities here.
+            Follow people, join challenges, or post from Market and Forums to
+            start filling your feed.
           </p>
         </div>
       ) : (
         <div style={styles.feed}>
-          {activities.map((activity) => (
-            <ActivityCard key={activity.id} activity={activity} />
+          {items.map((activity) => (
+            <ActivityCard
+              key={activity.id}
+              activity={activity}
+              onKudos={(activityId, nextActive) => {
+                void handleKudos(activityId, nextActive);
+              }}
+            />
           ))}
         </div>
       )}
@@ -47,15 +163,48 @@ export default function SocialFeedPage() {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    maxWidth: '720px',
+  },
+  hero: {
+    background:
+      'linear-gradient(135deg, rgba(124,77,255,0.18), rgba(34,197,94,0.08))',
+    borderRadius: 'var(--radius-xl)',
+    border: '1px solid var(--border)',
+    padding: '20px',
+  },
+  heroTitle: {
+    margin: 0,
+    fontSize: '22px',
+    fontWeight: 700,
+    color: 'var(--text)',
+  },
+  heroText: {
+    margin: '8px 0 0',
+    fontSize: '14px',
+    color: 'var(--text-secondary)',
+    lineHeight: '1.6',
+  },
+  inlineLink: {
+    color: 'var(--accent-social)',
+    textDecoration: 'none',
+  },
   feed: {
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
-    maxWidth: '640px',
   },
   loadingText: {
     fontSize: '14px',
     color: 'var(--text-tertiary)',
+  },
+  errorText: {
+    margin: 0,
+    fontSize: '13px',
+    color: 'var(--danger)',
   },
   empty: {
     textAlign: 'center',
@@ -76,75 +225,3 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '8px',
   },
 };
-
-// Placeholder data for development
-const MOCK_ACTIVITIES: ActivityItem[] = [
-  {
-    id: '1',
-    userId: 'u1',
-    userDisplayName: 'Alex',
-    moduleId: 'books',
-    moduleIcon: '\u{1F4DA}',
-    moduleAccentColor: '#C9894D',
-    activityType: 'book_finished',
-    description: 'Finished reading "The Great Gatsby" and rated it 4.5 stars',
-    timestamp: new Date(Date.now() - 3_600_000).toISOString(),
-    kudosCount: 3,
-    hasKudosed: false,
-    commentCount: 1,
-    comments: [
-      {
-        id: 'c1',
-        userId: 'u2',
-        userDisplayName: 'Jordan',
-        text: 'Such a classic! What did you think of the ending?',
-        timestamp: new Date(Date.now() - 1_800_000).toISOString(),
-      },
-    ],
-  },
-  {
-    id: '2',
-    userId: 'u2',
-    userDisplayName: 'Jordan',
-    moduleId: 'workouts',
-    moduleIcon: '\u{1F3CB}\uFE0F',
-    moduleAccentColor: '#EF4444',
-    activityType: 'workout_completed',
-    description: 'Completed a 45-minute strength training session',
-    timestamp: new Date(Date.now() - 7_200_000).toISOString(),
-    kudosCount: 5,
-    hasKudosed: true,
-    commentCount: 0,
-    comments: [],
-  },
-  {
-    id: '3',
-    userId: 'u3',
-    userDisplayName: 'Sam',
-    moduleId: 'habits',
-    moduleIcon: '\u{1F31F}',
-    moduleAccentColor: '#8B5CF6',
-    activityType: 'habit_streak',
-    description: 'Hit a 30-day meditation streak!',
-    timestamp: new Date(Date.now() - 86_400_000).toISOString(),
-    kudosCount: 12,
-    hasKudosed: false,
-    commentCount: 3,
-    comments: [
-      {
-        id: 'c2',
-        userId: 'u1',
-        userDisplayName: 'Alex',
-        text: 'Incredible consistency!',
-        timestamp: new Date(Date.now() - 82_800_000).toISOString(),
-      },
-      {
-        id: 'c3',
-        userId: 'u4',
-        userDisplayName: 'Riley',
-        text: 'Inspiring. I need to get back on track.',
-        timestamp: new Date(Date.now() - 79_200_000).toISOString(),
-      },
-    ],
-  },
-];

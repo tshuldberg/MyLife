@@ -1,108 +1,257 @@
 'use client';
 
 import { useState } from 'react';
+import { useAuth } from '@mylife/auth';
+import {
+  getSocialClient,
+  useFollowing,
+  useMyProfile,
+  usePendingFollowRequests,
+  useProfileSearch,
+  useProfilesByIds,
+} from '@mylife/social';
 import { ProfileCard } from '@/components/social/ProfileCard';
-import type { SocialProfile, FriendRequest } from '@/components/social/types';
-
-// TODO: Replace with useFriends() from @mylife/social
-function useFriends(): {
-  friends: SocialProfile[];
-  requests: FriendRequest[];
-  loading: boolean;
-} {
-  return { friends: MOCK_FRIENDS, requests: MOCK_REQUESTS, loading: false };
-}
+import { SocialProfileSetupCard } from '@/components/social/SocialProfileSetupCard';
+import { SocialStateCard } from '@/components/social/SocialStateCard';
+import {
+  indexProfiles,
+  toFriendRequestItem,
+  toSocialProfileCard,
+} from '@/components/social/types';
 
 type FriendsTab = 'following' | 'requests' | 'search';
 
+function getInitialDisplayName(
+  email: string | undefined,
+  metadataDisplayName: unknown,
+): string {
+  if (typeof metadataDisplayName === 'string' && metadataDisplayName.trim().length > 0) {
+    return metadataDisplayName.trim();
+  }
+
+  if (!email) return '';
+  return email.split('@')[0] ?? '';
+}
+
 export default function FriendsPage() {
-  const { friends, requests, loading } = useFriends();
+  const auth = useAuth();
+  const myProfile = useMyProfile();
   const [tab, setTab] = useState<FriendsTab>('following');
   const [searchQuery, setSearchQuery] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
 
-  if (loading) {
+  const following = useFollowing(myProfile.data?.id ?? '');
+  const requests = usePendingFollowRequests();
+  const search = useProfileSearch(searchQuery.trim());
+  const requesterProfiles = useProfilesByIds(
+    (requests.data ?? []).map((request) => request.followerId),
+  );
+
+  if (auth.isLoading || myProfile.isLoading) {
     return <p style={styles.loadingText}>Loading friends...</p>;
+  }
+
+  if (myProfile.error === 'Social client not initialized') {
+    return (
+      <SocialStateCard
+        title="Social is not configured"
+        description="Friend connections require a configured social backend."
+      />
+    );
+  }
+
+  if (myProfile.error === 'Not authenticated' || !auth.isAuthenticated) {
+    return (
+      <SocialStateCard
+        title="Sign in to connect with people"
+        description="Follow requests and social search only work for signed-in MyLife accounts."
+        actionHref="/settings/data-sync"
+        actionLabel="Open data sync"
+      />
+    );
+  }
+
+  if (myProfile.error && myProfile.error !== 'Not authenticated') {
+    return (
+      <SocialStateCard
+        title="Unable to load your social profile"
+        description={myProfile.error}
+      />
+    );
+  }
+
+  if (!myProfile.data) {
+    return (
+      <SocialProfileSetupCard
+        initialDisplayName={getInitialDisplayName(
+          auth.user?.email,
+          auth.user?.user_metadata?.display_name,
+        )}
+        onCreated={() => {
+          void myProfile.refetch();
+        }}
+      />
+    );
+  }
+
+  const followingProfiles = (following.data ?? []).map(toSocialProfileCard);
+  const followingIds = new Set((following.data ?? []).map((profile) => profile.id));
+  const requestProfileMap = indexProfiles(requesterProfiles.data);
+  const requestItems = (requests.data ?? []).map((request) =>
+    toFriendRequestItem(request, requestProfileMap),
+  );
+  const searchResults = (search.data ?? [])
+    .filter((profile) => profile.id !== myProfile.data?.id)
+    .map(toSocialProfileCard);
+
+  async function followProfile(profileId: string) {
+    const client = getSocialClient();
+    if (!client) {
+      setActionError('Social client not initialized.');
+      return;
+    }
+
+    const result = followingIds.has(profileId)
+      ? await client.unfollow(profileId)
+      : await client.follow(profileId);
+
+    if (!result.ok) {
+      setActionError(result.error);
+      return;
+    }
+
+    setActionError(null);
+    void Promise.all([following.refetch(), search.refetch()]);
+  }
+
+  async function respondToRequest(
+    followId: string,
+    action: 'accept' | 'reject',
+  ) {
+    const client = getSocialClient();
+    if (!client) {
+      setActionError('Social client not initialized.');
+      return;
+    }
+
+    setActiveRequestId(followId);
+    const result = action === 'accept'
+      ? await client.acceptFollowRequest(followId)
+      : await client.rejectFollowRequest(followId);
+    setActiveRequestId(null);
+
+    if (!result.ok) {
+      setActionError(result.error);
+      return;
+    }
+
+    setActionError(null);
+    void Promise.all([requests.refetch(), following.refetch()]);
   }
 
   return (
     <div style={styles.container}>
-      {/* Tabs */}
       <div style={styles.tabs}>
         {(
           [
-            { id: 'following', label: `Following (${friends.length})` },
-            { id: 'requests', label: `Requests (${requests.length})` },
-            { id: 'search', label: 'Find Friends' },
+            { id: 'following', label: `Following (${followingProfiles.length})` },
+            { id: 'requests', label: `Requests (${requestItems.length})` },
+            { id: 'search', label: 'Find People' },
           ] as const
-        ).map((t) => (
+        ).map((item) => (
           <button
-            key={t.id}
+            key={item.id}
             type="button"
-            onClick={() => setTab(t.id)}
+            onClick={() => setTab(item.id)}
             style={{
               ...styles.tab,
-              color:
-                tab === t.id
-                  ? 'var(--accent-social)'
-                  : 'var(--text-tertiary)',
-              borderBottomColor:
-                tab === t.id ? 'var(--accent-social)' : 'transparent',
+              color: tab === item.id ? 'var(--accent-social)' : 'var(--text-tertiary)',
+              borderBottomColor: tab === item.id ? 'var(--accent-social)' : 'transparent',
             }}
           >
-            {t.label}
+            {item.label}
           </button>
         ))}
       </div>
 
-      {tab === 'following' && (
+      {actionError ? <p style={styles.errorText}>{actionError}</p> : null}
+
+      {tab === 'following' ? (
         <div style={styles.list}>
-          {friends.length === 0 ? (
+          {following.isLoading ? (
+            <p style={styles.loadingText}>Loading following...</p>
+          ) : followingProfiles.length === 0 ? (
             <div style={styles.empty}>
-              <p style={styles.emptyTitle}>No friends yet</p>
+              <p style={styles.emptyTitle}>You are not following anyone yet</p>
               <p style={styles.emptyText}>
-                Search for users to connect with.
+                Search for people by handle or display name to start building
+                your MyLife network.
               </p>
             </div>
           ) : (
-            friends.map((friend) => (
+            followingProfiles.map((profile) => (
               <ProfileCard
-                key={friend.id}
-                profile={friend}
+                key={profile.id}
+                profile={profile}
                 isFollowing={true}
-                onFollow={() => {}}
+                onFollow={() => {
+                  void followProfile(profile.id);
+                }}
               />
             ))
           )}
         </div>
-      )}
+      ) : null}
 
-      {tab === 'requests' && (
+      {tab === 'requests' ? (
         <div style={styles.list}>
-          {requests.length === 0 ? (
-            <p style={styles.emptyText}>No pending requests.</p>
+          {requests.isLoading ? (
+            <p style={styles.loadingText}>Loading requests...</p>
+          ) : requestItems.length === 0 ? (
+            <p style={styles.emptyText}>No pending follow requests.</p>
           ) : (
-            requests.map((req) => (
-              <div key={req.id} style={styles.requestCard}>
+            requestItems.map((request) => (
+              <div key={request.id} style={styles.requestCard}>
                 <div style={styles.requestInfo}>
-                  <div style={styles.requestAvatar}>
-                    <span style={styles.requestAvatarText}>
-                      {req.fromDisplayName.charAt(0).toUpperCase()}
-                    </span>
+                  <div
+                    style={{
+                      ...styles.requestAvatar,
+                      backgroundImage: request.fromAvatarUrl
+                        ? `url(${request.fromAvatarUrl})`
+                        : undefined,
+                    }}
+                  >
+                    {!request.fromAvatarUrl ? (
+                      <span style={styles.requestAvatarText}>
+                        {request.fromDisplayName.charAt(0).toUpperCase()}
+                      </span>
+                    ) : null}
                   </div>
                   <div>
-                    <span style={styles.requestName}>
-                      {req.fromDisplayName}
-                    </span>
-                    <span style={styles.requestTime}>
-                      wants to connect
-                    </span>
+                    <span style={styles.requestName}>{request.fromDisplayName}</span>
+                    <span style={styles.requestTime}>requested to follow you</span>
                   </div>
                 </div>
                 <div style={styles.requestActions}>
-                  <button type="button" style={styles.acceptButton}>
+                  <button
+                    type="button"
+                    style={styles.acceptButton}
+                    disabled={activeRequestId === request.id}
+                    onClick={() => {
+                      void respondToRequest(request.id, 'accept');
+                    }}
+                  >
                     Accept
                   </button>
-                  <button type="button" style={styles.declineButton}>
+                  <button
+                    type="button"
+                    style={styles.declineButton}
+                    disabled={activeRequestId === request.id}
+                    onClick={() => {
+                      void respondToRequest(request.id, 'reject');
+                    }}
+                  >
                     Decline
                   </button>
                 </div>
@@ -110,35 +259,49 @@ export default function FriendsPage() {
             ))
           )}
         </div>
-      )}
+      ) : null}
 
-      {tab === 'search' && (
+      {tab === 'search' ? (
         <div style={styles.searchSection}>
           <input
             type="text"
-            placeholder="Search by name..."
+            placeholder="Search by handle or name..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
             style={styles.searchInput}
           />
-          {searchQuery.length > 0 ? (
+
+          {searchQuery.trim().length < 2 ? (
             <p style={styles.emptyText}>
-              Search results will appear here once social backend is connected.
+              Enter at least two characters to search MyLife members.
             </p>
+          ) : search.isLoading ? (
+            <p style={styles.loadingText}>Searching...</p>
+          ) : searchResults.length === 0 ? (
+            <p style={styles.emptyText}>No matching profiles found.</p>
           ) : (
-            <p style={styles.emptyText}>
-              Enter a name to find and follow other MyLife users.
-            </p>
+            <div style={styles.list}>
+              {searchResults.map((profile) => (
+                <ProfileCard
+                  key={profile.id}
+                  profile={profile}
+                  isFollowing={followingIds.has(profile.id)}
+                  onFollow={() => {
+                    void followProfile(profile.id);
+                  }}
+                />
+              ))}
+            </div>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    maxWidth: '640px',
+    maxWidth: '680px',
     display: 'flex',
     flexDirection: 'column',
     gap: '20px',
@@ -146,6 +309,11 @@ const styles: Record<string, React.CSSProperties> = {
   loadingText: {
     fontSize: '14px',
     color: 'var(--text-tertiary)',
+  },
+  errorText: {
+    margin: 0,
+    fontSize: '13px',
+    color: 'var(--danger)',
   },
   tabs: {
     display: 'flex',
@@ -161,7 +329,6 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: '2px solid',
     cursor: 'pointer',
     font: 'inherit',
-    transition: 'color 0.15s',
   },
   list: {
     display: 'flex',
@@ -205,6 +372,8 @@ const styles: Record<string, React.CSSProperties> = {
     height: '36px',
     borderRadius: '18px',
     backgroundColor: 'var(--surface-elevated)',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -258,43 +427,11 @@ const styles: Record<string, React.CSSProperties> = {
   searchInput: {
     width: '100%',
     padding: '10px 16px',
-    borderRadius: 'var(--radius-md)',
+    borderRadius: 'var(--radius-lg)',
+    border: '1px solid var(--border)',
     backgroundColor: 'var(--surface)',
     color: 'var(--text)',
-    border: '1px solid var(--border)',
     fontSize: '14px',
     font: 'inherit',
-    outline: 'none',
   },
 };
-
-const MOCK_FRIENDS: SocialProfile[] = [
-  {
-    id: 'u1',
-    displayName: 'Alex',
-    bio: 'Book lover and fitness enthusiast',
-    modulesUsed: 4,
-    totalActivities: 87,
-    kudosReceived: 34,
-    challengesCompleted: 3,
-  },
-  {
-    id: 'u3',
-    displayName: 'Sam',
-    bio: 'Meditation and habits tracker',
-    modulesUsed: 3,
-    totalActivities: 156,
-    kudosReceived: 89,
-    challengesCompleted: 7,
-  },
-];
-
-const MOCK_REQUESTS: FriendRequest[] = [
-  {
-    id: 'r1',
-    fromUserId: 'u4',
-    fromDisplayName: 'Riley',
-    status: 'pending',
-    timestamp: new Date(Date.now() - 86_400_000).toISOString(),
-  },
-];

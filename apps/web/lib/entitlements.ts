@@ -1,9 +1,9 @@
 import {
   EntitlementsSchema,
-  verifyEntitlementSignature,
   type Entitlements,
   type PlanMode,
 } from '@mylife/entitlements';
+import { verifyEntitlementSignature } from '@mylife/entitlements/server';
 import {
   getHubEntitlement,
   setHubEntitlement,

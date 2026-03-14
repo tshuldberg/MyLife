@@ -12,34 +12,12 @@
       "@/*": [
         "./*"
       ],
-      "@mybooks-web/*": [
-        "../../MyBooks/apps/web/*"
-      ],
-      "@mybooks/shared": [
-        "../../MyBooks/packages/shared/src/index.ts"
-      ],
-      "@mybooks/shared/*": [
-        "../../MyBooks/packages/shared/src/*"
-      ],
-      "@mybudget-web/*": [
-        "../../MyBudget/apps/web/*"
-      ],
-      "@mybudget/shared": [
-        "../../MyBudget/packages/shared/src/index.ts"
-      ],
-      "@mybudget/shared/*": [
-        "../../MyBudget/packages/shared/src/*"
-      ],
-      "@mybudget/ui": [
-        "../../MyBudget/packages/ui/src/index.ts"
-      ],
-      "@mybudget/ui/*": [
-        "../../MyBudget/packages/ui/src/*"
-      ],
       "@myhabits-web/*": [
+        "./types/standalone-route-module.d.ts",
         "../../MyHabits/apps/web/*"
       ],
       "@mywords-web/*": [
+        "./types/standalone-route-module.d.ts",
         "../../MyWords/apps/web/*"
       ],
       "@mywords/shared": [
@@ -48,22 +26,8 @@
       "@mywords/shared/*": [
         "../../MyWords/packages/shared/src/*"
       ],
-      "@myrecipes-web/*": [
-        "../../MyRecipes/apps/web/*"
-      ],
-      "@myrecipes/shared": [
-        "../../MyRecipes/packages/shared/src/index.ts"
-      ],
-      "@myrecipes/shared/*": [
-        "../../MyRecipes/packages/shared/src/*"
-      ],
-      "@myrecipes/ui": [
-        "../../MyRecipes/packages/ui/src/index.ts"
-      ],
-      "@myrecipes/ui/*": [
-        "../../MyRecipes/packages/ui/src/*"
-      ],
       "@myfast-web/*": [
+        "./types/standalone-route-module.d.ts",
         "../../MyFast/apps/web/*"
       ],
       "@myfast/shared": [
@@ -79,7 +43,11 @@
         "../../MyFast/packages/ui/src/*"
       ],
       "@mycar-web/*": [
+        "./types/standalone-route-module.d.ts",
         "../../MyCar/apps/web/*"
+      ],
+      "@mybudget-web/*": [
+        "./types/standalone-route-module.d.ts"
       ],
       "@mycar/shared": [
         "../../MyCar/packages/shared/src/index.ts"
@@ -94,7 +62,11 @@
         "../../MyCar/packages/ui/src/*"
       ],
       "@myhomes-web/*": [
+        "./types/standalone-route-module.d.ts",
         "../../MyHomes/apps/web/*"
+      ],
+      "@myrecipes-web/*": [
+        "./types/standalone-route-module.d.ts"
       ],
       "@humanhomes/shared": [
         "../../MyHomes/packages/shared/src/index.ts"
@@ -108,23 +80,12 @@
       "@humanhomes/ui/*": [
         "../../MyHomes/packages/ui/src/*"
       ],
-      "@myworkouts-web/*": [
-        "../../MyWorkouts/apps/web/*"
-      ],
-      "@myworkouts/shared": [
-        "../../MyWorkouts/packages/shared/src/index.ts"
-      ],
-      "@myworkouts/shared/*": [
-        "../../MyWorkouts/packages/shared/src/*"
-      ],
-      "@myworkouts/ui": [
-        "../../MyWorkouts/packages/ui/src/index.ts"
-      ],
-      "@myworkouts/ui/*": [
-        "../../MyWorkouts/packages/ui/src/*"
-      ],
       "@mysurf-web/*": [
+        "./types/standalone-route-module.d.ts",
         "../../MySurf/apps/web/*"
+      ],
+      "@myworkouts-web/*": [
+        "./types/standalone-route-module.d.ts"
       ],
       "@mysurf/shared": [
         "../../MySurf/packages/shared/src/index.ts"
@@ -150,6 +111,10 @@
     "node_modules",
     "**/__tests__/**",
     "test/**",
-    "vitest.config.ts"
+    "vitest.config.ts",
+    "**/* 2.ts",
+    "**/* 2.tsx",
+    "**/* 3.ts",
+    "**/* 3.tsx"
   ]
 }

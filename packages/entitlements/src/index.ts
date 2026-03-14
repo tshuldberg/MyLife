@@ -7,6 +7,9 @@ export type {
   StorageTier,
   Purchase,
   EntitlementState,
+  PlanMode,
+  UnsignedEntitlements,
+  Entitlements,
 } from './types';
 
 export {
@@ -17,6 +20,9 @@ export {
   ProductIdSchema,
   StorageTierSchema,
   PurchaseSchema,
+  PlanModeSchema,
+  UnsignedEntitlementsSchema,
+  EntitlementsSchema,
 } from './schema';
 
 export {
@@ -27,3 +33,5 @@ export {
   isUpdateEntitled,
   resolveEntitlements,
 } from './gates';
+
+export { isEntitlementExpired } from './runtime';

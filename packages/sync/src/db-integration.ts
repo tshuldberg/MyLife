@@ -2,11 +2,13 @@
  * Database integration for the sync layer.
  *
  * Provides functions to wire a SyncProvider into the DB initialization
- * flow and handle tier transitions gracefully.
+ * flow and handle tier transitions gracefully. Also integrates the
+ * SyncEngine for P2P sync when the tier is 'p2p'.
  */
 
-import type { SyncProvider, SyncTier } from './types';
-import { tierRequiresAuth, isCloudTier } from './types';
+import type { DatabaseAdapter } from '@mylife/db';
+import type { SyncProvider, SyncTier, DeviceIdentity } from './types';
+import { tierRequiresAuth } from './types';
 import { LocalOnlyProvider } from './providers/local-only';
 import type { LocalOnlyProviderOptions } from './providers/local-only';
 import type { P2PProviderOptions } from './providers/p2p';
@@ -14,6 +16,8 @@ import { P2PProvider } from './providers/p2p';
 import type { CloudProviderOptions } from './providers/cloud';
 import { CloudProvider } from './providers/cloud';
 import { setSyncProvider } from './hooks';
+import { SyncEngine } from './engine/sync-engine';
+import type { SyncEngineOptions } from './engine/sync-engine';
 
 export interface SyncManagerOptions {
   /** Options for creating the LocalOnlyProvider. */
@@ -24,6 +28,16 @@ export interface SyncManagerOptions {
   createCloudProvider?: (tier: CloudProviderOptions['tier']) => CloudProvider;
   /** Called to check if the user is authenticated. */
   isAuthenticated?: () => Promise<boolean>;
+  /** Database adapter for P2P sync engine. */
+  db?: DatabaseAdapter;
+  /** Device identity for P2P sync (required for p2p tier). */
+  identity?: DeviceIdentity;
+  /** Module ID to table prefix mapping for P2P sync. */
+  modulePrefixes?: Map<string, string>;
+  /** List of enabled modules for P2P sync. */
+  enabledModules?: string[];
+  /** Custom SyncEngine options. */
+  syncEngineOptions?: Partial<SyncEngineOptions>;
 }
 
 /**
@@ -32,6 +46,7 @@ export interface SyncManagerOptions {
 export class SyncManager {
   private _currentProvider: SyncProvider | null = null;
   private _currentTier: SyncTier = 'local_only';
+  private _syncEngine: SyncEngine | null = null;
   private readonly _options: SyncManagerOptions;
 
   constructor(options: SyncManagerOptions = {}) {
@@ -46,6 +61,11 @@ export class SyncManager {
   /** The current sync tier. */
   get tier(): SyncTier {
     return this._currentTier;
+  }
+
+  /** The P2P sync engine (available when tier is 'p2p'). */
+  get syncEngine(): SyncEngine | null {
+    return this._syncEngine;
   }
 
   /**
@@ -87,7 +107,11 @@ export class SyncManager {
       }
     }
 
-    // Tear down old provider
+    // Tear down old provider and sync engine
+    if (this._syncEngine) {
+      await this._syncEngine.destroy();
+      this._syncEngine = null;
+    }
     if (this._currentProvider) {
       await this._currentProvider.destroy();
     }
@@ -95,6 +119,11 @@ export class SyncManager {
     // Create and initialize new provider
     const provider = await this._createProvider(newTier);
     await provider.initialize();
+
+    // Start sync engine for P2P tier
+    if (newTier === 'p2p') {
+      await this._startSyncEngine();
+    }
 
     this._currentProvider = provider;
     this._currentTier = newTier;
@@ -107,12 +136,30 @@ export class SyncManager {
    * Tear down the current provider and release resources.
    */
   async destroy(): Promise<void> {
+    if (this._syncEngine) {
+      await this._syncEngine.destroy();
+      this._syncEngine = null;
+    }
     if (this._currentProvider) {
       await this._currentProvider.destroy();
       this._currentProvider = null;
     }
     this._currentTier = 'local_only';
     setSyncProvider(null);
+  }
+
+  private async _startSyncEngine(): Promise<void> {
+    const { db, identity, modulePrefixes, enabledModules } = this._options;
+    if (!db || !identity) return;
+
+    this._syncEngine = new SyncEngine({
+      db,
+      identity,
+      modulePrefixes: modulePrefixes ?? new Map(),
+      enabledModules: enabledModules ?? [],
+      ...this._options.syncEngineOptions,
+    });
+    await this._syncEngine.initialize();
   }
 
   private async _createProvider(tier: SyncTier): Promise<SyncProvider> {

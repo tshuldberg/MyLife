@@ -2,7 +2,6 @@ import React, { useState, useRef, useCallback } from 'react';
 import { View, StyleSheet, Pressable, Dimensions, Alert, Share } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { captureRef } from 'react-native-view-shot';
 import { Text, BookCover, Button, colors, spacing } from '@mylife/ui';
 import { useGoal } from '../../hooks/books/use-goals';
@@ -69,18 +68,10 @@ export default function YearReviewScreen() {
         result: 'tmpfile',
       });
 
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          dialogTitle: `MyBooks ${year} Year in Review`,
-          mimeType: 'image/png',
-          UTI: 'public.png',
-        });
-        return;
-      }
-
       await Share.share({
         title: `MyBooks ${year} Year in Review`,
-        message: `Saved year-in-review image: ${uri}`,
+        url: uri,
+        message: `MyBooks ${year} Year in Review`,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -102,16 +93,9 @@ export default function YearReviewScreen() {
         encoding: FileSystem.EncodingType.UTF8,
       });
 
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri, {
-          dialogTitle: `MyBooks ${year} CSV export`,
-          mimeType: 'text/csv',
-        });
-        return;
-      }
-
       await Share.share({
         title: filename,
+        url: uri,
         message: payload.csv,
       });
     } catch (error) {

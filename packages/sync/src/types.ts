@@ -95,3 +95,421 @@ export function tierRequiresAuth(tier: SyncTier): boolean {
 export function isCloudTier(tier: SyncTier): boolean {
   return tierRequiresAuth(tier);
 }
+
+// ---------------------------------------------------------------------------
+// P2P Sync Types (Spec Sections 3-8, 11)
+// ---------------------------------------------------------------------------
+
+import { z } from 'zod';
+
+/** Ed25519 + X25519 keypair generated on first launch. */
+export interface DeviceIdentity {
+  /** Ed25519 public key (hex-encoded, used as device ID). */
+  publicKey: string;
+  /** Reference to the private key in secure storage (never the raw key). */
+  privateKeyRef: string;
+  /** X25519 public key for Diffie-Hellman key agreement (hex-encoded). */
+  dhPublicKey: string;
+  /** Human-readable device name. */
+  displayName: string;
+  /** ISO 8601 creation timestamp. */
+  createdAt: string;
+}
+
+export const DeviceIdentitySchema = z.object({
+  publicKey: z.string().min(1),
+  privateKeyRef: z.string().min(1),
+  dhPublicKey: z.string().min(1),
+  displayName: z.string().min(1),
+  createdAt: z.string(),
+});
+
+/** A device that has been paired with this one. */
+export interface PairedDevice {
+  /** Ed25519 public key of the paired device (hex-encoded). */
+  deviceId: string;
+  /** Human-readable device name. */
+  displayName: string;
+  /** X25519 public key (hex-encoded). */
+  dhPublicKey: string;
+  /** Reference to the derived shared secret in secure storage. */
+  sharedSecretRef: string;
+  /** ISO 8601 last-seen timestamp. */
+  lastSeenAt: string | null;
+  /** ISO 8601 last sync timestamp. */
+  lastSyncAt: string | null;
+  /** Last module synced with this device. */
+  lastSyncModule: string | null;
+  /** Total bytes sent to this device. */
+  bytesSent: number;
+  /** Total bytes received from this device. */
+  bytesReceived: number;
+  /** Whether the device is active (not revoked). */
+  isActive: boolean;
+  /** ISO 8601 pairing timestamp. */
+  pairedAt: string;
+}
+
+export const PairedDeviceSchema = z.object({
+  deviceId: z.string().min(1),
+  displayName: z.string().min(1),
+  dhPublicKey: z.string().min(1),
+  sharedSecretRef: z.string().min(1),
+  lastSeenAt: z.string().nullable(),
+  lastSyncAt: z.string().nullable(),
+  lastSyncModule: z.string().nullable(),
+  bytesSent: z.number().int().min(0),
+  bytesReceived: z.number().int().min(0),
+  isActive: z.boolean(),
+  pairedAt: z.string(),
+});
+
+/** A single row change recorded for outbound sync. */
+export interface ChangeRecord {
+  /** ULID identifier. */
+  id: string;
+  /** Module that owns the table. */
+  moduleId: string;
+  /** Table name (with prefix, e.g. 'bk_books'). */
+  tableName: string;
+  /** The operation type. */
+  operation: 'INSERT' | 'UPDATE' | 'DELETE';
+  /** Primary key of the affected row. */
+  rowId: string;
+  /** Serialized row data (null for DELETE). */
+  dataJson: string | null;
+  /** Device that produced this change. */
+  deviceId: string;
+  /** Monotonic timestamp. */
+  timestamp: number;
+  /** Whether this change has been sent to all peers. */
+  synced: boolean;
+  /** ISO 8601 creation timestamp. */
+  createdAt: string;
+}
+
+export const ChangeRecordSchema = z.object({
+  id: z.string().min(1),
+  moduleId: z.string().min(1),
+  tableName: z.string().min(1),
+  operation: z.enum(['INSERT', 'UPDATE', 'DELETE']),
+  rowId: z.string().min(1),
+  dataJson: z.string().nullable(),
+  deviceId: z.string().min(1),
+  timestamp: z.number().int(),
+  synced: z.boolean(),
+  createdAt: z.string(),
+});
+
+/** Per-module sync state tracking what each peer has received. */
+export interface PeerModuleState {
+  deviceId: string;
+  moduleId: string;
+  lastSyncedVersion: number;
+  lastSyncedAt: string | null;
+  automergeHeads: string | null;
+}
+
+export const PeerModuleStateSchema = z.object({
+  deviceId: z.string().min(1),
+  moduleId: z.string().min(1),
+  lastSyncedVersion: z.number().int().min(0),
+  lastSyncedAt: z.string().nullable(),
+  automergeHeads: z.string().nullable(),
+});
+
+/** A revoked device that can no longer sync. */
+export interface DeviceRevocation {
+  deviceId: string;
+  revokedByDeviceId: string;
+  reason: string | null;
+  revokedAt: string;
+}
+
+export const DeviceRevocationSchema = z.object({
+  deviceId: z.string().min(1),
+  revokedByDeviceId: z.string().min(1),
+  reason: z.string().nullable(),
+  revokedAt: z.string(),
+});
+
+/** Metadata for a content-addressed blob stored locally. */
+export interface BlobRef {
+  /** SHA-256 hash (hex-encoded). */
+  hash: string;
+  /** Size in bytes. */
+  size: number;
+  /** MIME type. */
+  mimeType: string;
+  /** Module that owns this blob. */
+  moduleId: string;
+  /** Number of references to this blob. */
+  refCount: number;
+  /** ISO 8601 storage timestamp. */
+  storedAt: string;
+}
+
+export const BlobRefSchema = z.object({
+  hash: z.string().min(1),
+  size: z.number().int().min(0),
+  mimeType: z.string().min(1),
+  moduleId: z.string().min(1),
+  refCount: z.number().int().min(0),
+  storedAt: z.string(),
+});
+
+/** Per-module blob sync policy. */
+export type BlobSyncPolicy = 'always' | 'wifi_only' | 'manual' | 'never';
+
+export interface BlobPolicyEntry {
+  moduleId: string;
+  policy: BlobSyncPolicy;
+  maxBlobSizeBytes: number;
+  updatedAt: string;
+}
+
+export const BlobPolicyEntrySchema = z.object({
+  moduleId: z.string().min(1),
+  policy: z.enum(['always', 'wifi_only', 'manual', 'never']),
+  maxBlobSizeBytes: z.number().int().min(0),
+  updatedAt: z.string(),
+});
+
+/** Audit trail for a completed sync session. */
+export type SyncTransport = 'lan' | 'wan_webrtc' | 'wan_relay';
+export type SyncDirection = 'push' | 'pull' | 'bidirectional';
+export type SyncSessionStatus = 'completed' | 'partial' | 'failed';
+
+export interface SyncSession {
+  id: string;
+  peerDeviceId: string;
+  transport: SyncTransport;
+  direction: SyncDirection;
+  modulesSynced: string[];
+  changesSent: number;
+  changesReceived: number;
+  bytesSent: number;
+  bytesReceived: number;
+  blobsSent: number;
+  blobsReceived: number;
+  durationMs: number;
+  status: SyncSessionStatus;
+  error: string | null;
+  startedAt: string;
+  completedAt: string;
+}
+
+export const SyncSessionSchema = z.object({
+  id: z.string().min(1),
+  peerDeviceId: z.string().min(1),
+  transport: z.enum(['lan', 'wan_webrtc', 'wan_relay']),
+  direction: z.enum(['push', 'pull', 'bidirectional']),
+  modulesSynced: z.array(z.string()),
+  changesSent: z.number().int().min(0),
+  changesReceived: z.number().int().min(0),
+  bytesSent: z.number().int().min(0),
+  bytesReceived: z.number().int().min(0),
+  blobsSent: z.number().int().min(0),
+  blobsReceived: z.number().int().min(0),
+  durationMs: z.number().int().min(0),
+  status: z.enum(['completed', 'partial', 'failed']),
+  error: z.string().nullable(),
+  startedAt: z.string(),
+  completedAt: z.string(),
+});
+
+// ---------------------------------------------------------------------------
+// Sync Protocol Message Types (Spec Section 4.3)
+// ---------------------------------------------------------------------------
+
+export type SyncMessageType =
+  | 'HELLO'
+  | 'HELLO_ACK'
+  | 'AUTH_CHALLENGE'
+  | 'AUTH_RESPONSE'
+  | 'SYNC_OFFER'
+  | 'SYNC_ACCEPT'
+  | 'SYNC_DATA'
+  | 'SYNC_ACK'
+  | 'BLOB_REQUEST'
+  | 'BLOB_DATA'
+  | 'BLOB_ACK'
+  | 'BYE';
+
+export interface SyncMessage {
+  type: SyncMessageType;
+  deviceId: string;
+  nonce: string;
+  payload: Uint8Array;
+  timestamp: number;
+}
+
+// ---------------------------------------------------------------------------
+// Content Distribution / Torrent Types (Spec Section 11)
+// ---------------------------------------------------------------------------
+
+export type ContentAccess = 'public' | 'link' | 'paid' | 'encrypted';
+
+export type ContentCategory =
+  | 'film'
+  | 'music'
+  | 'education'
+  | 'book'
+  | 'software'
+  | 'template'
+  | 'dataset'
+  | 'game'
+  | 'art'
+  | 'other';
+
+export interface ContentManifest {
+  infoHash: string;
+  title: string;
+  description: string;
+  creator: {
+    publicKey: string;
+    displayName: string;
+    signature: string;
+  };
+  files: {
+    path: string;
+    size: number;
+    hash: string;
+    mimeType: string;
+  }[];
+  pieceLength: number;
+  pieces: string[];
+  totalSize: number;
+  merkleRoot: string;
+  access: ContentAccess;
+  price?: {
+    amount: number;
+    currency: string;
+    paymentMethods: string[];
+  };
+  encryptedKey?: string;
+  tags: string[];
+  category: ContentCategory;
+  createdAt: string;
+  version: number;
+  trackers: string[];
+  webSeeds: string[];
+}
+
+export const ContentManifestSchema = z.object({
+  infoHash: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string(),
+  creator: z.object({
+    publicKey: z.string().min(1),
+    displayName: z.string().min(1),
+    signature: z.string().min(1),
+  }),
+  files: z.array(z.object({
+    path: z.string().min(1),
+    size: z.number().int().min(0),
+    hash: z.string().min(1),
+    mimeType: z.string().min(1),
+  })),
+  pieceLength: z.number().int().positive(),
+  pieces: z.array(z.string()),
+  totalSize: z.number().int().min(0),
+  merkleRoot: z.string().min(1),
+  access: z.enum(['public', 'link', 'paid', 'encrypted']),
+  price: z.object({
+    amount: z.number().positive(),
+    currency: z.string(),
+    paymentMethods: z.array(z.string()),
+  }).optional(),
+  encryptedKey: z.string().optional(),
+  tags: z.array(z.string()),
+  category: z.enum([
+    'film', 'music', 'education', 'book', 'software',
+    'template', 'dataset', 'game', 'art', 'other',
+  ]),
+  createdAt: z.string(),
+  version: z.number().int().positive(),
+  trackers: z.array(z.string()),
+  webSeeds: z.array(z.string()),
+});
+
+export interface SeedingPolicy {
+  enabled: boolean;
+  maxUploadKbps: number;
+  maxSeedStorageMB: number;
+  autoDeleteDays: number;
+  seedOnCellular: boolean;
+  seedWhileCharging: boolean;
+  updatedAt: string;
+}
+
+export const SeedingPolicySchema = z.object({
+  enabled: z.boolean(),
+  maxUploadKbps: z.number().int().min(0),
+  maxSeedStorageMB: z.number().int().min(0),
+  autoDeleteDays: z.number().int().min(0),
+  seedOnCellular: z.boolean(),
+  seedWhileCharging: z.boolean(),
+  updatedAt: z.string(),
+});
+
+export type TorrentDownloadStatus =
+  | 'downloading'
+  | 'completed'
+  | 'paused'
+  | 'seeding'
+  | 'stopped';
+
+export type TorrentPieceStatus = 'missing' | 'downloading' | 'verified';
+
+export type TorrentPaymentDirection = 'incoming' | 'outgoing';
+export type TorrentPaymentStatus = 'pending' | 'completed' | 'refunded' | 'failed';
+
+// ---------------------------------------------------------------------------
+// Transport Types
+// ---------------------------------------------------------------------------
+
+/** Transport connection abstraction for LAN and WAN. */
+export interface TransportConnection {
+  /** Unique identifier for this connection. */
+  id: string;
+  /** Remote device ID. */
+  remoteDeviceId: string;
+  /** Transport type used. */
+  transport: SyncTransport;
+  /** Send binary data to the remote peer. */
+  send(data: Uint8Array): Promise<void>;
+  /** Register handler for incoming data. */
+  onData(handler: (data: Uint8Array) => void): void;
+  /** Close the connection. */
+  close(): Promise<void>;
+}
+
+/** Discovered peer on the local network. */
+export interface DiscoveredPeer {
+  deviceId: string;
+  displayName: string;
+  host: string;
+  port: number;
+  discoveredAt: number;
+}
+
+// ---------------------------------------------------------------------------
+// Engine Types
+// ---------------------------------------------------------------------------
+
+export type SyncEngineState =
+  | 'idle'
+  | 'discovering'
+  | 'connecting'
+  | 'syncing'
+  | 'error';
+
+export interface SyncEngineStatus {
+  state: SyncEngineState;
+  pairedDeviceCount: number;
+  onlineDeviceCount: number;
+  pendingChanges: number;
+  lastSyncAt: string | null;
+  currentSessionId: string | null;
+}

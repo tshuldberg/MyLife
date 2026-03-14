@@ -21,6 +21,17 @@ vi.mock('../actions', () => ({
 vi.mock('@mylife/module-registry', () => ({
   useModuleRegistry: () => registry,
   useEnabledModules: () => [],
+  GA_MODULE_IDS: ['books'],
+  PUBLIC_BETA_MODULE_IDS: ['workouts'],
+  getModuleReleaseState: (id: string) => (id === 'books' ? 'ga' : 'public_beta'),
+  getModuleReleaseLabel: (id: string) => (id === 'books' ? 'GA' : 'BETA'),
+  getModuleReleaseDescription: (id: string) =>
+    id === 'books'
+      ? 'Included in the production launch promise.'
+      : 'Included at launch as a public beta.',
+  isGeneralAvailabilityModule: (id: string) => id === 'books',
+  isPublicBetaModule: (id: string) => id !== 'books',
+  isUserVisibleModule: (id: string) => id !== 'subs',
   MODULE_METADATA: {
     books: {
       id: 'books',
@@ -69,5 +80,17 @@ describe('DiscoverPage', () => {
     expect(disableModuleAction).toHaveBeenCalledWith('books');
     expect(registry.disable).toHaveBeenCalledWith('books');
     expect(enableModuleAction).not.toHaveBeenCalled();
+  });
+
+  it('shows launch-state messaging for GA modules', () => {
+    registry.isEnabled.mockReturnValue(false);
+
+    render(<DiscoverPage />);
+
+    expect(screen.getByText(/1 are GA and 0 are public beta/i)).toBeInTheDocument();
+    expect(screen.getByText('GA')).toBeInTheDocument();
+    expect(
+      screen.getByText('Included in the production launch promise.'),
+    ).toBeInTheDocument();
   });
 });

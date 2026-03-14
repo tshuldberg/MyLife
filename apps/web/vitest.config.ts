@@ -22,14 +22,6 @@ export default defineConfig({
     exclude: [
       ...configDefaults.exclude,
       'e2e/**',
-      // Books page tests import from @mybooks-web/* passthrough paths that
-      // Vitest can't resolve (tsconfig paths only work at Next.js build time).
-      // Passthrough correctness is validated by test/parity/ suite instead.
-      'app/books/__tests__/book-detail-page.test.tsx',
-      'app/books/__tests__/import-page.test.tsx',
-      'app/books/__tests__/library-page.test.tsx',
-      'app/books/__tests__/search-page.test.tsx',
-      'app/books/__tests__/stats-page.test.tsx',
     ],
     coverage: {
       provider: 'v8',

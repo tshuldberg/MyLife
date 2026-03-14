@@ -30,6 +30,27 @@ export type ProductId =
 export type StorageTier = 'free' | 'starter' | 'power';
 
 // ---------------------------------------------------------------------------
+// Runtime plan modes and signed entitlement payloads
+// ---------------------------------------------------------------------------
+
+export type PlanMode = 'hosted' | 'self_host' | 'local_only';
+
+export interface UnsignedEntitlements {
+  appId: string;
+  mode: PlanMode;
+  hostedActive: boolean;
+  selfHostLicense: boolean;
+  updatePackYear?: number;
+  features: string[];
+  issuedAt: string;
+  expiresAt?: string;
+}
+
+export interface Entitlements extends UnsignedEntitlements {
+  signature: string;
+}
+
+// ---------------------------------------------------------------------------
 // Purchase record (from RevenueCat / payment provider)
 // ---------------------------------------------------------------------------
 

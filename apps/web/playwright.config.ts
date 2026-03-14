@@ -33,7 +33,7 @@ export default defineConfig({
       MYLIFE_ENTITLEMENT_SECRET: 'mylife-e2e-entitlement-secret',
       MYLIFE_ENTITLEMENT_ISSUER_KEY: 'mylife-e2e-issuer-key',
       MYLIFE_ENTITLEMENT_SYNC_KEY: 'mylife-e2e-sync-key',
-      MYLIFE_BILLING_WEBHOOK_KEY: 'mylife-e2e-webhook-key',
+      STRIPE_WEBHOOK_SECRET: 'mylife-e2e-webhook-secret',
       MYLIFE_HOSTED_API_URL: `http://127.0.0.1:${PORT}`,
     },
   },

@@ -1,4 +1,4 @@
-import type { ModuleId } from '@mylife/module-registry';
+import { FREE_MODULES, type ModuleId } from '@mylife/module-registry';
 import type { Purchase, ProductId } from '@mylife/entitlements';
 import { PRODUCTS } from '@mylife/billing-config';
 import type { PurchaseResult, RevenueCatSDK, Unsubscribe } from './types';
@@ -8,6 +8,7 @@ import type { PurchaseResult, RevenueCatSDK, Unsubscribe } from './types';
 // ---------------------------------------------------------------------------
 
 let sdk: RevenueCatSDK | null = null;
+const FREE_MODULE_ID_SET = new Set<ModuleId>(FREE_MODULES);
 
 /** Configure the RevenueCat SDK. Must be called once at app startup. */
 export function initRevenueCat(revenueCatSdk: RevenueCatSDK, apiKey: string): void {
@@ -44,10 +45,14 @@ export async function purchaseHubUnlock(): Promise<PurchaseResult> {
 
 /** Purchase a $4.99 standalone module unlock. */
 export async function purchaseStandaloneModule(moduleId: ModuleId): Promise<PurchaseResult> {
-  if (moduleId === 'fast') {
-    return { success: false, purchase: null, error: 'MyFast is free and does not require purchase.' };
+  if (FREE_MODULE_ID_SET.has(moduleId)) {
+    return {
+      success: false,
+      purchase: null,
+      error: `${moduleId} is free and does not require purchase.`,
+    };
   }
-  const config = PRODUCTS.standaloneModules[moduleId as Exclude<ModuleId, 'fast'>];
+  const config = PRODUCTS.standaloneModules[moduleId as keyof typeof PRODUCTS.standaloneModules];
   if (!config) {
     return { success: false, purchase: null, error: `Unknown module: ${moduleId}` };
   }
@@ -77,7 +82,8 @@ export async function restorePurchases(): Promise<Purchase[]> {
 
 /** Get all currently active purchases from RevenueCat. */
 export async function getActivePurchases(): Promise<Purchase[]> {
-  const info = await getSDK().getCustomerInfo();
+  if (!sdk) return [];
+  const info = await sdk.getCustomerInfo();
   return info.activeProducts.map((p) => ({
     productId: p.productId,
     purchaseDate: p.purchaseDate,
@@ -93,7 +99,8 @@ export async function hasPurchased(productId: ProductId): Promise<boolean> {
 
 /** Listen for purchase state changes from RevenueCat. */
 export function onPurchaseUpdated(callback: (purchases: Purchase[]) => void): Unsubscribe {
-  return getSDK().addPurchaseListener((info) => {
+  if (!sdk) return () => {};
+  return sdk.addPurchaseListener((info) => {
     const purchases: Purchase[] = info.activeProducts.map((p) => ({
       productId: p.productId,
       purchaseDate: p.purchaseDate,

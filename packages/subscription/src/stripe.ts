@@ -1,5 +1,4 @@
 import type { ProductId, Purchase } from '@mylife/entitlements';
-import { PRODUCTS } from '@mylife/billing-config';
 import type { PurchaseResult, StripeSDK, Unsubscribe } from './types';
 
 // ---------------------------------------------------------------------------
@@ -7,15 +6,17 @@ import type { PurchaseResult, StripeSDK, Unsubscribe } from './types';
 // ---------------------------------------------------------------------------
 
 let sdk: StripeSDK | null = null;
+let webhookSecret: string | null = null;
 let successUrl = '/purchase/success';
 let cancelUrl = '/purchase/cancel';
 
 /** Initialize the Stripe SDK wrapper. */
 export function initStripe(
   stripeSdk: StripeSDK,
-  options?: { successUrl?: string; cancelUrl?: string },
+  options?: { successUrl?: string; cancelUrl?: string; webhookSecret?: string },
 ): void {
   sdk = stripeSdk;
+  webhookSecret = options?.webhookSecret ?? null;
   if (options?.successUrl) successUrl = options.successUrl;
   if (options?.cancelUrl) cancelUrl = options.cancelUrl;
 }
@@ -82,17 +83,23 @@ export interface WebhookEvent {
 }
 
 /**
- * Handle a Stripe webhook payload.
- * Returns a list of purchase records derived from the event.
- * In production, this would verify the signature and parse the event.
+ * Handle a Stripe webhook payload with signature verification.
+ * Verifies the HMAC signature using the webhook secret before parsing.
+ * Throws if the signature is invalid or webhook secret is not configured.
  */
 export async function handleStripeWebhook(
   payload: string,
-  _signature: string,
+  signature: string,
 ): Promise<Purchase[]> {
-  // Parse the webhook payload. In production this would verify with Stripe's
-  // webhook secret. Here we provide the interface contract.
-  const event: WebhookEvent = JSON.parse(payload);
+  const stripeSDK = getSDK();
+
+  if (!webhookSecret) {
+    throw new Error('Webhook secret not configured. Pass webhookSecret to initStripe().');
+  }
+
+  // Verify signature and parse the event. This throws on invalid signatures.
+  const raw = stripeSDK.constructWebhookEvent(payload, signature, webhookSecret);
+  const event = raw as WebhookEvent;
 
   const purchase: Purchase = {
     productId: event.productId,

@@ -1,6 +1,14 @@
 'use client';
 
 import {
+  getModuleReleaseDescription,
+  getModuleReleaseLabel,
+  getModuleReleaseState,
+  isGeneralAvailabilityModule,
+  isPublicBetaModule,
+  isUserVisibleModule,
+  PUBLIC_BETA_MODULE_IDS,
+  GA_MODULE_IDS,
   useModuleRegistry,
   useEnabledModules,
   type ModuleId,
@@ -14,7 +22,11 @@ export default function DiscoverPage() {
   // Subscribe to registry changes for re-rendering
   useEnabledModules();
 
-  const allModules = WEB_SUPPORTED_MODULE_IDS.map((id) => MODULE_METADATA[id]);
+  const allModules = WEB_SUPPORTED_MODULE_IDS
+    .filter((id) => isUserVisibleModule(id))
+    .map((id) => MODULE_METADATA[id]);
+  const gaCount = allModules.filter((mod) => isGeneralAvailabilityModule(mod.id)).length;
+  const betaCount = allModules.filter((mod) => isPublicBetaModule(mod.id)).length;
 
   const handleToggle = async (id: ModuleId) => {
     if (registry.isEnabled(id)) {
@@ -30,12 +42,22 @@ export default function DiscoverPage() {
     <div>
       <div style={styles.header}>
         <h1 style={styles.title}>Discover</h1>
-        <p style={styles.subtitle}>Browse all {allModules.length} modules</p>
+        <p style={styles.subtitle}>
+          Browse {allModules.length} web-supported modules. {gaCount} are GA and {betaCount} are public beta.
+        </p>
+      </div>
+
+      <div style={styles.banner}>
+        MyLife Pro guarantees the {GA_MODULE_IDS.length}-module GA launch bundle. The remaining
+        {PUBLIC_BETA_MODULE_IDS.length} launch modules are available as public beta and labeled here.
       </div>
 
       <div style={styles.grid}>
         {allModules.map((mod) => {
           const isEnabled = registry.isEnabled(mod.id);
+          const releaseState = getModuleReleaseState(mod.id);
+          const releaseLabel = getModuleReleaseLabel(mod.id);
+          const releaseDescription = getModuleReleaseDescription(mod.id);
           return (
             <div key={mod.id} style={styles.card}>
               <div
@@ -48,8 +70,21 @@ export default function DiscoverPage() {
                 <div style={styles.cardHeader}>
                   <span style={styles.icon}>{mod.icon}</span>
                   <div style={{ flex: 1 }}>
-                    <h3 style={styles.name}>{mod.name}</h3>
+                    <div style={styles.nameRow}>
+                      <h3 style={styles.name}>{mod.name}</h3>
+                      <span
+                        style={{
+                          ...styles.releaseBadge,
+                          ...(releaseState === 'ga'
+                            ? styles.releaseBadgeGa
+                            : styles.releaseBadgeBeta),
+                        }}
+                      >
+                        {releaseLabel}
+                      </span>
+                    </div>
                     <p style={styles.tagline}>{mod.tagline}</p>
+                    <p style={styles.releaseDescription}>{releaseDescription}</p>
                   </div>
                   <button
                     onClick={() => void handleToggle(mod.id)}
@@ -114,6 +149,16 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-secondary)',
     marginTop: '4px',
   },
+  banner: {
+    marginBottom: '20px',
+    padding: '14px 16px',
+    borderRadius: 'var(--radius-lg)',
+    border: '1px solid var(--border)',
+    backgroundColor: 'var(--glass)',
+    color: 'var(--text-secondary)',
+    fontSize: '13px',
+    lineHeight: 1.5,
+  },
   grid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
@@ -143,6 +188,12 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: 'center',
     gap: '12px',
   },
+  nameRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    flexWrap: 'wrap' as const,
+  },
   icon: {
     fontSize: '28px',
     flexShrink: 0,
@@ -158,6 +209,26 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--text-secondary)',
     margin: 0,
     marginTop: '2px',
+  },
+  releaseBadge: {
+    fontSize: '11px',
+    fontWeight: 700,
+    letterSpacing: '0.4px',
+    padding: '3px 8px',
+    borderRadius: '999px',
+  },
+  releaseBadgeGa: {
+    color: 'var(--success)',
+    backgroundColor: 'rgba(48, 209, 88, 0.12)',
+  },
+  releaseBadgeBeta: {
+    color: 'var(--text-secondary)',
+    backgroundColor: 'rgba(240, 240, 245, 0.08)',
+  },
+  releaseDescription: {
+    fontSize: '12px',
+    color: 'var(--text-tertiary)',
+    margin: '6px 0 0 0',
   },
   toggleButton: {
     padding: '6px 16px',

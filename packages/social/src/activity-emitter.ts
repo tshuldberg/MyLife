@@ -97,15 +97,15 @@ export async function emitActivity(input: EmitActivityInput): Promise<EmitResult
     (s) => s.moduleId === input.moduleId,
   );
 
-  // If there's a module setting and autoPost is off, skip
-  if (moduleSetting && !moduleSetting.autoPost) {
+  // Auto-posting is explicit opt-in. No module setting means disabled.
+  if (!moduleSetting?.autoPost) {
     return { emitted: false, reason: 'auto_post_disabled' };
   }
 
   // Determine visibility (input override > module default > 'followers')
   const visibility: Visibility =
     input.visibility ??
-    moduleSetting?.defaultVisibility ??
+    moduleSetting.defaultVisibility ??
     'followers';
 
   const activityInput: CreateActivityInput = {
@@ -240,6 +240,86 @@ export function emitMedsStreak(title: string, metadata: {
   return emitActivity({
     moduleId: 'meds',
     type: 'meds_adherence_streak',
+    title,
+    metadata,
+  });
+}
+
+/** Emit a forum thread creation activity. */
+export function emitForumThreadCreated(title: string, metadata: {
+  communityName: string;
+  threadTitle: string;
+}) {
+  return emitActivity({
+    moduleId: 'forums',
+    type: 'forums_thread_created',
+    title,
+    metadata,
+  });
+}
+
+/** Emit a forum reply activity. */
+export function emitForumReplyPosted(title: string, metadata: {
+  communityName: string;
+  threadTitle: string;
+  replyPreview: string;
+}) {
+  return emitActivity({
+    moduleId: 'forums',
+    type: 'forums_reply_posted',
+    title,
+    metadata,
+  });
+}
+
+/** Emit a forum community creation activity. */
+export function emitForumCommunityCreated(title: string, metadata: {
+  communityName: string;
+  description?: string;
+}) {
+  return emitActivity({
+    moduleId: 'forums',
+    type: 'forums_community_created',
+    title,
+    metadata,
+  });
+}
+
+/** Emit a forum karma milestone activity. */
+export function emitForumKarmaMilestone(title: string, metadata: {
+  karma: number;
+  communitiesJoined: number;
+}) {
+  return emitActivity({
+    moduleId: 'forums',
+    type: 'forums_karma_milestone',
+    title,
+    metadata,
+  });
+}
+
+/** Emit a marketplace listing creation activity. */
+export function emitMarketListingCreated(title: string, metadata: {
+  listingTitle: string;
+  category?: string;
+  priceCents?: number;
+}) {
+  return emitActivity({
+    moduleId: 'market',
+    type: 'market_listing_created',
+    title,
+    metadata,
+  });
+}
+
+/** Emit a marketplace sale completion activity. */
+export function emitMarketListingSold(title: string, metadata: {
+  listingTitle: string;
+  priceCents?: number;
+}) {
+  return emitActivity({
+    moduleId: 'market',
+    type: 'market_listing_sold',
     title,
     metadata,
   });

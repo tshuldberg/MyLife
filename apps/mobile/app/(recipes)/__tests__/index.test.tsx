@@ -7,6 +7,7 @@ const mockDb = { id: 'mock-db' };
 const countRecipesMock = vi.fn();
 const getRecipesMock = vi.fn();
 const getMealPlanWeekMock = vi.fn();
+const getShoppingListsMock = vi.fn();
 
 vi.mock('expo-router', () => ({
   useRouter: () => ({
@@ -20,6 +21,7 @@ vi.mock('@mylife/recipes', () => ({
   countRecipes: (...args: unknown[]) => countRecipesMock(...args),
   getRecipes: (...args: unknown[]) => getRecipesMock(...args),
   getMealPlanWeek: (...args: unknown[]) => getMealPlanWeekMock(...args),
+  getShoppingLists: (...args: unknown[]) => getShoppingListsMock(...args),
 }));
 
 vi.mock('../../../components/DatabaseProvider', () => ({
@@ -42,6 +44,7 @@ describe('RecipesHomeScreen (mobile)', () => {
       },
     ]);
     getMealPlanWeekMock.mockReturnValue([]);
+    getShoppingListsMock.mockReturnValue([]);
   });
 
   it('loads recipe count and recent recipes', async () => {
@@ -53,5 +56,6 @@ describe('RecipesHomeScreen (mobile)', () => {
 
     expect(getRecipesMock).toHaveBeenCalledWith(mockDb, { limit: 5 });
     expect(getMealPlanWeekMock).toHaveBeenCalled();
+    expect(getShoppingListsMock).toHaveBeenCalledWith(mockDb, true);
   });
 });

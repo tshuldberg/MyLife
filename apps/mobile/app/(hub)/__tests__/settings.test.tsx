@@ -25,6 +25,29 @@ vi.mock('../../../lib/entitlements', () => ({
     refreshEntitlementFromServerMock(...args),
 }));
 
+vi.mock('@mylife/module-registry', () => ({
+  GA_MODULE_IDS: ['books', 'budget', 'fast', 'habits', 'health', 'meds', 'recipes', 'rsvp', 'words'],
+  PUBLIC_BETA_MODULE_IDS: [
+    'car',
+    'closet',
+    'cycle',
+    'flash',
+    'garden',
+    'homes',
+    'journal',
+    'mail',
+    'mood',
+    'notes',
+    'nutrition',
+    'pets',
+    'stars',
+    'surf',
+    'trails',
+    'voice',
+    'workouts',
+  ],
+}));
+
 describe('Hub SettingsScreen (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -66,5 +89,14 @@ describe('Hub SettingsScreen (mobile)', () => {
         screen.getByText('Refresh failed: network_unreachable'),
       ).toBeInTheDocument();
     });
+  });
+
+  it('describes the GA launch promise instead of claiming all modules', () => {
+    render(<SettingsScreen />);
+
+    expect(
+      screen.getByText(/guarantees 9 production-ready modules/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/17 more in public beta/i)).toBeInTheDocument();
   });
 });

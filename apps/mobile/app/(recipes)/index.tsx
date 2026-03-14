@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
   countRecipes,
   getRecipes,
   getMealPlanWeek,
+  getShoppingLists,
   type Recipe,
   type MealPlanItem,
+  type ShoppingList,
 } from '@mylife/recipes';
 import { Card, Text, colors, spacing } from '@mylife/ui';
 import { useDatabase } from '../../components/DatabaseProvider';
@@ -31,6 +33,7 @@ export default function RecipesHomeScreen() {
   const [todayMeals, setTodayMeals] = useState<
     Array<MealPlanItem & { recipe_title: string; recipe_image_uri: string | null }>
   >([]);
+  const [activeList, setActiveList] = useState<ShoppingList | null>(null);
 
   const load = useCallback(() => {
     setTotalRecipes(countRecipes(db));
@@ -41,6 +44,9 @@ export default function RecipesHomeScreen() {
     const weekItems = getMealPlanWeek(db, weekStart);
     const todayDow = (new Date().getDay() + 6) % 7;
     setTodayMeals(weekItems.filter((item) => item.day_of_week === todayDow));
+
+    const activeLists = getShoppingLists(db, true);
+    setActiveList(activeLists.length > 0 ? activeLists[0] : null);
   }, [db]);
 
   useEffect(() => {
@@ -71,6 +77,33 @@ export default function RecipesHomeScreen() {
           Track staples, see what is expiring, and subtract pantry stock from shopping lists.
         </Text>
       </Card>
+
+      {activeList ? (
+        <Pressable onPress={() => router.push({ pathname: '/(recipes)/shopping-list', params: { listId: activeList.id } })}>
+          <Card>
+            <View style={styles.rowBetween}>
+              <Text variant="subheading">Active Shopping List</Text>
+              <Text variant="caption" color={ACCENT}>Open</Text>
+            </View>
+            <Text variant="caption" color={colors.textSecondary}>{activeList.name}</Text>
+          </Card>
+        </Pressable>
+      ) : (
+        <View style={styles.rowBetween}>
+          <Pressable
+            style={styles.toolButton}
+            onPress={() => router.push('/(recipes)/shopping-list')}
+          >
+            <Text variant="label" color={ACCENT}>New Shopping List</Text>
+          </Pressable>
+          <Pressable
+            style={styles.toolButton}
+            onPress={() => router.push('/(recipes)/shopping-lists')}
+          >
+            <Text variant="label" color={ACCENT}>Past Lists</Text>
+          </Pressable>
+        </View>
+      )}
 
       {todayMeals.length > 0 ? (
         <Card>
@@ -230,5 +263,12 @@ const styles = StyleSheet.create({
   },
   linkButton: {
     marginTop: spacing.xs,
+  },
+  toolButton: {
+    borderWidth: 1,
+    borderColor: ACCENT,
+    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
 });

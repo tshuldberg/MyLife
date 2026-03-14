@@ -575,3 +575,78 @@ export type CreateNutritionData = z.infer<typeof CreateNutritionDataSchema>;
 
 export const UpdateNutritionDataSchema = CreateNutritionDataSchema.partial();
 export type UpdateNutritionData = z.infer<typeof UpdateNutritionDataSchema>;
+
+// --- Import ---
+
+export type ImportSource =
+  | 'url'
+  | 'text'
+  | 'photo'
+  | 'instagram'
+  | 'tiktok'
+  | 'youtube'
+  | 'share'
+  | 'clipboard';
+
+export interface ImportResult {
+  source: ImportSource;
+  parsed: ParsedRecipe | null;
+  metadata?: {
+    sourceUrl?: string;
+    author?: string;
+    thumbnailUrl?: string;
+    platform?: string;
+  };
+  error?: string;
+}
+
+// --- Shopping Lists ---
+
+export interface ShoppingList {
+  id: string;
+  name: string;
+  is_active: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShoppingListItemRow {
+  id: string;
+  list_id: string;
+  item: string;
+  quantity: number | null;
+  unit: string | null;
+  grocery_section: GrocerySection;
+  recipe_id: string | null;
+  recipe_multiplier: number;
+  is_checked: number;
+  is_custom: number;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateShoppingListItem {
+  item: string;
+  quantity?: number | null;
+  unit?: string | null;
+  grocery_section?: GrocerySection;
+  recipe_id?: string | null;
+  recipe_multiplier?: number;
+  is_custom?: number;
+  sort_order?: number;
+}
+
+export interface ShoppingListSummary {
+  list: ShoppingList;
+  totalItems: number;
+  checkedItems: number;
+  recipeCount: number;
+  customItemCount: number;
+}
+
+export interface RecipeForShoppingList {
+  recipeId: string;
+  title: string;
+  multiplier: number;
+}

@@ -1,34 +1,179 @@
 'use client';
 
+import { useState } from 'react';
+import { useAuth } from '@mylife/auth';
+import {
+  getSocialClient,
+  useChallengeProgress,
+  useChallenges,
+  useMyProfile,
+} from '@mylife/social';
+import type { Challenge as PackageChallenge } from '@mylife/social';
 import { ChallengeCard } from '@/components/social/ChallengeCard';
-import type { Challenge } from '@/components/social/types';
+import { SocialProfileSetupCard } from '@/components/social/SocialProfileSetupCard';
+import { SocialStateCard } from '@/components/social/SocialStateCard';
+import { toChallengeItem } from '@/components/social/types';
 
-// TODO: Replace with useChallenges() from @mylife/social
-function useChallenges(): { challenges: Challenge[]; loading: boolean } {
-  return { challenges: MOCK_CHALLENGES, loading: false };
+function getInitialDisplayName(
+  email: string | undefined,
+  metadataDisplayName: unknown,
+): string {
+  if (typeof metadataDisplayName === 'string' && metadataDisplayName.trim().length > 0) {
+    return metadataDisplayName.trim();
+  }
+
+  if (!email) return '';
+  return email.split('@')[0] ?? '';
+}
+
+function ChallengeListItem({
+  challenge,
+  onChanged,
+}: {
+  challenge: PackageChallenge;
+  onChanged: () => void;
+}) {
+  const membership = useChallengeProgress(challenge.id);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const challengeItem = toChallengeItem(challenge, membership.data);
+
+  async function toggleMembership() {
+    const client = getSocialClient();
+    if (!client) {
+      setActionError('Social client not initialized.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    const result = membership.data
+      ? await client.leaveChallenge(challenge.id)
+      : await client.joinChallenge(challenge.id);
+    setIsSubmitting(false);
+
+    if (!result.ok) {
+      setActionError(result.error);
+      return;
+    }
+
+    setActionError(null);
+    onChanged();
+    void membership.refetch();
+  }
+
+  return (
+    <div style={styles.challengeStack}>
+      <ChallengeCard
+        challenge={challengeItem}
+        onJoin={() => {
+          void toggleMembership();
+        }}
+      />
+
+      {membership.data ? (
+        <button
+          type="button"
+          style={styles.secondaryButton}
+          disabled={isSubmitting}
+          onClick={() => {
+            void toggleMembership();
+          }}
+        >
+          {isSubmitting ? 'Updating...' : 'Leave challenge'}
+        </button>
+      ) : null}
+
+      {actionError ? <p style={styles.errorText}>{actionError}</p> : null}
+    </div>
+  );
 }
 
 export default function ChallengesPage() {
-  const { challenges, loading } = useChallenges();
+  const auth = useAuth();
+  const myProfile = useMyProfile();
+  const challenges = useChallenges({ limit: 20 });
 
-  if (loading) {
+  if (auth.isLoading || myProfile.isLoading) {
     return <p style={styles.loadingText}>Loading challenges...</p>;
+  }
+
+  if (myProfile.error === 'Social client not initialized') {
+    return (
+      <SocialStateCard
+        title="Social is not configured"
+        description="Challenges require a configured social backend."
+      />
+    );
+  }
+
+  if (myProfile.error === 'Not authenticated' || !auth.isAuthenticated) {
+    return (
+      <SocialStateCard
+        title="Sign in to join challenges"
+        description="Challenge memberships are tied to your MyLife account."
+        actionHref="/settings/data-sync"
+        actionLabel="Open data sync"
+      />
+    );
+  }
+
+  if (myProfile.error && myProfile.error !== 'Not authenticated') {
+    return (
+      <SocialStateCard
+        title="Unable to load your social profile"
+        description={myProfile.error}
+      />
+    );
+  }
+
+  if (!myProfile.data) {
+    return (
+      <SocialProfileSetupCard
+        initialDisplayName={getInitialDisplayName(
+          auth.user?.email,
+          auth.user?.user_metadata?.display_name,
+        )}
+        onCreated={() => {
+          void myProfile.refetch();
+        }}
+      />
+    );
+  }
+
+  if (challenges.isLoading) {
+    return <p style={styles.loadingText}>Loading challenges...</p>;
+  }
+
+  if (challenges.error) {
+    return (
+      <SocialStateCard
+        title="Unable to load challenges"
+        description={challenges.error}
+      />
+    );
   }
 
   return (
     <div style={styles.container}>
-      {challenges.length === 0 ? (
+      {challenges.data?.length ? (
+        <div style={styles.grid}>
+          {challenges.data.map((challenge) => (
+            <ChallengeListItem
+              key={challenge.id}
+              challenge={challenge}
+              onChanged={() => {
+                void challenges.refetch();
+              }}
+            />
+          ))}
+        </div>
+      ) : (
         <div style={styles.empty}>
           <p style={styles.emptyTitle}>No active challenges</p>
           <p style={styles.emptyText}>
-            Challenges will appear here once they are created by the community.
+            Challenges will appear here as your community creates them.
           </p>
-        </div>
-      ) : (
-        <div style={styles.grid}>
-          {challenges.map((challenge) => (
-            <ChallengeCard key={challenge.id} challenge={challenge} />
-          ))}
         </div>
       )}
     </div>
@@ -37,7 +182,7 @@ export default function ChallengesPage() {
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    maxWidth: '800px',
+    maxWidth: '840px',
   },
   loadingText: {
     fontSize: '14px',
@@ -47,6 +192,28 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
     gap: '16px',
+  },
+  challengeStack: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+  },
+  secondaryButton: {
+    alignSelf: 'flex-end',
+    padding: '6px 12px',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border)',
+    backgroundColor: 'transparent',
+    color: 'var(--text-secondary)',
+    fontSize: '13px',
+    fontWeight: 600,
+    cursor: 'pointer',
+    font: 'inherit',
+  },
+  errorText: {
+    margin: 0,
+    fontSize: '13px',
+    color: 'var(--danger)',
   },
   empty: {
     textAlign: 'center',
@@ -67,47 +234,3 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: '8px',
   },
 };
-
-const MOCK_CHALLENGES: Challenge[] = [
-  {
-    id: 'ch1',
-    title: '30 Books in 2026',
-    description:
-      'Read 30 books this year. Log each one in MyBooks as you finish.',
-    moduleId: 'books',
-    moduleIcon: '\u{1F4DA}',
-    moduleAccentColor: '#C9894D',
-    participantCount: 24,
-    startDate: '2026-01-01',
-    endDate: '2026-12-31',
-    isJoined: true,
-    progress: 18,
-  },
-  {
-    id: 'ch2',
-    title: 'Workout Streak: March',
-    description:
-      'Complete at least one workout every day in March. Any workout type counts.',
-    moduleId: 'workouts',
-    moduleIcon: '\u{1F3CB}\uFE0F',
-    moduleAccentColor: '#EF4444',
-    participantCount: 56,
-    startDate: '2026-03-01',
-    endDate: '2026-03-31',
-    isJoined: false,
-  },
-  {
-    id: 'ch3',
-    title: 'Mindful Month',
-    description:
-      'Build a daily meditation habit for 30 consecutive days using MyHabits.',
-    moduleId: 'habits',
-    moduleIcon: '\u{1F9D8}',
-    moduleAccentColor: '#8B5CF6',
-    participantCount: 31,
-    startDate: '2026-03-01',
-    endDate: '2026-03-31',
-    isJoined: true,
-    progress: 42,
-  },
-];

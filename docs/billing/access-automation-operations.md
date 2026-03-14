@@ -38,8 +38,8 @@ This runbook covers:
   - Signed URL TTL; bounded in code to 60..2,592,000 seconds.
 
 ### Billing + revocation integration
-- `MYLIFE_BILLING_WEBHOOK_KEY` (optional but recommended)
-  - Shared secret for billing webhooks.
+- `STRIPE_WEBHOOK_SECRET`
+  - Stripe-style webhook signing secret used to verify the raw request body via the `Stripe-Signature` header.
 - `MYLIFE_ENTITLEMENT_SECRET`
   - Entitlement signing secret.
 - `MYLIFE_ENTITLEMENT_REVOKE_KEY` (optional)
@@ -49,6 +49,9 @@ This runbook covers:
 
 ### Billing webhook (source of truth)
 - `POST /api/webhooks/billing`
+- Authentication:
+  - Signed raw body verified against `STRIPE_WEBHOOK_SECRET`
+  - Header must be `Stripe-Signature: t=<unix>,v1=<hmac>`
 - Expected fields include:
   - `eventId`, `eventType`, `sku`, `appId`
   - Optional automation fields:

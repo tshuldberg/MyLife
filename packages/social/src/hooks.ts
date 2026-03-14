@@ -10,6 +10,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { SocialClient } from './client';
 import type {
   SocialProfile,
+  FriendLink,
+  Friendship,
   Activity,
   Follow,
   Challenge,
@@ -129,6 +131,39 @@ export function useProfileSearch(query: string) {
   );
 }
 
+/** Resolve multiple profiles in one request. */
+export function useProfilesByIds(profileIds: string[]) {
+  const profileKey = [...new Set(profileIds)].sort().join('|');
+
+  return useAsyncSocial<SocialProfile[]>(
+    (client) => client.getProfilesByIds(profileIds),
+    [profileKey],
+  );
+}
+
+// ── Secure Friend Links ──────────────────────────────────────────────
+
+/** Get friend links created or redeemed by the current user. */
+export function useMyFriendLinks() {
+  return useAsyncSocial<FriendLink[]>(
+    (client) => client.getMyFriendLinks(),
+  );
+}
+
+/** Get the current user's confirmed friendships. */
+export function useMyFriendships() {
+  return useAsyncSocial<Friendship[]>(
+    (client) => client.getMyFriendships(),
+  );
+}
+
+/** Resolve the current user's friends as social profiles. */
+export function useMyFriends() {
+  return useAsyncSocial<SocialProfile[]>(
+    (client) => client.getMyFriends(),
+  );
+}
+
 // ── Follow Hooks ──────────────────────────────────────────────────────
 
 /** Get followers of a profile. */
@@ -179,6 +214,16 @@ export function useKudos(activityId: string) {
   return useAsyncSocial<Kudos[]>(
     (client) => client.getActivityKudos(activityId),
     [activityId],
+  );
+}
+
+/** Resolve which activities the current user has already reacted to. */
+export function useMyKudosForActivities(activityIds: string[]) {
+  const activityKey = [...new Set(activityIds)].sort().join('|');
+
+  return useAsyncSocial<Record<string, boolean>>(
+    (client) => client.getMyKudosForActivities(activityIds),
+    [activityKey],
   );
 }
 

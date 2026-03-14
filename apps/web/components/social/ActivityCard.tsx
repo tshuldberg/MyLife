@@ -6,7 +6,7 @@ import { KudosButton } from './KudosButton';
 
 interface ActivityCardProps {
   activity: ActivityItem;
-  onKudos?: (activityId: string) => void;
+  onKudos?: (activityId: string, nextActive: boolean) => void;
 }
 
 export function ActivityCard({ activity, onKudos }: ActivityCardProps) {
@@ -14,9 +14,12 @@ export function ActivityCard({ activity, onKudos }: ActivityCardProps) {
   const [kudosCount, setKudosCount] = useState(activity.kudosCount);
 
   function handleKudos() {
+    if (!onKudos) return;
+
+    const nextActive = !kudosed;
     setKudosed(!kudosed);
     setKudosCount((c) => (kudosed ? c - 1 : c + 1));
-    onKudos?.(activity.id);
+    onKudos(activity.id, nextActive);
   }
 
   return (

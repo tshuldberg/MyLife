@@ -2,6 +2,7 @@
 
 // Module definition
 export { BUDGET_MODULE } from './definition';
+export type { BudgetExportBundle, BudgetResetResult } from './portability';
 
 // Types & schemas
 export {
@@ -129,6 +130,7 @@ export type {
 // Database operations
 export {
   ALL_TABLES,
+  BUDGET_TABLE_NAMES,
   CREATE_ENVELOPES,
   CREATE_ACCOUNTS,
   CREATE_TRANSACTIONS,
@@ -294,6 +296,13 @@ export {
   getExchangeRates,
   deleteExchangeRate,
 } from './db';
+
+export {
+  buildBudgetExportBundle,
+  serializeBudgetExportJson,
+  exportBudgetTransactionsCsv,
+  resetBudgetData,
+} from './portability';
 
 export type {
   TransactionWithSplits,

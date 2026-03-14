@@ -10,6 +10,8 @@ import {
   SEED_SETTINGS,
   V4_TABLES,
   V4_INDEXES,
+  V5_TABLES,
+  V5_INDEXES,
 } from './db/schema';
 
 const RECIPES_MIGRATION_V1: Migration = {
@@ -79,6 +81,16 @@ const RECIPES_MIGRATION_V4: Migration = {
   ],
 };
 
+const RECIPES_MIGRATION_V5: Migration = {
+  version: 5,
+  description: 'Custom shopping lists with recipe integration',
+  up: [...V5_TABLES, ...V5_INDEXES],
+  down: [
+    'DROP TABLE IF EXISTS rc_shopping_list_items',
+    'DROP TABLE IF EXISTS rc_shopping_lists',
+  ],
+};
+
 export const RECIPES_MODULE: ModuleDefinition = {
   id: 'recipes',
   name: 'MyGarden',
@@ -87,8 +99,8 @@ export const RECIPES_MODULE: ModuleDefinition = {
   accentColor: '#22C55E',
   tier: 'premium',
   storageType: 'sqlite',
-  migrations: [RECIPES_MIGRATION_V1, RECIPES_MIGRATION_V2, RECIPES_MIGRATION_V3, RECIPES_MIGRATION_V4],
-  schemaVersion: 4,
+  migrations: [RECIPES_MIGRATION_V1, RECIPES_MIGRATION_V2, RECIPES_MIGRATION_V3, RECIPES_MIGRATION_V4, RECIPES_MIGRATION_V5],
+  schemaVersion: 5,
   tablePrefix: 'rc_',
   navigation: {
     tabs: [

@@ -45,19 +45,20 @@ export function ProfileCard({
 
       <div style={styles.info}>
         <span style={styles.name}>{profile.displayName}</span>
+        <span style={styles.handle}>@{profile.handle}</span>
         {!compact && profile.bio && (
           <span style={styles.bio}>{profile.bio}</span>
         )}
         {!compact && (
           <div style={styles.stats}>
             <span style={styles.stat}>
-              <strong>{profile.modulesUsed}</strong> modules
+              <strong>{profile.enabledModuleCount}</strong> modules
             </span>
             <span style={styles.stat}>
-              <strong>{profile.kudosReceived}</strong> kudos
+              <strong>{profile.followerCount}</strong> followers
             </span>
             <span style={styles.stat}>
-              <strong>{profile.challengesCompleted}</strong> challenges
+              <strong>{profile.followingCount}</strong> following
             </span>
           </div>
         )}
@@ -123,6 +124,10 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     fontWeight: 600,
     color: 'var(--text)',
+  },
+  handle: {
+    fontSize: '12px',
+    color: 'var(--accent-social)',
   },
   bio: {
     fontSize: '13px',

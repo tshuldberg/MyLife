@@ -567,6 +567,38 @@ export const ALL_TABLES = [
   ...V4_ALL_TABLES,
 ];
 
+export const BUDGET_TABLE_NAMES = [
+  'bg_envelopes',
+  'bg_accounts',
+  'bg_transactions',
+  'bg_goals',
+  'bg_settings',
+  'bg_bank_connections',
+  'bg_bank_accounts',
+  'bg_bank_transactions_raw',
+  'bg_bank_sync_state',
+  'bg_bank_webhook_events',
+  'bg_subscriptions',
+  'bg_category_groups',
+  'bg_budget_allocations',
+  'bg_transaction_splits',
+  'bg_recurring_templates',
+  'bg_payee_cache',
+  'bg_csv_profiles',
+  'bg_price_history',
+  'bg_notification_log',
+  'bg_transaction_rules',
+  'bg_net_worth_snapshots',
+  'bg_debt_payoff_plans',
+  'bg_debt_payoff_debts',
+  'bg_budget_rollovers',
+  'bg_budget_alerts',
+  'bg_alert_history',
+  'bg_currencies',
+  'bg_exchange_rates',
+  'bg_shared_envelopes',
+] as const;
+
 /** Seed SQL for default settings. */
 export const SEED_SETTINGS = [
   `INSERT OR IGNORE INTO bg_settings (key, value) VALUES ('currency', 'USD')`,

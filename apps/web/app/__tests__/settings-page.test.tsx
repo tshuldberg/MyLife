@@ -15,6 +15,27 @@ const registry = {
 
 vi.mock('@mylife/module-registry', () => ({
   useModuleRegistry: () => registry,
+  GA_MODULE_IDS: ['books', 'budget', 'fast', 'habits', 'health', 'meds', 'recipes', 'rsvp', 'words'],
+  PUBLIC_BETA_MODULE_IDS: [
+    'car',
+    'closet',
+    'cycle',
+    'flash',
+    'garden',
+    'homes',
+    'journal',
+    'mail',
+    'mood',
+    'notes',
+    'nutrition',
+    'pets',
+    'stars',
+    'surf',
+    'trails',
+    'voice',
+    'workouts',
+  ],
+  isGeneralAvailabilityModule: (id: string) => ['books', 'budget'].includes(id),
 }));
 
 vi.mock('../actions', () => ({
@@ -134,6 +155,25 @@ describe('SettingsPage', () => {
       screen.getByText(
         'Sync request failed. Check network connectivity and endpoint availability.',
       ),
+    ).toBeInTheDocument();
+  });
+
+  it('describes the GA launch promise in subscription copy', async () => {
+    vi.mocked(getModeConfigAction).mockResolvedValue({
+      mode: 'local_only',
+      serverUrl: null,
+    });
+    vi.mocked(getStoredEntitlementAction).mockResolvedValue(null);
+
+    render(<SettingsPage />);
+
+    await waitFor(() => {
+      expect(getModeConfigAction).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.getByText(/guarantees 9 suite GA modules/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/17\s*more modules are available in public beta/i),
     ).toBeInTheDocument();
   });
 });

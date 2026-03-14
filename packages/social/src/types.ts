@@ -16,8 +16,10 @@ export const SOCIAL_CAPABLE_MODULES: readonly ModuleId[] = [
   'books',
   'budget',
   'fast',
+  'forums',
   'habits',
   'health',
+  'market',
   'meds',
   'recipes',
   'surf',
@@ -104,6 +106,59 @@ export const CreateProfileInputSchema = z.object({
 
 export type CreateProfileInput = z.infer<typeof CreateProfileInputSchema>;
 
+// ── Secure Friend Links ───────────────────────────────────────────────
+
+/**
+ * Friend links create a symmetric trusted connection after the recipient
+ * confirms the shared out-of-band code.
+ */
+export type FriendLinkStatus = 'pending' | 'confirmed' | 'expired' | 'cancelled';
+
+export const FriendLinkStatusSchema = z.enum(['pending', 'confirmed', 'expired', 'cancelled']);
+
+export const FriendLinkCodeSchema = z.string().regex(/^[A-Z2-9]{4}(?:-[A-Z2-9]{4}){2}$/);
+
+export const FriendLinkSchema = z.object({
+  id: z.string().uuid(),
+  creatorProfileId: z.string().uuid(),
+  friendProfileId: z.string().uuid().nullable(),
+  status: FriendLinkStatusSchema,
+  codeHint: z.string().min(2).max(12),
+  note: z.string().max(200).nullable(),
+  expiresAt: z.string().datetime().nullable(),
+  confirmedAt: z.string().datetime().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type FriendLink = z.infer<typeof FriendLinkSchema>;
+
+export const CreateFriendLinkInputSchema = z.object({
+  note: z.string().max(200).optional(),
+  expiresAt: z.string().datetime().optional(),
+});
+
+export type CreateFriendLinkInput = z.infer<typeof CreateFriendLinkInputSchema>;
+
+export const IssuedFriendLinkSchema = z.object({
+  link: FriendLinkSchema,
+  code: FriendLinkCodeSchema,
+});
+
+export type IssuedFriendLink = z.infer<typeof IssuedFriendLinkSchema>;
+
+export const FriendshipSchema = z.object({
+  id: z.string().uuid(),
+  profileAId: z.string().uuid(),
+  profileBId: z.string().uuid(),
+  createdByProfileId: z.string().uuid(),
+  sourceLinkId: z.string().uuid().nullable(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+
+export type Friendship = z.infer<typeof FriendshipSchema>;
+
 // ── Follow System ─────────────────────────────────────────────────────
 
 export type FollowStatus = 'active' | 'pending';
@@ -144,12 +199,22 @@ export const ActivityTypeSchema = z.enum([
   'fast_completed',
   'fast_streak',
   'fast_personal_best',
+  // Forums
+  'forums_thread_created',
+  'forums_reply_posted',
+  'forums_community_created',
+  'forums_karma_milestone',
   // Habits
   'habits_completed',
   'habits_streak',
   'habits_milestone',
   // Health
   'health_milestone',
+  // Market
+  'market_listing_created',
+  'market_listing_sold',
+  'market_review_received',
+  'market_seller_milestone',
   // Meds
   'meds_adherence_streak',
   // Recipes
@@ -442,7 +507,7 @@ export type LeaderboardEntry = z.infer<typeof LeaderboardEntrySchema>;
  * The card data is generated server-side or locally, then rendered by the UI layer.
  */
 
-export type ShareCardType = 'activity' | 'challenge_complete' | 'streak' | 'year_in_review' | 'profile';
+export type ShareCardType = 'activity' | 'challenge_complete' | 'streak' | 'year_in_review' | 'profile' | 'forum_thread' | 'market_listing';
 
 export const ShareCardTypeSchema = z.enum([
   'activity',
@@ -450,6 +515,8 @@ export const ShareCardTypeSchema = z.enum([
   'streak',
   'year_in_review',
   'profile',
+  'forum_thread',
+  'market_listing',
 ]);
 
 export const ShareCardSchema = z.object({

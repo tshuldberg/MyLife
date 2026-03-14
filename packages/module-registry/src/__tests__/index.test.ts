@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import {
   FREE_MODULES,
+  GA_MODULE_IDS,
+  MODULE_RELEASE_STATES,
   MODULE_IDS,
   MODULE_METADATA,
   ModuleDefinitionSchema,
   ModuleIdSchema,
   ModuleRegistry,
   ModuleRegistryContext,
+  PUBLIC_BETA_MODULE_IDS,
   useEnabledModules,
   useModule,
   useModuleRegistry,
@@ -22,6 +25,11 @@ import {
   useModule as useModuleDirect,
   useModuleRegistry as useModuleRegistryDirect,
 } from '../hooks';
+import {
+  GA_MODULE_IDS as GA_MODULE_IDS_DIRECT,
+  MODULE_RELEASE_STATES as MODULE_RELEASE_STATES_DIRECT,
+  PUBLIC_BETA_MODULE_IDS as PUBLIC_BETA_MODULE_IDS_DIRECT,
+} from '../release-states';
 import { ModuleRegistry as ModuleRegistryDirect } from '../registry';
 import {
   ModuleDefinitionSchema as ModuleDefinitionSchemaDirect,
@@ -33,6 +41,9 @@ describe('index barrel exports', () => {
     expect(MODULE_IDS).toBe(MODULE_IDS_DIRECT);
     expect(FREE_MODULES).toBe(FREE_MODULES_DIRECT);
     expect(MODULE_METADATA).toBe(MODULE_METADATA_DIRECT);
+    expect(GA_MODULE_IDS).toBe(GA_MODULE_IDS_DIRECT);
+    expect(PUBLIC_BETA_MODULE_IDS).toBe(PUBLIC_BETA_MODULE_IDS_DIRECT);
+    expect(MODULE_RELEASE_STATES).toBe(MODULE_RELEASE_STATES_DIRECT);
     expect(ModuleRegistry).toBe(ModuleRegistryDirect);
     expect(ModuleRegistryContext).toBe(ModuleRegistryContextDirect);
     expect(useModuleRegistry).toBe(useModuleRegistryDirect);

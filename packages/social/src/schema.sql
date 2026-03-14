@@ -56,6 +56,191 @@ create policy "Users manage own profile"
   with check (user_id = auth.uid());
 
 
+-- ── Secure Friend Links & Friendships ────────────────────────────────
+
+create table if not exists social_friend_links (
+  id                 uuid primary key default gen_random_uuid(),
+  creator_profile_id uuid not null references social_profiles(id) on delete cascade,
+  friend_profile_id  uuid references social_profiles(id) on delete set null,
+  code_hash          text not null,
+  code_hint          text not null,
+  note               text,
+  status             text not null default 'pending' check (status in ('pending', 'confirmed', 'expired', 'cancelled')),
+  expires_at         timestamptz,
+  confirmed_at       timestamptz,
+  created_at         timestamptz not null default now(),
+  updated_at         timestamptz not null default now(),
+
+  constraint social_friend_links_code_hash_unique unique (code_hash),
+  constraint social_friend_links_no_self check (
+    friend_profile_id is null or creator_profile_id != friend_profile_id
+  ),
+  constraint social_friend_links_note_length check (note is null or char_length(note) <= 200)
+);
+
+create index social_friend_links_creator_idx on social_friend_links (creator_profile_id, created_at desc);
+create index social_friend_links_friend_idx on social_friend_links (friend_profile_id, created_at desc);
+create index social_friend_links_status_idx on social_friend_links (status, created_at desc);
+
+alter table social_friend_links enable row level security;
+
+create policy "Users see own friend links"
+  on social_friend_links for select
+  using (
+    creator_profile_id in (select id from social_profiles where user_id = auth.uid())
+    or friend_profile_id in (select id from social_profiles where user_id = auth.uid())
+  );
+
+create policy "Users create own friend links"
+  on social_friend_links for insert
+  with check (
+    creator_profile_id in (select id from social_profiles where user_id = auth.uid())
+  );
+
+create policy "Creators manage own friend links"
+  on social_friend_links for update
+  using (
+    creator_profile_id in (select id from social_profiles where user_id = auth.uid())
+  )
+  with check (
+    creator_profile_id in (select id from social_profiles where user_id = auth.uid())
+  );
+
+create policy "Creators delete own friend links"
+  on social_friend_links for delete
+  using (
+    creator_profile_id in (select id from social_profiles where user_id = auth.uid())
+  );
+
+create table if not exists social_friendships (
+  id                    uuid primary key default gen_random_uuid(),
+  profile_a_id          uuid not null references social_profiles(id) on delete cascade,
+  profile_b_id          uuid not null references social_profiles(id) on delete cascade,
+  created_by_profile_id uuid not null references social_profiles(id) on delete cascade,
+  source_link_id        uuid references social_friend_links(id) on delete set null,
+  created_at            timestamptz not null default now(),
+  updated_at            timestamptz not null default now(),
+
+  constraint social_friendships_no_self check (profile_a_id != profile_b_id)
+);
+
+create unique index social_friendships_pair_unique_idx
+  on social_friendships (
+    least(profile_a_id::text, profile_b_id::text),
+    greatest(profile_a_id::text, profile_b_id::text)
+  );
+
+create index social_friendships_profile_a_idx on social_friendships (profile_a_id, created_at desc);
+create index social_friendships_profile_b_idx on social_friendships (profile_b_id, created_at desc);
+
+alter table social_friendships enable row level security;
+
+create policy "Users see own friendships"
+  on social_friendships for select
+  using (
+    profile_a_id in (select id from social_profiles where user_id = auth.uid())
+    or profile_b_id in (select id from social_profiles where user_id = auth.uid())
+  );
+
+create policy "Users delete own friendships"
+  on social_friendships for delete
+  using (
+    profile_a_id in (select id from social_profiles where user_id = auth.uid())
+    or profile_b_id in (select id from social_profiles where user_id = auth.uid())
+  );
+
+create or replace function social_confirm_friend_link(
+  link_code_hash text,
+  claimant_profile_id uuid
+)
+returns jsonb as $$
+declare
+  target_link social_friend_links%rowtype;
+  existing_friendship social_friendships%rowtype;
+  confirmed_friendship social_friendships%rowtype;
+  low_profile uuid;
+  high_profile uuid;
+begin
+  if claimant_profile_id is null then
+    raise exception 'claimant_profile_id is required';
+  end if;
+
+  if not exists (
+    select 1
+    from social_profiles
+    where id = claimant_profile_id
+      and user_id = auth.uid()
+  ) then
+    raise exception 'Not authorized to redeem this friend link';
+  end if;
+
+  select *
+  into target_link
+  from social_friend_links
+  where code_hash = link_code_hash
+    and status = 'pending'
+    and (expires_at is null or expires_at > now())
+  limit 1
+  for update;
+
+  if not found then
+    return null;
+  end if;
+
+  if target_link.creator_profile_id = claimant_profile_id then
+    raise exception 'Cannot redeem your own friend link';
+  end if;
+
+  low_profile := least(target_link.creator_profile_id::text, claimant_profile_id::text)::uuid;
+  high_profile := greatest(target_link.creator_profile_id::text, claimant_profile_id::text)::uuid;
+
+  select *
+  into existing_friendship
+  from social_friendships
+  where least(profile_a_id::text, profile_b_id::text) = low_profile::text
+    and greatest(profile_a_id::text, profile_b_id::text) = high_profile::text
+  limit 1;
+
+  if found then
+    confirmed_friendship := existing_friendship;
+  else
+    insert into social_friendships (
+      profile_a_id,
+      profile_b_id,
+      created_by_profile_id,
+      source_link_id
+    )
+    values (
+      low_profile,
+      high_profile,
+      claimant_profile_id,
+      target_link.id
+    )
+    returning * into confirmed_friendship;
+  end if;
+
+  update social_friend_links
+  set friend_profile_id = claimant_profile_id,
+      status = 'confirmed',
+      confirmed_at = coalesce(confirmed_at, now()),
+      updated_at = now()
+  where id = target_link.id;
+
+  insert into social_follows (follower_id, followee_id, status)
+  values (target_link.creator_profile_id, claimant_profile_id, 'active')
+  on conflict (follower_id, followee_id) do update
+    set status = 'active';
+
+  insert into social_follows (follower_id, followee_id, status)
+  values (claimant_profile_id, target_link.creator_profile_id, 'active')
+  on conflict (follower_id, followee_id) do update
+    set status = 'active';
+
+  return to_jsonb(confirmed_friendship);
+end;
+$$ language plpgsql security definer;
+
+
 -- ── Follows ─────────────────────────────────────────────────────────────
 
 create table if not exists social_follows (
@@ -568,6 +753,14 @@ $$ language plpgsql;
 
 create trigger social_profiles_updated_at
   before update on social_profiles
+  for each row execute function update_updated_at();
+
+create trigger social_friend_links_updated_at
+  before update on social_friend_links
+  for each row execute function update_updated_at();
+
+create trigger social_friendships_updated_at
+  before update on social_friendships
   for each row execute function update_updated_at();
 
 create trigger social_challenges_updated_at

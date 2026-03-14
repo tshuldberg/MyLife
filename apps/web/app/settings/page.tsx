@@ -2,7 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useModuleRegistry } from '@mylife/module-registry';
+import {
+  GA_MODULE_IDS,
+  PUBLIC_BETA_MODULE_IDS,
+  isGeneralAvailabilityModule,
+  useModuleRegistry,
+} from '@mylife/module-registry';
 import type { Entitlements, PlanMode } from '@mylife/entitlements';
 import {
   getModeConfigAction,
@@ -16,6 +21,7 @@ export default function SettingsPage() {
   const enabled = registry
     .getEnabled()
     .filter((mod) => isWebSupportedModuleId(mod.id));
+  const enabledGaCount = enabled.filter((mod) => isGeneralAvailabilityModule(mod.id)).length;
   const [mode, setMode] = useState<PlanMode>('local_only');
   const [serverUrl, setServerUrl] = useState<string | null>(null);
   const [entitlement, setEntitlement] = useState<Entitlements | null>(null);
@@ -70,8 +76,9 @@ export default function SettingsPage() {
             </Link>
           </div>
           <p style={styles.planNote}>
-            Free tier includes {registry.getAll().filter((m) => m.tier === 'free').length} modules.
-            Upgrade to unlock all {registry.size} modules.
+            MyLife Pro guarantees {GA_MODULE_IDS.length} suite GA modules. {enabledGaCount} of your
+            currently enabled web modules are part of that launch promise, and {PUBLIC_BETA_MODULE_IDS.length}
+            more modules are available in public beta.
           </p>
         </div>
       </section>

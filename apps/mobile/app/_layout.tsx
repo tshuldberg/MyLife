@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
@@ -9,6 +9,7 @@ import {
 import { BOOKS_MODULE } from '@mylife/books';
 import { FAST_MODULE } from '@mylife/fast';
 import { FLASH_MODULE } from '@mylife/flash';
+import { FORUMS_MODULE } from '@mylife/forums';
 import { BUDGET_MODULE } from '@mylife/budget';
 import { SURF_MODULE } from '@mylife/surf';
 import { RECIPES_MODULE } from '@mylife/recipes';
@@ -23,6 +24,7 @@ import { WORDS_MODULE } from '@mylife/words';
 import { NUTRITION_MODULE } from '@mylife/nutrition';
 import { JOURNAL_MODULE } from '@mylife/journal';
 import { PETS_MODULE } from '@mylife/pets';
+import { MARKET_MODULE } from '@mylife/market';
 import { RSVP_MODULE } from '@mylife/rsvp';
 import { TRAILS_MODULE } from '@mylife/trails';
 import { MOOD_MODULE } from '@mylife/mood';
@@ -35,7 +37,13 @@ import { MAIL_MODULE } from '@mylife/mail';
 import { colors } from '@mylife/ui';
 import { createPaymentService } from '@mylife/subscription';
 import type { PaymentService } from '@mylife/subscription';
-import { AuthProvider } from '@mylife/auth';
+import {
+  AuthProvider,
+  AuthService,
+  getSupabaseClient,
+  type SupabaseClientOptions,
+} from '@mylife/auth';
+import { resetSocialClient, setSocialClient } from '@mylife/social';
 import { DatabaseProvider } from '../components/DatabaseProvider';
 import { ModuleErrorBoundary } from '../components/ModuleErrorBoundary';
 import { EntitlementsProvider } from '../components/EntitlementsProvider';
@@ -74,6 +82,33 @@ function safeRegister(r: ModuleRegistry, def: Parameters<ModuleRegistry['registe
 }
 
 export default function RootLayout() {
+  const supabaseOptions = useMemo<SupabaseClientOptions | null>(() => {
+    const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!url || !anonKey) return null;
+    return { url, anonKey };
+  }, []);
+
+  const supabaseClient = useMemo(
+    () => (supabaseOptions ? getSupabaseClient(supabaseOptions) : null),
+    [supabaseOptions],
+  );
+
+  const authService = useMemo(
+    () => (supabaseClient ? new AuthService(supabaseClient) : null),
+    [supabaseClient],
+  );
+
+  useEffect(() => {
+    if (supabaseClient) {
+      setSocialClient(supabaseClient);
+      return;
+    }
+
+    resetSocialClient();
+  }, [supabaseClient]);
+
   const registry = useMemo(() => {
     const r = new ModuleRegistry();
     for (const [key, def] of Object.entries(MODULE_METADATA)) {
@@ -83,6 +118,7 @@ export default function RootLayout() {
     safeRegister(r, BOOKS_MODULE, 'books');
     safeRegister(r, FAST_MODULE, 'fast');
     safeRegister(r, FLASH_MODULE, 'flash');
+    safeRegister(r, FORUMS_MODULE, 'forums');
     safeRegister(r, BUDGET_MODULE, 'budget');
     safeRegister(r, SURF_MODULE, 'surf');
     safeRegister(r, RECIPES_MODULE, 'recipes');
@@ -97,6 +133,7 @@ export default function RootLayout() {
     safeRegister(r, NUTRITION_MODULE, 'nutrition');
     safeRegister(r, JOURNAL_MODULE, 'journal');
     safeRegister(r, PETS_MODULE, 'pets');
+    safeRegister(r, MARKET_MODULE, 'market');
     safeRegister(r, RSVP_MODULE, 'rsvp');
     safeRegister(r, TRAILS_MODULE, 'trails');
     safeRegister(r, MOOD_MODULE, 'mood');
@@ -123,7 +160,7 @@ export default function RootLayout() {
     <ModuleErrorBoundary moduleName="MyLife">
       <RegistryProvider value={registry}>
         <DatabaseProvider registry={registry}>
-          <AuthProvider service={null}>
+          <AuthProvider service={authService}>
             <EntitlementsProvider paymentService={paymentService}>
               <StatusBar style="light" />
               <Stack
@@ -141,6 +178,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(surf)" />
                 <Stack.Screen name="(fast)" />
                 <Stack.Screen name="(flash)" />
+                <Stack.Screen name="(forums)" />
                 <Stack.Screen name="(recipes)" />
                 <Stack.Screen name="(workouts)" />
                 <Stack.Screen name="(homes)" />
@@ -153,6 +191,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(nutrition)" />
                 <Stack.Screen name="(journal)" />
                 <Stack.Screen name="(pets)" />
+                <Stack.Screen name="(market)" />
                 <Stack.Screen name="(rsvp)" />
                 <Stack.Screen name="(trails)" />
                 <Stack.Screen name="(mood)" />

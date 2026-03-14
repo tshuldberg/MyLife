@@ -9,6 +9,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   SocialProfile,
   CreateProfileInput,
+  FriendLink,
+  CreateFriendLinkInput,
+  IssuedFriendLink,
+  Friendship,
   Follow,
   FollowStatus,
   Activity,
@@ -42,6 +46,155 @@ function ok<T>(data: T): SocialResult<T> {
 
 function err<T>(error: string): SocialResult<T> {
   return { ok: false, error };
+}
+
+const FRIEND_LINK_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const FRIEND_LINK_CODE_GROUPS = 3;
+const FRIEND_LINK_CODE_GROUP_SIZE = 4;
+
+function getWebCrypto(): Crypto {
+  const cryptoApi = globalThis.crypto as Crypto | undefined;
+  if (!cryptoApi?.subtle || !cryptoApi.getRandomValues) {
+    throw new Error('Web Crypto is required for secure friend links');
+  }
+  return cryptoApi;
+}
+
+function formatFriendLinkCode(compactCode: string): string {
+  const groups: string[] = [];
+  for (let index = 0; index < compactCode.length; index += FRIEND_LINK_CODE_GROUP_SIZE) {
+    groups.push(compactCode.slice(index, index + FRIEND_LINK_CODE_GROUP_SIZE));
+  }
+  return groups.join('-');
+}
+
+function normalizeFriendLinkCode(code: string): string {
+  const normalized = code
+    .toUpperCase()
+    .replace(/[^A-Z2-9]/g, '')
+    .replace(/O/g, 'Q')
+    .replace(/I/g, 'Y')
+    .replace(/L/g, 'X');
+
+  const expectedLength = FRIEND_LINK_CODE_GROUPS * FRIEND_LINK_CODE_GROUP_SIZE;
+  return normalized.slice(0, expectedLength);
+}
+
+function generateFriendLinkCode(): string {
+  const cryptoApi = getWebCrypto();
+  const codeLength = FRIEND_LINK_CODE_GROUPS * FRIEND_LINK_CODE_GROUP_SIZE;
+  const randomValues = cryptoApi.getRandomValues(new Uint8Array(codeLength));
+
+  let compactCode = '';
+  for (const value of randomValues) {
+    compactCode += FRIEND_LINK_CODE_ALPHABET[value % FRIEND_LINK_CODE_ALPHABET.length];
+  }
+
+  return formatFriendLinkCode(compactCode);
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const cryptoApi = getWebCrypto();
+  const digest = await cryptoApi.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(value),
+  );
+
+  return [...new Uint8Array(digest)]
+    .map((item) => item.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+interface LeaderboardActivityRow {
+  profile_id: string;
+  module_id: string | null;
+  type: string;
+  created_at: string;
+}
+
+interface LeaderboardProfileRow {
+  id: string;
+  handle: string;
+  display_name: string;
+  avatar_url: string | null;
+}
+
+function getLeaderboardSinceIso(timeframe: LeaderboardTimeframe, now = new Date()): string | null {
+  if (timeframe === 'all_time') return null;
+
+  const since = new Date(now);
+
+  switch (timeframe) {
+    case 'daily':
+      since.setDate(since.getDate() - 1);
+      break;
+    case 'weekly':
+      since.setDate(since.getDate() - 7);
+      break;
+    case 'monthly':
+      since.setMonth(since.getMonth() - 1);
+      break;
+  }
+
+  return since.toISOString();
+}
+
+function aggregateLeaderboard(
+  activityRows: LeaderboardActivityRow[],
+  profileRows: LeaderboardProfileRow[],
+  scoring: Record<string, number> | undefined,
+  opts: { limit: number; offset: number },
+): LeaderboardEntry[] {
+  const profileById = new Map(profileRows.map((row) => [row.id, row]));
+  const aggregates = new Map<
+    string,
+    {
+      score: number;
+      moduleScores: Record<string, number>;
+    }
+  >();
+
+  for (const row of activityRows) {
+    if (!profileById.has(row.profile_id)) continue;
+
+    const weight = scoring?.[row.type] ?? 1;
+    const current = aggregates.get(row.profile_id) ?? {
+      score: 0,
+      moduleScores: {},
+    };
+
+    current.score += weight;
+    if (row.module_id) {
+      current.moduleScores[row.module_id] = (current.moduleScores[row.module_id] ?? 0) + weight;
+    }
+
+    aggregates.set(row.profile_id, current);
+  }
+
+  return [...aggregates.entries()]
+    .map(([profileId, aggregate]) => {
+      const profile = profileById.get(profileId)!;
+      return {
+        profileId,
+        handle: profile.handle,
+        displayName: profile.display_name,
+        avatarUrl: profile.avatar_url,
+        score: aggregate.score,
+        rank: 0,
+        moduleScores: Object.keys(aggregate.moduleScores).length > 0
+          ? aggregate.moduleScores
+          : undefined,
+      };
+    })
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return a.displayName.localeCompare(b.displayName);
+    })
+    .map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+    }))
+    .slice(opts.offset, opts.offset + opts.limit);
 }
 
 // ── Social Client ───────────────────────────────────────────────────────
@@ -146,6 +299,20 @@ export class SocialClient {
     return ok(mapProfile(data));
   }
 
+  /** Delete the current user's social profile and cascade all owned social data. */
+  async deleteMyProfile(): Promise<SocialResult<void>> {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    if (!user) return err('Not authenticated');
+
+    const { error } = await this.supabase
+      .from('social_profiles')
+      .delete()
+      .eq('user_id', user.id);
+
+    if (error) return err(error.message);
+    return ok(undefined);
+  }
+
   /** Look up a profile by handle. */
   async getProfileByHandle(handle: string): Promise<SocialResult<SocialProfile | null>> {
     const { data, error } = await this.supabase
@@ -171,6 +338,8 @@ export class SocialClient {
 
   /** Search profiles by handle or display name. */
   async searchProfiles(query: string, limit = 20): Promise<SocialResult<SocialProfile[]>> {
+    if (query.trim().length === 0) return ok([]);
+
     const { data, error } = await this.supabase
       .from('social_profiles')
       .select('*')
@@ -179,6 +348,128 @@ export class SocialClient {
 
     if (error) return err(error.message);
     return ok((data ?? []).map(mapProfile));
+  }
+
+  /** Resolve multiple profiles in one request. */
+  async getProfilesByIds(profileIds: string[]): Promise<SocialResult<SocialProfile[]>> {
+    const uniqueProfileIds = [...new Set(profileIds)];
+    if (uniqueProfileIds.length === 0) return ok([]);
+
+    const { data, error } = await this.supabase
+      .from('social_profiles')
+      .select('*')
+      .in('id', uniqueProfileIds);
+
+    if (error) return err(error.message);
+    return ok((data ?? []).map(mapProfile));
+  }
+
+  // ── Secure Friend Links ────────────────────────────────────────────
+
+  /** Create a secure friend-link code that can be confirmed out of band. */
+  async createFriendLink(
+    input: CreateFriendLinkInput = {},
+  ): Promise<SocialResult<IssuedFriendLink>> {
+    const myProfile = await this.getMyProfile();
+    if (!myProfile.ok) return err(myProfile.error);
+    if (!myProfile.data) return err('You must create a profile first');
+
+    const code = generateFriendLinkCode();
+    const normalizedCode = normalizeFriendLinkCode(code);
+    const codeHash = await sha256Hex(normalizedCode);
+
+    const { data, error } = await this.supabase
+      .from('social_friend_links')
+      .insert({
+        creator_profile_id: myProfile.data.id,
+        code_hash: codeHash,
+        code_hint: formatFriendLinkCode(normalizedCode.slice(-8)),
+        note: input.note ?? null,
+        expires_at: input.expiresAt ?? null,
+      })
+      .select()
+      .single();
+
+    if (error) return err(error.message);
+
+    return ok({
+      link: mapFriendLink(data),
+      code,
+    });
+  }
+
+  /** List friend links the current user created or redeemed. */
+  async getMyFriendLinks(): Promise<SocialResult<FriendLink[]>> {
+    const myProfile = await this.getMyProfile();
+    if (!myProfile.ok) return err(myProfile.error);
+    if (!myProfile.data) return err('You must create a profile first');
+
+    const { data, error } = await this.supabase
+      .from('social_friend_links')
+      .select('*')
+      .or(`creator_profile_id.eq.${myProfile.data.id},friend_profile_id.eq.${myProfile.data.id}`)
+      .order('created_at', { ascending: false });
+
+    if (error) return err(error.message);
+    return ok((data ?? []).map(mapFriendLink));
+  }
+
+  /** Redeem a shared friend-link code and create a mutual friendship. */
+  async redeemFriendLink(code: string): Promise<SocialResult<Friendship>> {
+    const myProfile = await this.getMyProfile();
+    if (!myProfile.ok) return err(myProfile.error);
+    if (!myProfile.data) return err('You must create a profile first');
+
+    const normalizedCode = normalizeFriendLinkCode(code);
+    if (normalizedCode.length !== FRIEND_LINK_CODE_GROUPS * FRIEND_LINK_CODE_GROUP_SIZE) {
+      return err('Friend code must include 12 characters');
+    }
+
+    const { data, error } = await this.supabase.rpc('social_confirm_friend_link', {
+      link_code_hash: await sha256Hex(normalizedCode),
+      claimant_profile_id: myProfile.data.id,
+    });
+
+    if (error) return err(error.message);
+    const friendshipRow = Array.isArray(data) ? data[0] : data;
+    if (!friendshipRow) return err('Friend code was not found or has expired');
+
+    return ok(mapFriendship(friendshipRow));
+  }
+
+  /** Get the current user's confirmed friendships. */
+  async getMyFriendships(): Promise<SocialResult<Friendship[]>> {
+    const myProfile = await this.getMyProfile();
+    if (!myProfile.ok) return err(myProfile.error);
+    if (!myProfile.data) return err('You must create a profile first');
+
+    const { data, error } = await this.supabase
+      .from('social_friendships')
+      .select('*')
+      .or(`profile_a_id.eq.${myProfile.data.id},profile_b_id.eq.${myProfile.data.id}`)
+      .order('created_at', { ascending: false });
+
+    if (error) return err(error.message);
+    return ok((data ?? []).map(mapFriendship));
+  }
+
+  /** Resolve the current user's friends as social profiles. */
+  async getMyFriends(): Promise<SocialResult<SocialProfile[]>> {
+    const myProfile = await this.getMyProfile();
+    if (!myProfile.ok) return err(myProfile.error);
+    if (!myProfile.data) return err('You must create a profile first');
+    const profile = myProfile.data;
+
+    const friendships = await this.getMyFriendships();
+    if (!friendships.ok) return err(friendships.error);
+
+    const friendIds = friendships.data.map((friendship) => (
+      friendship.profileAId === profile.id
+        ? friendship.profileBId
+        : friendship.profileAId
+    ));
+
+    return this.getProfilesByIds(friendIds);
   }
 
   // ── Follows ─────────────────────────────────────────────────────────
@@ -342,9 +633,27 @@ export class SocialClient {
   } = {}): Promise<SocialResult<Activity[]>> {
     const { limit = 50, offset = 0, moduleId } = opts;
 
+    const myProfile = await this.getMyProfile();
+    if (!myProfile.ok) return err(myProfile.error);
+    if (!myProfile.data) return err('You must create a profile first');
+
+    const { data: follows, error: followsError } = await this.supabase
+      .from('social_follows')
+      .select('followee_id')
+      .eq('follower_id', myProfile.data.id)
+      .eq('status', 'active');
+
+    if (followsError) return err(followsError.message);
+
+    const profileIds = [
+      myProfile.data.id,
+      ...(follows ?? []).map((row: { followee_id: string }) => row.followee_id),
+    ];
+
     let query = this.supabase
       .from('social_activities')
       .select('*')
+      .in('profile_id', profileIds)
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -436,6 +745,37 @@ export class SocialClient {
 
     if (error) return err(error.message);
     return ok((data ?? []).map(mapKudos));
+  }
+
+  /** Resolve whether the current user has already given kudos to activities. */
+  async getMyKudosForActivities(
+    activityIds: string[],
+  ): Promise<SocialResult<Record<string, boolean>>> {
+    if (activityIds.length === 0) return ok({});
+
+    const myProfile = await this.getMyProfile();
+    if (!myProfile.ok) return err(myProfile.error);
+    if (!myProfile.data) return err('You must create a profile first');
+
+    const uniqueActivityIds = [...new Set(activityIds)];
+
+    const { data, error } = await this.supabase
+      .from('social_kudos')
+      .select('activity_id')
+      .eq('giver_id', myProfile.data.id)
+      .in('activity_id', uniqueActivityIds);
+
+    if (error) return err(error.message);
+
+    const kudosByActivityId = Object.fromEntries(
+      uniqueActivityIds.map((activityId) => [activityId, false]),
+    ) as Record<string, boolean>;
+
+    for (const row of data ?? []) {
+      kudosByActivityId[row.activity_id] = true;
+    }
+
+    return ok(kudosByActivityId);
   }
 
   // ── Comments ────────────────────────────────────────────────────────
@@ -575,7 +915,7 @@ export class SocialClient {
 
     const { error } = await this.supabase
       .from('social_challenge_members')
-      .update({ status: 'dropped' })
+      .delete()
       .eq('challenge_id', challengeId)
       .eq('profile_id', myProfile.data.id);
 
@@ -598,10 +938,12 @@ export class SocialClient {
 
     // Fetch goals for each challenge
     const challengeIds = (challenges ?? []).map((c: any) => c.id);
-    const { data: goals } = await this.supabase
-      .from('social_challenge_goals')
-      .select('*')
-      .in('challenge_id', challengeIds);
+    const { data: goals } = challengeIds.length === 0
+      ? { data: [] as any[] }
+      : await this.supabase
+          .from('social_challenge_goals')
+          .select('*')
+          .in('challenge_id', challengeIds);
 
     const goalsByChallenge = new Map<string, any[]>();
     for (const goal of goals ?? []) {
@@ -759,6 +1101,46 @@ export class SocialClient {
     return ok((data ?? []).map((row: any) => mapGroup(row.group)));
   }
 
+  private async listLeaderboardActivities(opts: {
+    profileIds?: string[];
+    modules?: string[];
+    timeframe: LeaderboardTimeframe;
+  }): Promise<SocialResult<LeaderboardActivityRow[]>> {
+    let query = this.supabase
+      .from('social_activities')
+      .select('profile_id, module_id, type, created_at')
+      .range(0, 4999);
+
+    if (opts.profileIds && opts.profileIds.length > 0) {
+      query = query.in('profile_id', opts.profileIds);
+    }
+
+    if (opts.modules && opts.modules.length > 0) {
+      query = query.in('module_id', opts.modules);
+    }
+
+    const sinceIso = getLeaderboardSinceIso(opts.timeframe);
+    if (sinceIso) {
+      query = query.gte('created_at', sinceIso);
+    }
+
+    const { data, error } = await query;
+    if (error) return err(error.message);
+    return ok((data ?? []) as LeaderboardActivityRow[]);
+  }
+
+  private async getLeaderboardProfiles(profileIds: string[]): Promise<SocialResult<LeaderboardProfileRow[]>> {
+    if (profileIds.length === 0) return ok([]);
+
+    const { data, error } = await this.supabase
+      .from('social_profiles')
+      .select('id, handle, display_name, avatar_url')
+      .in('id', profileIds);
+
+    if (error) return err(error.message);
+    return ok((data ?? []) as LeaderboardProfileRow[]);
+  }
+
   /** Discover public groups. */
   async discoverGroups(opts: { limit?: number; offset?: number } = {}): Promise<SocialResult<Group[]>> {
     const { limit = 20, offset = 0 } = opts;
@@ -801,8 +1183,24 @@ export class SocialClient {
         result_offset: offset,
       });
 
-    if (error) return err(error.message);
-    return ok((data ?? []).map(mapLeaderboardEntry));
+    if (!error) {
+      return ok((data ?? []).map(mapLeaderboardEntry));
+    }
+
+    const activityRows = await this.listLeaderboardActivities({
+      modules: config.modules ?? [],
+      timeframe: config.timeframe,
+    });
+    if (!activityRows.ok) return err(activityRows.error);
+
+    const profileRows = await this.getLeaderboardProfiles(
+      [...new Set(activityRows.data.map((row) => row.profile_id))],
+    );
+    if (!profileRows.ok) return err(profileRows.error);
+
+    return ok(
+      aggregateLeaderboard(activityRows.data, profileRows.data, config.scoring, { limit, offset }),
+    );
   }
 
   /** Get a friends-only leaderboard for the current user. */
@@ -812,14 +1210,47 @@ export class SocialClient {
   ): Promise<SocialResult<LeaderboardEntry[]>> {
     const { limit = 50 } = opts;
 
+    const myProfile = await this.getMyProfile();
+    if (!myProfile.ok) return err(myProfile.error);
+    if (!myProfile.data) return err('You must create a profile first');
+
     const { data, error } = await this.supabase
       .rpc('compute_friends_leaderboard', {
         p_timeframe: timeframe,
         result_limit: limit,
       });
 
-    if (error) return err(error.message);
-    return ok((data ?? []).map(mapLeaderboardEntry));
+    if (!error) {
+      return ok((data ?? []).map(mapLeaderboardEntry));
+    }
+
+    const { data: follows, error: followsError } = await this.supabase
+      .from('social_follows')
+      .select('followee_id')
+      .eq('follower_id', myProfile.data.id)
+      .eq('status', 'active');
+
+    if (followsError) return err(followsError.message);
+
+    const profileIds = [
+      myProfile.data.id,
+      ...(follows ?? []).map((row: { followee_id: string }) => row.followee_id),
+    ];
+
+    const activityRows = await this.listLeaderboardActivities({
+      profileIds,
+      timeframe,
+    });
+    if (!activityRows.ok) return err(activityRows.error);
+
+    const profileRows = await this.getLeaderboardProfiles(
+      [...new Set(activityRows.data.map((row) => row.profile_id))],
+    );
+    if (!profileRows.ok) return err(profileRows.error);
+
+    return ok(
+      aggregateLeaderboard(activityRows.data, profileRows.data, undefined, { limit, offset: 0 }),
+    );
   }
 }
 
@@ -837,6 +1268,33 @@ function mapProfile(row: any): SocialProfile {
     followerCount: row.follower_count,
     followingCount: row.following_count,
     enabledModules: row.enabled_modules ?? [],
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapFriendLink(row: any): FriendLink {
+  return {
+    id: row.id,
+    creatorProfileId: row.creator_profile_id,
+    friendProfileId: row.friend_profile_id,
+    status: row.status,
+    codeHint: row.code_hint,
+    note: row.note,
+    expiresAt: row.expires_at,
+    confirmedAt: row.confirmed_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapFriendship(row: any): Friendship {
+  return {
+    id: row.id,
+    profileAId: row.profile_a_id,
+    profileBId: row.profile_b_id,
+    createdByProfileId: row.created_by_profile_id,
+    sourceLinkId: row.source_link_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };

@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, Pressable, Alert, Share } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { useRouter } from 'expo-router';
 import { Text, Card, colors, spacing } from '@mylife/ui';
 import { useGoal } from '../../hooks/books/use-goals';
@@ -88,16 +87,9 @@ async function shareTextFile(filename: string, content: string, mimeType: string
     encoding: FileSystem.EncodingType.UTF8,
   });
 
-  if (await Sharing.isAvailableAsync()) {
-    await Sharing.shareAsync(uri, {
-      dialogTitle: `Export ${filename}`,
-      mimeType,
-    });
-    return;
-  }
-
   await Share.share({
     title: filename,
+    url: uri,
     message: content,
   });
 }

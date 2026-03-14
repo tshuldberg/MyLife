@@ -1,0 +1,105 @@
+// ── Module Definition ────────────────────────────────────────────────
+export { FORUMS_MODULE } from './definition';
+
+// ── Types & Schemas ──────────────────────────────────────────────────
+export {
+  CommunityTypeSchema,
+  CommunitySchema,
+  CreateCommunityInputSchema,
+  MemberRoleSchema,
+  MemberStatusSchema,
+  CommunityMemberSchema,
+  ThreadStatusSchema,
+  ThreadSchema,
+  CreateThreadInputSchema,
+  ReplySchema,
+  CreateReplyInputSchema,
+  VoteTargetTypeSchema,
+  VoteDirectionSchema,
+  VoteSchema,
+  BookmarkSchema,
+  UserStatsSchema,
+  ModActionTypeSchema,
+  ModActionSchema,
+  ForumReportReasonSchema,
+  ForumReportSchema,
+  ForumBlockSchema,
+  CommunityRuleSchema,
+  TagSchema,
+} from './types';
+export type {
+  CommunityType,
+  Community,
+  CreateCommunityInput,
+  MemberRole,
+  MemberStatus,
+  CommunityMember,
+  ThreadStatus,
+  Thread,
+  CreateThreadInput,
+  Reply,
+  CreateReplyInput,
+  VoteTargetType,
+  VoteDirection,
+  Vote,
+  Bookmark,
+  UserStats,
+  ModActionType,
+  ModAction,
+  ForumReportReason,
+  ForumReport,
+  ForumBlock,
+  CommunityRule,
+  Tag,
+} from './types';
+
+// ── SQLite Cache Schema ──────────────────────────────────────────────
+export { CACHE_TABLES, CACHE_INDEXES } from './db/schema';
+
+// ── Local CRUD (SQLite cache) ────────────────────────────────────────
+export type { DatabaseAdapter } from './db/crud';
+export {
+  getCachedCommunities,
+  getCachedCommunityById,
+  getCachedCommunityByName,
+  upsertCachedCommunity,
+  getCachedCommunityMembers,
+  upsertCachedCommunityMember,
+  getCachedThreads,
+  getCachedThreadById,
+  upsertCachedThread,
+  deleteCachedThread,
+  getCachedReplies,
+  upsertCachedReply,
+  getCachedBookmarks,
+  upsertCachedBookmark,
+  deleteCachedBookmark,
+  getCachedTags,
+  upsertCachedTag,
+} from './db/crud';
+
+// ── Cloud Client (Supabase) ──────────────────────────────────────────
+export {
+  cloudGetCommunities,
+  cloudGetCommunityById,
+  cloudGetCommunityByName,
+  cloudCreateCommunity,
+  cloudSearchCommunities,
+  cloudJoinCommunity,
+  cloudLeaveCommunity,
+  cloudGetThreads,
+  cloudGetThreadById,
+  cloudCreateThread,
+  cloudSearchThreads,
+  cloudGetReplies,
+  cloudCreateReply,
+  cloudCastVote,
+  cloudRemoveVote,
+  cloudGetBookmarks,
+  cloudToggleBookmark,
+  cloudGetUserStats,
+  cloudGetModLog,
+  cloudCreateReport,
+  cloudGetCommunityRules,
+  cloudGetTags,
+} from './cloud/client';

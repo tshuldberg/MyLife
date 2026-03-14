@@ -51,6 +51,13 @@ export type {
   DeductionResult,
   StorageLocation,
   ExpirationStatus,
+  ImportSource,
+  ImportResult,
+  ShoppingList,
+  ShoppingListItemRow,
+  CreateShoppingListItem,
+  ShoppingListSummary,
+  RecipeForShoppingList,
 } from './types';
 export type { ScaledIngredient } from './scaling';
 
@@ -167,3 +174,39 @@ export {
   formatQuantity,
   formatDuration,
 } from './utils';
+export {
+  fetchHtml,
+  ImportError,
+  detectPlatform,
+  fetchSocialMetadata,
+  extractRecipeFromText,
+  extractRecipeFromImage,
+  detectClipboardRecipeUrl,
+} from './import';
+export type {
+  FetchResult,
+  ImportErrorCode,
+  SocialPlatform,
+  SocialMediaResult,
+  ClipboardDetection,
+} from './import';
+export {
+  createShoppingList,
+  getShoppingLists,
+  getShoppingListById,
+  updateShoppingList,
+  deleteShoppingList,
+  completeShoppingList,
+  addShoppingListItem,
+  getShoppingListItems,
+  updateShoppingListItem,
+  deleteShoppingListItem,
+  toggleItemChecked,
+  uncheckAllItems,
+  addRecipeToShoppingList,
+  removeRecipeFromShoppingList,
+  addCustomItem,
+  addCheckedItemsToPantry,
+  getShoppingListSummary,
+  getRecipesInShoppingList,
+} from './db/shopping-lists';

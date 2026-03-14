@@ -36,6 +36,23 @@ export const ProductIdSchema = z.union([
 
 export const StorageTierSchema = z.enum(['free', 'starter', 'power']);
 
+export const PlanModeSchema = z.enum(['hosted', 'self_host', 'local_only']);
+
+export const UnsignedEntitlementsSchema = z.object({
+  appId: z.string().min(1),
+  mode: PlanModeSchema,
+  hostedActive: z.boolean(),
+  selfHostLicense: z.boolean(),
+  updatePackYear: z.number().int().min(2000).max(9999).optional(),
+  features: z.array(z.string()),
+  issuedAt: z.string().datetime(),
+  expiresAt: z.string().datetime().optional(),
+});
+
+export const EntitlementsSchema = UnsignedEntitlementsSchema.extend({
+  signature: z.string().min(1),
+});
+
 // ---------------------------------------------------------------------------
 // Purchase schema
 // ---------------------------------------------------------------------------

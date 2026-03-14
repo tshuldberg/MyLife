@@ -78,6 +78,15 @@ vi.mock('react-native', () => {
     Text,
     FlatList,
     SectionList,
+    Animated: {
+      Value: class Value {
+        constructor(public value: number) {}
+      },
+      View: primitive('div'),
+      parallel: () => ({ start: vi.fn() }),
+      spring: () => ({ start: vi.fn() }),
+      timing: () => ({ start: vi.fn() }),
+    },
     RefreshControl: primitive('div'),
     ActivityIndicator: () => <div data-testid="activity-indicator" />,
     Pressable: ({
@@ -191,9 +200,37 @@ vi.mock('react-native', () => {
       alert: vi.fn(),
       prompt: vi.fn(),
     },
+    Share: {
+      share: vi.fn().mockResolvedValue({ action: 'sharedAction' }),
+    },
     Dimensions: {
       get: () => ({ width: 390, height: 844 }),
     },
+  };
+});
+
+vi.mock('expo-router', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+  }),
+}));
+
+vi.mock('expo-blur', () => ({
+  BlurView: primitive('div'),
+}));
+
+vi.mock('expo-linear-gradient', () => ({
+  LinearGradient: primitive('div'),
+}));
+
+vi.mock('lucide-react-native', () => {
+  const Icon = primitive('span');
+  return {
+    icons: new Proxy({}, {
+      get: () => Icon,
+    }),
   };
 });
 

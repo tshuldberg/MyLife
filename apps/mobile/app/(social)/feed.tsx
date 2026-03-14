@@ -1,330 +1,210 @@
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
   FlatList,
-  TouchableOpacity,
   StyleSheet,
+  Text,
+  View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useAuth } from '@mylife/auth';
+import {
+  getSocialClient,
+  useActivityFeed,
+  useMyKudosForActivities,
+  useMyProfile,
+  useProfilesByIds,
+} from '@mylife/social';
 import { colors } from '@mylife/ui';
+import { SocialActivityCard } from '../../components/social/SocialActivityCard';
+import { SocialProfileSetupPanel } from '../../components/social/SocialProfileSetupPanel';
+import { SocialStatePanel } from '../../components/social/SocialStatePanel';
 
-const SOCIAL_ACCENT = '#7C4DFF';
+function getInitialDisplayName(
+  email: string | undefined,
+  metadataDisplayName: unknown,
+): string {
+  if (typeof metadataDisplayName === 'string' && metadataDisplayName.trim().length > 0) {
+    return metadataDisplayName.trim();
+  }
 
-// TODO: Replace with types from @mylife/social
-interface ActivityItem {
-  id: string;
-  userDisplayName: string;
-  moduleIcon: string;
-  moduleAccentColor: string;
-  description: string;
-  timestamp: string;
-  kudosCount: number;
-  hasKudosed: boolean;
-}
-
-// TODO: Replace with useSocialEnabled() and useFeed() from @mylife/social
-const MOCK_ACTIVITIES: ActivityItem[] = [
-  {
-    id: '1',
-    userDisplayName: 'Alex',
-    moduleIcon: '\u{1F4DA}',
-    moduleAccentColor: '#C9894D',
-    description: 'Finished reading "The Great Gatsby" and rated it 4.5 stars',
-    timestamp: new Date(Date.now() - 3_600_000).toISOString(),
-    kudosCount: 3,
-    hasKudosed: false,
-  },
-  {
-    id: '2',
-    userDisplayName: 'Jordan',
-    moduleIcon: '\u{1F3CB}\uFE0F',
-    moduleAccentColor: '#EF4444',
-    description: 'Completed a 45-minute strength training session',
-    timestamp: new Date(Date.now() - 7_200_000).toISOString(),
-    kudosCount: 5,
-    hasKudosed: true,
-  },
-  {
-    id: '3',
-    userDisplayName: 'Sam',
-    moduleIcon: '\u{1F31F}',
-    moduleAccentColor: '#8B5CF6',
-    description: 'Hit a 30-day meditation streak!',
-    timestamp: new Date(Date.now() - 86_400_000).toISOString(),
-    kudosCount: 12,
-    hasKudosed: false,
-  },
-];
-
-function formatRelativeTime(timestamp: string): string {
-  const diff = Date.now() - new Date(timestamp).getTime();
-  const minutes = Math.floor(diff / 60_000);
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(timestamp).toLocaleDateString();
+  if (!email) return '';
+  return email.split('@')[0] ?? '';
 }
 
 export default function FeedScreen() {
-  const [socialEnabled, setSocialEnabled] = useState(false);
+  const router = useRouter();
+  const auth = useAuth();
+  const myProfile = useMyProfile();
+  const feed = useActivityFeed({ limit: 20 });
+  const authors = useProfilesByIds((feed.data ?? []).map((activity) => activity.profileId));
+  const myKudos = useMyKudosForActivities((feed.data ?? []).map((activity) => activity.id));
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  if (!socialEnabled) {
+  const authorMap = Object.fromEntries(
+    (authors.data ?? []).map((profile) => [profile.id, profile]),
+  );
+
+  if (auth.isLoading || myProfile.isLoading) {
     return (
-      <View style={styles.onboarding}>
-        <View style={styles.onboardingIcon}>
-          <Text style={styles.onboardingEmoji}>{'\u{1F91D}'}</Text>
-        </View>
-        <Text style={styles.onboardingTitle}>Social Features</Text>
-        <Text style={styles.onboardingDesc}>
-          Connect with friends, share achievements, and join challenges. Your
-          data stays private until you choose to share.
-        </Text>
-        <TouchableOpacity
-          style={styles.enableButton}
-          onPress={() => setSocialEnabled(true)}
-        >
-          <Text style={styles.enableButtonText}>Enable Social Features</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.skipButton}>
-          <Text style={styles.skipButtonText}>Not Now</Text>
-        </TouchableOpacity>
+      <View style={styles.centered}>
+        <Text style={styles.loadingText}>Loading social feed...</Text>
       </View>
     );
   }
 
+  if (myProfile.error === 'Social client not initialized') {
+    return (
+      <SocialStatePanel
+        title="Social is not configured"
+        description="Social features require Supabase configuration before feed, follows, and challenges can load."
+      />
+    );
+  }
+
+  if (myProfile.error === 'Not authenticated' || !auth.isAuthenticated) {
+    return (
+      <SocialStatePanel
+        title="Sign in to use social"
+        description="Social features are part of the cloud experience. Connect your account first, then create a social profile."
+        actionLabel="Open data sync"
+        onAction={() => router.push('/(hub)/data-sync')}
+      />
+    );
+  }
+
+  if (myProfile.error && myProfile.error !== 'Not authenticated') {
+    return (
+      <SocialStatePanel
+        title="Unable to load your social profile"
+        description={myProfile.error}
+      />
+    );
+  }
+
+  if (!myProfile.data) {
+    return (
+      <SocialProfileSetupPanel
+        initialDisplayName={getInitialDisplayName(
+          auth.user?.email,
+          auth.user?.user_metadata?.display_name,
+        )}
+        onCreated={() => {
+          void myProfile.refetch();
+        }}
+      />
+    );
+  }
+
+  async function handleKudos(activityId: string, nextActive: boolean) {
+    const client = getSocialClient();
+    if (!client) {
+      setActionError('Social client not initialized.');
+      return;
+    }
+
+    const result = nextActive
+      ? await client.giveKudos(activityId, 'clap')
+      : await client.removeKudos(activityId);
+
+    if (!result.ok) {
+      setActionError(result.error);
+      return;
+    }
+
+    setActionError(null);
+    void Promise.all([feed.refetch(), myKudos.refetch()]);
+  }
+
   return (
     <FlatList
-      data={MOCK_ACTIVITIES}
+      data={feed.data ?? []}
       keyExtractor={(item) => item.id}
       contentContainerStyle={styles.list}
-      renderItem={({ item }) => <ActivityCardMobile activity={item} />}
+      ListHeaderComponent={
+        <View style={styles.header}>
+          <Text style={styles.title}>Friends feed</Text>
+          <Text style={styles.subtitle}>
+            Activity from you and the people you follow appears here.
+          </Text>
+          {actionError ? <Text style={styles.errorText}>{actionError}</Text> : null}
+        </View>
+      }
       ListEmptyComponent={
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No activity yet</Text>
           <Text style={styles.emptyText}>
-            Follow friends to see their activities here.
+            Follow people, join challenges, or post from Market and Forums to
+            start filling your feed.
           </Text>
         </View>
       }
+      renderItem={({ item }) => (
+        <SocialActivityCard
+          activity={item}
+          authorName={authorMap[item.profileId]?.displayName ?? 'MyLife member'}
+          authorAvatarUrl={authorMap[item.profileId]?.avatarUrl}
+          hasKudosed={myKudos.data?.[item.id] ?? false}
+          onToggleKudos={(activityId, nextActive) => {
+            void handleKudos(activityId, nextActive);
+          }}
+        />
+      )}
     />
   );
 }
 
-function ActivityCardMobile({ activity }: { activity: ActivityItem }) {
-  const [kudosed, setKudosed] = useState(activity.hasKudosed);
-  const [kudosCount, setKudosCount] = useState(activity.kudosCount);
-
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {activity.userDisplayName.charAt(0).toUpperCase()}
-          </Text>
-        </View>
-        <View style={styles.cardHeaderText}>
-          <Text style={styles.userName}>{activity.userDisplayName}</Text>
-          <Text style={styles.timestamp}>
-            {formatRelativeTime(activity.timestamp)}
-          </Text>
-        </View>
-        <View
-          style={[
-            styles.moduleBadge,
-            { backgroundColor: `${activity.moduleAccentColor}1A` },
-          ]}
-        >
-          <Text style={styles.moduleIconText}>{activity.moduleIcon}</Text>
-        </View>
-      </View>
-
-      <Text style={styles.description}>{activity.description}</Text>
-
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.kudosButton}
-          onPress={() => {
-            setKudosed(!kudosed);
-            setKudosCount((c) => (kudosed ? c - 1 : c + 1));
-          }}
-        >
-          <Text style={styles.kudosIcon}>
-            {kudosed ? '\u2764\uFE0F' : '\u2661'}
-          </Text>
-          {kudosCount > 0 && (
-            <Text
-              style={[
-                styles.kudosCount,
-                { color: kudosed ? SOCIAL_ACCENT : colors.textTertiary },
-              ]}
-            >
-              {kudosCount}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: colors.textTertiary,
+  },
   list: {
     padding: 16,
     gap: 12,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: 16,
-    gap: 12,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.surfaceElevated,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textSecondary,
-  },
-  cardHeaderText: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.text,
-  },
-  timestamp: {
-    fontSize: 12,
-    color: colors.textTertiary,
-  },
-  moduleBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  moduleIconText: {
-    fontSize: 16,
-  },
-  description: {
-    fontSize: 14,
-    color: colors.text,
-    lineHeight: 20,
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 8,
-  },
-  kudosButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  kudosIcon: {
-    fontSize: 16,
-  },
-  kudosCount: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  // Onboarding
-  onboarding: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 32,
     backgroundColor: colors.background,
   },
-  onboardingIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: `${SOCIAL_ACCENT}1A`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
+  header: {
+    gap: 6,
+    marginBottom: 8,
   },
-  onboardingEmoji: {
-    fontSize: 28,
-  },
-  onboardingTitle: {
+  title: {
     fontSize: 22,
     fontWeight: '700',
     color: colors.text,
-    marginBottom: 8,
   },
-  onboardingDesc: {
+  subtitle: {
     fontSize: 14,
+    lineHeight: 20,
     color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 24,
   },
-  enableButton: {
-    width: '100%',
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: SOCIAL_ACCENT,
-    alignItems: 'center',
-    marginBottom: 12,
+  errorText: {
+    fontSize: 13,
+    color: colors.danger,
   },
-  enableButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  skipButton: {
-    width: '100%',
-    paddingVertical: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  skipButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textTertiary,
-  },
-  // Empty state
   empty: {
-    alignItems: 'center',
-    padding: 48,
-    backgroundColor: colors.surface,
-    borderRadius: 12,
+    padding: 24,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
+    backgroundColor: colors.surface,
+    gap: 8,
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: colors.text,
+    textAlign: 'center',
   },
   emptyText: {
     fontSize: 14,
+    lineHeight: 20,
     color: colors.textSecondary,
-    marginTop: 8,
     textAlign: 'center',
   },
 });

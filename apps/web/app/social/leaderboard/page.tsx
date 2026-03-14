@@ -1,70 +1,140 @@
 'use client';
 
 import { useState } from 'react';
-import type { LeaderboardEntry } from '@/components/social/types';
+import { useAuth } from '@mylife/auth';
+import {
+  useFriendsLeaderboard,
+  useMyProfile,
+} from '@mylife/social';
+import type { LeaderboardTimeframe } from '@mylife/social';
+import { SocialProfileSetupCard } from '@/components/social/SocialProfileSetupCard';
+import { SocialStateCard } from '@/components/social/SocialStateCard';
+import { toLeaderboardEntryRow } from '@/components/social/types';
 
-const MODULE_OPTIONS = [
-  { id: 'all', label: 'Overall', icon: '\u{1F30D}' },
-  { id: 'books', label: 'Books', icon: '\u{1F4DA}' },
-  { id: 'workouts', label: 'Workouts', icon: '\u{1F3CB}\uFE0F' },
-  { id: 'habits', label: 'Habits', icon: '\u{1F31F}' },
-] as const;
+const TIMEFRAME_OPTIONS: readonly {
+  id: LeaderboardTimeframe;
+  label: string;
+}[] = [
+  { id: 'daily', label: 'Today' },
+  { id: 'weekly', label: 'This week' },
+  { id: 'monthly', label: 'This month' },
+  { id: 'all_time', label: 'All time' },
+];
 
-// TODO: Replace with useLeaderboard() from @mylife/social
-function useLeaderboard(_moduleId: string): {
-  entries: LeaderboardEntry[];
-  loading: boolean;
-} {
-  return { entries: MOCK_LEADERBOARD, loading: false };
+function getInitialDisplayName(
+  email: string | undefined,
+  metadataDisplayName: unknown,
+): string {
+  if (typeof metadataDisplayName === 'string' && metadataDisplayName.trim().length > 0) {
+    return metadataDisplayName.trim();
+  }
+
+  if (!email) return '';
+  return email.split('@')[0] ?? '';
 }
 
 export default function LeaderboardPage() {
-  const [selectedModule, setSelectedModule] = useState('all');
-  const { entries, loading } = useLeaderboard(selectedModule);
+  const auth = useAuth();
+  const myProfile = useMyProfile();
+  const [timeframe, setTimeframe] = useState<LeaderboardTimeframe>('weekly');
+  const leaderboard = useFriendsLeaderboard(timeframe);
+
+  if (auth.isLoading || myProfile.isLoading) {
+    return <p style={styles.loadingText}>Loading leaderboard...</p>;
+  }
+
+  if (myProfile.error === 'Social client not initialized') {
+    return (
+      <SocialStateCard
+        title="Social is not configured"
+        description="Leaderboards require a configured social backend."
+      />
+    );
+  }
+
+  if (myProfile.error === 'Not authenticated' || !auth.isAuthenticated) {
+    return (
+      <SocialStateCard
+        title="Sign in to view leaderboards"
+        description="Leaderboards are based on your MyLife account and the people you follow."
+        actionHref="/settings/data-sync"
+        actionLabel="Open data sync"
+      />
+    );
+  }
+
+  if (myProfile.error && myProfile.error !== 'Not authenticated') {
+    return (
+      <SocialStateCard
+        title="Unable to load your social profile"
+        description={myProfile.error}
+      />
+    );
+  }
+
+  if (!myProfile.data) {
+    return (
+      <SocialProfileSetupCard
+        initialDisplayName={getInitialDisplayName(
+          auth.user?.email,
+          auth.user?.user_metadata?.display_name,
+        )}
+        onCreated={() => {
+          void myProfile.refetch();
+        }}
+      />
+    );
+  }
+
+  if (leaderboard.isLoading) {
+    return <p style={styles.loadingText}>Loading leaderboard...</p>;
+  }
+
+  if (leaderboard.error) {
+    return (
+      <SocialStateCard
+        title="Unable to load the leaderboard"
+        description={leaderboard.error}
+      />
+    );
+  }
+
+  const entries = (leaderboard.data ?? []).map(toLeaderboardEntryRow);
 
   return (
     <div style={styles.container}>
-      {/* Module filter */}
       <div style={styles.filters}>
-        {MODULE_OPTIONS.map((opt) => (
+        {TIMEFRAME_OPTIONS.map((option) => (
           <button
-            key={opt.id}
+            key={option.id}
             type="button"
-            onClick={() => setSelectedModule(opt.id)}
+            onClick={() => setTimeframe(option.id)}
             style={{
               ...styles.filterButton,
               backgroundColor:
-                selectedModule === opt.id
-                  ? 'var(--accent-social)'
-                  : 'var(--surface)',
-              color:
-                selectedModule === opt.id ? '#FFFFFF' : 'var(--text-secondary)',
+                timeframe === option.id ? 'var(--accent-social)' : 'var(--surface)',
+              color: timeframe === option.id ? '#FFFFFF' : 'var(--text-secondary)',
               borderColor:
-                selectedModule === opt.id
-                  ? 'var(--accent-social)'
-                  : 'var(--border)',
+                timeframe === option.id ? 'var(--accent-social)' : 'var(--border)',
             }}
           >
-            <span>{opt.icon}</span>
-            <span>{opt.label}</span>
+            {option.label}
           </button>
         ))}
       </div>
 
-      {loading ? (
-        <p style={styles.loadingText}>Loading leaderboard...</p>
-      ) : entries.length === 0 ? (
+      {entries.length === 0 ? (
         <div style={styles.empty}>
-          <p style={styles.emptyTitle}>No entries yet</p>
+          <p style={styles.emptyTitle}>No leaderboard entries yet</p>
           <p style={styles.emptyText}>
-            Be the first to climb the leaderboard.
+            Follow a few people and log activity to start comparing progress.
           </p>
         </div>
       ) : (
         <div style={styles.table}>
           <div style={styles.tableHeader}>
             <span style={styles.colRank}>Rank</span>
-            <span style={styles.colName}>User</span>
+            <span style={styles.colName}>Member</span>
             <span style={styles.colScore}>Score</span>
           </div>
           {entries.map((entry) => (
@@ -75,36 +145,29 @@ export default function LeaderboardPage() {
                 ...(entry.rank <= 3 ? styles.topThreeRow : {}),
               }}
             >
-              <span
-                style={{
-                  ...styles.colRank,
-                  ...styles.rankValue,
-                  color:
-                    entry.rank === 1
-                      ? '#FFD700'
-                      : entry.rank === 2
-                        ? '#C0C0C0'
-                        : entry.rank === 3
-                          ? '#CD7F32'
-                          : 'var(--text-secondary)',
-                }}
-              >
+              <span style={{ ...styles.colRank, ...styles.rankValue }}>
                 {entry.rank <= 3 ? MEDALS[entry.rank - 1] : `#${entry.rank}`}
               </span>
               <div style={{ ...styles.colName, ...styles.userCell }}>
                 <div style={styles.userAvatar}>
-                  <span style={styles.userAvatarText}>
-                    {entry.displayName.charAt(0).toUpperCase()}
-                  </span>
+                  {entry.avatarUrl ? (
+                    <img
+                      alt={entry.displayName}
+                      src={entry.avatarUrl}
+                      style={styles.userAvatarImage}
+                    />
+                  ) : (
+                    <span style={styles.userAvatarText}>
+                      {entry.displayName.charAt(0).toUpperCase()}
+                    </span>
+                  )}
                 </div>
-                <span style={styles.userName}>{entry.displayName}</span>
+                <div style={styles.userText}>
+                  <span style={styles.userName}>{entry.displayName}</span>
+                  <span style={styles.userHandle}>@{entry.handle}</span>
+                </div>
               </div>
-              <span
-                style={{
-                  ...styles.colScore,
-                  ...styles.scoreValue,
-                }}
-              >
+              <span style={{ ...styles.colScore, ...styles.scoreValue }}>
                 {entry.score.toLocaleString()}
               </span>
             </div>
@@ -119,7 +182,7 @@ const MEDALS = ['\u{1F947}', '\u{1F948}', '\u{1F949}'];
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
-    maxWidth: '640px',
+    maxWidth: '720px',
     display: 'flex',
     flexDirection: 'column',
     gap: '20px',
@@ -130,9 +193,6 @@ const styles: Record<string, React.CSSProperties> = {
     flexWrap: 'wrap',
   },
   filterButton: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
     padding: '6px 14px',
     borderRadius: 'var(--radius-md)',
     border: '1px solid',
@@ -140,7 +200,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 500,
     cursor: 'pointer',
     font: 'inherit',
-    transition: 'background-color 0.15s, color 0.15s',
   },
   loadingText: {
     fontSize: '14px',
@@ -202,7 +261,7 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: '0.5px',
   },
   colScore: {
-    width: '80px',
+    width: '100px',
     flexShrink: 0,
     textAlign: 'right' as const,
     fontSize: '12px',
@@ -230,17 +289,30 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    flexShrink: 0,
+    overflow: 'hidden',
+  },
+  userAvatarImage: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover' as const,
   },
   userAvatarText: {
     fontSize: '13px',
     fontWeight: 600,
     color: 'var(--accent-social)',
   },
+  userText: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
   userName: {
     fontSize: '14px',
     fontWeight: 500,
     color: 'var(--text)',
+  },
+  userHandle: {
+    fontSize: '12px',
+    color: 'var(--accent-social)',
   },
   scoreValue: {
     fontSize: '15px',
@@ -249,35 +321,3 @@ const styles: Record<string, React.CSSProperties> = {
     textTransform: 'none' as const,
   },
 };
-
-const MOCK_LEADERBOARD: LeaderboardEntry[] = [
-  { rank: 1, userId: 'u3', displayName: 'Sam', score: 2450, moduleId: 'all' },
-  {
-    rank: 2,
-    userId: 'u1',
-    displayName: 'Alex',
-    score: 1890,
-    moduleId: 'all',
-  },
-  {
-    rank: 3,
-    userId: 'u4',
-    displayName: 'Riley',
-    score: 1650,
-    moduleId: 'all',
-  },
-  {
-    rank: 4,
-    userId: 'u2',
-    displayName: 'Jordan',
-    score: 1200,
-    moduleId: 'all',
-  },
-  {
-    rank: 5,
-    userId: 'me',
-    displayName: 'You',
-    score: 980,
-    moduleId: 'all',
-  },
-];

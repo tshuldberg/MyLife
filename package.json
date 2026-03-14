@@ -19,15 +19,18 @@
     "scaffold:function-test": "bash scripts/perf-audit/run-js.sh scripts/perf-audit/scaffold-function-quality-test.mjs",
     "gate:function": "bash scripts/perf-audit/run-js.sh scripts/perf-audit/run-function-quality-gate.mjs",
     "gate:function:changed": "bash scripts/perf-audit/run-js.sh scripts/perf-audit/run-changed-function-quality-gate.mjs",
+    "audit:deps": "pnpm audit --audit-level=high",
     "clean": "turbo clean",
     "test:coverage": "turbo test:coverage",
-    "test:parity-matrix": "pnpm --filter @mylife/web test:parity"
+    "test:parity-matrix": "pnpm --filter @mylife/web test:parity",
+    "prepare": "husky"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.46.0",
     "@typescript-eslint/parser": "^8.46.0",
     "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^8.57.1",
+    "husky": "^9.1.7",
     "playwright": "1.58.2",
     "turbo": "^2.4.0",
     "typescript": "^5.7.0"

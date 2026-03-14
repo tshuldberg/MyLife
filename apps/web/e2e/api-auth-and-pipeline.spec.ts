@@ -1,4 +1,17 @@
+import crypto from 'node:crypto';
 import { expect, test } from '@playwright/test';
+
+function createSignatureHeader(
+  payload: string,
+  secret: string,
+  timestamp = Math.floor(Date.now() / 1000),
+) {
+  const signature = crypto
+    .createHmac('sha256', secret)
+    .update(`${timestamp}.${payload}`)
+    .digest('hex');
+  return `t=${timestamp},v1=${signature}`;
+}
 
 test.describe('API auth and data pipelines', () => {
   test('entitlement issuance/webhook/sync pipeline enforces auth and returns expected data', async ({ request }) => {
@@ -48,17 +61,25 @@ test.describe('API auth and data pipelines', () => {
     });
     expect(webhookWithoutKey.status()).toBe(401);
 
+    const webhookPayload = {
+      eventId: `e2e-webhook-${Date.now()}`,
+      eventType: 'purchase.created',
+      sku: 'mylife_hosted_monthly_v1',
+      appId: 'mylife',
+      features: ['books', 'sharing'],
+    };
+    const webhookRawBody = JSON.stringify(webhookPayload);
+
     const webhookWithKey = await request.post('/api/webhooks/billing', {
       headers: {
-        'x-billing-webhook-key': 'mylife-e2e-webhook-key',
+        'content-type': 'application/json',
+        'stripe-signature': createSignatureHeader(
+          webhookRawBody,
+          'mylife-e2e-webhook-secret',
+          Math.floor(Date.now() / 1000),
+        ),
       },
-      data: {
-        eventId: `e2e-webhook-${Date.now()}`,
-        eventType: 'purchase.created',
-        sku: 'mylife_hosted_monthly_v1',
-        appId: 'mylife',
-        features: ['books', 'sharing'],
-      },
+      data: webhookRawBody,
     });
     expect(webhookWithKey.status()).toBe(200);
     const webhookBody = await webhookWithKey.json();

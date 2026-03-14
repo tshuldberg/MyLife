@@ -6,7 +6,7 @@
  */
 
 import { useCallback, useRef, useSyncExternalStore } from 'react';
-import type { SyncProvider, SyncStatus, SyncTier } from './types';
+import type { SyncProvider, SyncStatus, SyncTier, PairedDevice, SyncSession, BlobPolicyEntry } from './types';
 
 // Module-level singleton provider reference.
 // Set via setSyncProvider() during app initialization.
@@ -124,4 +124,138 @@ export function useSetSyncTier(): SetSyncTierFn {
     }
     await _tierChangeHandler(tier);
   }, []);
+}
+
+// ---------------------------------------------------------------------------
+// P2P Sync Hooks
+// ---------------------------------------------------------------------------
+
+// External store for paired devices
+let _pairedDevices: PairedDevice[] = [];
+let _pairedDevicesVersion = 0;
+const _pairedDevicesListeners = new Set<() => void>();
+
+/** Update the paired devices list (called by SyncEngine). */
+export function setPairedDevices(devices: PairedDevice[]): void {
+  _pairedDevices = devices;
+  _pairedDevicesVersion++;
+  for (const listener of _pairedDevicesListeners) {
+    listener();
+  }
+}
+
+/**
+ * Hook to get the list of paired devices.
+ * Re-renders when devices are added, removed, or updated.
+ */
+export function usePairedDevices(): PairedDevice[] {
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    _pairedDevicesListeners.add(onStoreChange);
+    return () => { _pairedDevicesListeners.delete(onStoreChange); };
+  }, []);
+
+  const getSnapshot = useCallback(() => _pairedDevices, []);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+// External store for sync history
+let _syncHistory: SyncSession[] = [];
+let _syncHistoryVersion = 0;
+const _syncHistoryListeners = new Set<() => void>();
+
+/** Update the sync history (called by SyncEngine). */
+export function setSyncHistory(sessions: SyncSession[]): void {
+  _syncHistory = sessions;
+  _syncHistoryVersion++;
+  for (const listener of _syncHistoryListeners) {
+    listener();
+  }
+}
+
+/**
+ * Hook to get the recent sync session history.
+ * Re-renders when new sync sessions complete.
+ */
+export function useSyncHistory(): SyncSession[] {
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    _syncHistoryListeners.add(onStoreChange);
+    return () => { _syncHistoryListeners.delete(onStoreChange); };
+  }, []);
+
+  const getSnapshot = useCallback(() => _syncHistory, []);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+// External store for module sync settings
+let _moduleSyncSettings: BlobPolicyEntry[] = [];
+let _moduleSyncSettingsVersion = 0;
+const _moduleSyncSettingsListeners = new Set<() => void>();
+
+/** Update the module sync settings (called by SyncEngine). */
+export function setModuleSyncSettings(settings: BlobPolicyEntry[]): void {
+  _moduleSyncSettings = settings;
+  _moduleSyncSettingsVersion++;
+  for (const listener of _moduleSyncSettingsListeners) {
+    listener();
+  }
+}
+
+/**
+ * Hook to get per-module sync/blob policies.
+ * Re-renders when module sync settings change.
+ */
+export function useModuleSyncSettings(): BlobPolicyEntry[] {
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    _moduleSyncSettingsListeners.add(onStoreChange);
+    return () => { _moduleSyncSettingsListeners.delete(onStoreChange); };
+  }, []);
+
+  const getSnapshot = useCallback(() => _moduleSyncSettings, []);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+}
+
+// External store for torrent status
+export interface TorrentStatusSnapshot {
+  activeDownloads: number;
+  activeSeeds: number;
+  totalUploaded: number;
+  totalDownloaded: number;
+}
+
+const DEFAULT_TORRENT_STATUS: TorrentStatusSnapshot = {
+  activeDownloads: 0,
+  activeSeeds: 0,
+  totalUploaded: 0,
+  totalDownloaded: 0,
+};
+
+let _torrentStatus: TorrentStatusSnapshot = DEFAULT_TORRENT_STATUS;
+let _torrentStatusVersion = 0;
+const _torrentStatusListeners = new Set<() => void>();
+
+/** Update the torrent status (called by torrent subsystem). */
+export function setTorrentStatus(status: TorrentStatusSnapshot): void {
+  _torrentStatus = status;
+  _torrentStatusVersion++;
+  for (const listener of _torrentStatusListeners) {
+    listener();
+  }
+}
+
+/**
+ * Hook to get the current torrent subsystem status.
+ * Re-renders when downloads/seeds start, complete, or update.
+ */
+export function useTorrentStatus(): TorrentStatusSnapshot {
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    _torrentStatusListeners.add(onStoreChange);
+    return () => { _torrentStatusListeners.delete(onStoreChange); };
+  }, []);
+
+  const getSnapshot = useCallback(() => _torrentStatus, []);
+
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

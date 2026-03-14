@@ -1,8 +1,8 @@
-import type { ModuleId } from '@mylife/module-registry';
+import { FREE_MODULES as FREE_MODULE_IDS, type ModuleId } from '@mylife/module-registry';
 import type { EntitlementState, Purchase, StorageTier } from './types';
 
 /** Modules that are always free regardless of purchase state. */
-const FREE_MODULES: ReadonlySet<ModuleId> = new Set(['fast']);
+const FREE_MODULES: ReadonlySet<ModuleId> = new Set(FREE_MODULE_IDS);
 
 /** One year in milliseconds. */
 const ONE_YEAR_MS = 365.25 * 24 * 60 * 60 * 1000;

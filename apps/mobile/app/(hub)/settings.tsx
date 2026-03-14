@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Card, Text, colors, spacing } from '@mylife/ui';
+import { GA_MODULE_IDS, PUBLIC_BETA_MODULE_IDS } from '@mylife/module-registry';
 import { useDatabase } from '../../components/DatabaseProvider';
 import {
   getModeConfig,
@@ -58,7 +59,8 @@ export default function SettingsScreen() {
             </View>
           </View>
           <Text variant="caption" color={colors.textSecondary} style={styles.subscriptionNote}>
-            Upgrade to Premium to unlock all modules.
+            MyLife Pro guarantees {GA_MODULE_IDS.length} production-ready modules and includes
+            access to {PUBLIC_BETA_MODULE_IDS.length} more in public beta.
           </Text>
         </Card>
       </View>

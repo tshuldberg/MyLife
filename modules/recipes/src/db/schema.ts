@@ -444,3 +444,43 @@ export const SEED_SETTINGS = [
   `INSERT OR IGNORE INTO rc_settings (key, value) VALUES ('measurementSystem', 'us')`,
   `INSERT OR IGNORE INTO rc_settings (key, value) VALUES ('defaultDifficulty', 'medium')`,
 ];
+
+// -- V5: Shopping Lists --
+
+export const CREATE_RC_SHOPPING_LISTS = `
+CREATE TABLE IF NOT EXISTS rc_shopping_lists (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const CREATE_RC_SHOPPING_LIST_ITEMS = `
+CREATE TABLE IF NOT EXISTS rc_shopping_list_items (
+    id TEXT PRIMARY KEY,
+    list_id TEXT NOT NULL REFERENCES rc_shopping_lists(id) ON DELETE CASCADE,
+    item TEXT NOT NULL,
+    quantity REAL,
+    unit TEXT,
+    grocery_section TEXT NOT NULL DEFAULT 'other' CHECK (grocery_section IN (
+        'produce', 'dairy', 'meat', 'pantry', 'frozen', 'bakery',
+        'beverages', 'snacks', 'condiments', 'other'
+    )),
+    recipe_id TEXT,
+    recipe_multiplier REAL NOT NULL DEFAULT 1,
+    is_checked INTEGER NOT NULL DEFAULT 0,
+    is_custom INTEGER NOT NULL DEFAULT 0,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+)`;
+
+export const V5_TABLES = [CREATE_RC_SHOPPING_LISTS, CREATE_RC_SHOPPING_LIST_ITEMS];
+
+export const V5_INDEXES = [
+  `CREATE INDEX IF NOT EXISTS rc_shopping_lists_active_idx ON rc_shopping_lists(is_active)`,
+  `CREATE INDEX IF NOT EXISTS rc_shopping_list_items_list_idx ON rc_shopping_list_items(list_id)`,
+  `CREATE INDEX IF NOT EXISTS rc_shopping_list_items_recipe_idx ON rc_shopping_list_items(recipe_id)`,
+  `CREATE INDEX IF NOT EXISTS rc_shopping_list_items_checked_idx ON rc_shopping_list_items(is_checked)`,
+];

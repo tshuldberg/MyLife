@@ -17,7 +17,7 @@ import type {
 
 /** Data structure for a share card (without DB-generated fields). */
 export interface ShareCardData {
-  type: 'activity' | 'challenge_complete' | 'streak' | 'year_in_review' | 'profile';
+  type: 'activity' | 'challenge_complete' | 'streak' | 'year_in_review' | 'profile' | 'forum_thread' | 'market_listing';
   profileId: string;
   moduleId: ModuleId | null;
   headline: string;
@@ -168,7 +168,79 @@ export function generateProfileCard(
   };
 }
 
+/** Generate a share card for a forum thread. */
+export function generateForumThreadCard(
+  profile: SocialProfile,
+  thread: {
+    title: string;
+    communityName: string;
+    voteScore: number;
+    replyCount: number;
+  },
+): ShareCardData {
+  return {
+    type: 'forum_thread',
+    profileId: profile.id,
+    moduleId: 'forums',
+    headline: thread.title,
+    subtext: `in ${thread.communityName}`,
+    statValue: formatVoteScore(thread.voteScore),
+    statLabel: thread.replyCount === 1 ? 'reply' : 'replies',
+    data: {
+      communityName: thread.communityName,
+      voteScore: thread.voteScore,
+      replyCount: thread.replyCount,
+      handle: profile.handle,
+      displayName: profile.displayName,
+    },
+  };
+}
+
+/** Generate a share card for a marketplace listing. */
+export function generateMarketListingCard(
+  profile: SocialProfile,
+  listing: {
+    title: string;
+    priceCents: number | null;
+    condition?: string | null;
+    listingType?: string;
+    photoUrl?: string;
+  },
+): ShareCardData {
+  const priceText = listing.priceCents != null
+    ? `$${(listing.priceCents / 100).toFixed(2)}`
+    : 'Free';
+  const conditionLabel = listing.condition
+    ?? (listing.listingType?.startsWith('service_') ? 'Service' : 'Listing');
+
+  return {
+    type: 'market_listing',
+    profileId: profile.id,
+    moduleId: 'market',
+    headline: listing.title,
+    subtext: `${priceText} · ${conditionLabel}`,
+    statValue: priceText,
+    statLabel: conditionLabel,
+    data: {
+      listingTitle: listing.title,
+      priceCents: listing.priceCents,
+      condition: conditionLabel,
+      listingType: listing.listingType,
+      photoUrl: listing.photoUrl,
+      handle: profile.handle,
+      displayName: profile.displayName,
+    },
+  };
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────
+
+function formatVoteScore(score: number): string {
+  if (score >= 1000) {
+    return `${(score / 1000).toFixed(1)}k`;
+  }
+  return String(score);
+}
 
 function formatKudosCount(count: number): string {
   if (count >= 1000) {

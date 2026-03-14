@@ -68,6 +68,9 @@ function createMockRevenueCat(): RevenueCatSDK {
 // Mock Stripe SDK
 // ---------------------------------------------------------------------------
 
+const VALID_WEBHOOK_SECRET = 'whsec_test_secret_123';
+const VALID_SIGNATURE = 'valid_test_signature';
+
 function createMockStripe(): StripeSDK {
   const subscriptions: Map<string, {
     subscriptionId: string;
@@ -118,6 +121,12 @@ function createMockStripe(): StripeSDK {
     }),
     listActiveSubscriptions: vi.fn(async () => {
       return Array.from(subscriptions.values()).filter((s) => s.status === 'active');
+    }),
+    constructWebhookEvent: vi.fn((payload: string, signature: string, secret: string) => {
+      if (signature !== VALID_SIGNATURE || secret !== VALID_WEBHOOK_SECRET) {
+        throw new Error('Webhook signature verification failed.');
+      }
+      return JSON.parse(payload);
     }),
   };
 }
@@ -229,6 +238,7 @@ describe('Stripe web purchases', () => {
     initStripe(mockStripe, {
       successUrl: '/success',
       cancelUrl: '/cancel',
+      webhookSecret: VALID_WEBHOOK_SECRET,
     });
   });
 
@@ -254,17 +264,54 @@ describe('Stripe web purchases', () => {
     expect(result.purchase!.productId).toBe('mylife_hub_unlock');
   });
 
-  it('handles webhook payload', async () => {
+  it('verifies signature and handles valid webhook payload', async () => {
     const payload = JSON.stringify({
       type: 'checkout.session.completed',
       productId: 'mylife_hub_unlock',
       purchaseDate: '2026-06-01T00:00:00.000Z',
       isActive: true,
     });
-    const purchases = await handleStripeWebhook(payload, 'test_sig');
+    const purchases = await handleStripeWebhook(payload, VALID_SIGNATURE);
     expect(purchases).toHaveLength(1);
     expect(purchases[0].productId).toBe('mylife_hub_unlock');
     expect(purchases[0].isActive).toBe(true);
+    expect(mockStripe.constructWebhookEvent).toHaveBeenCalledWith(
+      payload,
+      VALID_SIGNATURE,
+      VALID_WEBHOOK_SECRET,
+    );
+  });
+
+  it('rejects webhook with invalid signature', async () => {
+    const payload = JSON.stringify({
+      type: 'checkout.session.completed',
+      productId: 'mylife_hub_unlock',
+      purchaseDate: '2026-06-01T00:00:00.000Z',
+      isActive: true,
+    });
+    await expect(handleStripeWebhook(payload, 'forged_signature'))
+      .rejects.toThrow('Webhook signature verification failed');
+  });
+
+  it('rejects webhook when webhook secret is not configured', async () => {
+    initStripe(mockStripe, {
+      successUrl: '/success',
+      cancelUrl: '/cancel',
+      // no webhookSecret
+    });
+    const payload = JSON.stringify({
+      type: 'checkout.session.completed',
+      productId: 'mylife_hub_unlock',
+      purchaseDate: '2026-06-01T00:00:00.000Z',
+      isActive: true,
+    });
+    await expect(handleStripeWebhook(payload, VALID_SIGNATURE))
+      .rejects.toThrow('Webhook secret not configured');
+  });
+
+  it('rejects webhook with malformed JSON payload', async () => {
+    await expect(handleStripeWebhook('not-json{{{', VALID_SIGNATURE))
+      .rejects.toThrow();
   });
 });
 

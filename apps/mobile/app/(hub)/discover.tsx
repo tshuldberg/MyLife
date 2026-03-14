@@ -3,13 +3,17 @@ import { Alert, SectionList, StyleSheet, TouchableOpacity, View } from 'react-na
 import { useRouter } from 'expo-router';
 import { icons } from 'lucide-react-native';
 import {
-  useModuleRegistry,
-  useEnabledModules,
-  MODULE_METADATA,
-  MODULE_ICONS,
   FREE_MODULES,
+  MODULE_ICONS,
+  MODULE_METADATA,
+  getModuleReleaseDescription,
+  getModuleReleaseLabel,
+  getModuleReleaseState,
+  isUserVisibleModule,
   type ModuleDefinition,
   type ModuleId,
+  useEnabledModules,
+  useModuleRegistry,
 } from '@mylife/module-registry';
 import { Card, Text, colors, spacing, borderRadius } from '@mylife/ui';
 import { useModuleToggle } from '../../hooks/use-module-toggle';
@@ -43,7 +47,7 @@ const MODULE_CATEGORIES: { title: string; moduleIds: ModuleId[] }[] = [
   },
   {
     title: 'Finance',
-    moduleIds: ['budget', 'subs'],
+    moduleIds: ['budget'],
   },
   {
     title: 'Home & Auto',
@@ -79,7 +83,9 @@ export default function DiscoverScreen() {
 
   const sections = MODULE_CATEGORIES.map((cat) => ({
     title: cat.title,
-    data: cat.moduleIds.map((id) => MODULE_METADATA[id]),
+    data: cat.moduleIds
+      .filter((id) => isUserVisibleModule(id))
+      .map((id) => MODULE_METADATA[id]),
   }));
 
   const handleModulePress = useCallback(
@@ -110,6 +116,9 @@ export default function DiscoverScreen() {
       const isEnabled = registry.isEnabled(item.id);
       const isFree = (FREE_MODULES as readonly string[]).includes(item.id);
       const isPremiumLocked = !isFree && !hasEntitlement;
+      const releaseState = getModuleReleaseState(item.id);
+      const releaseLabel = getModuleReleaseLabel(item.id);
+      const releaseDescription = getModuleReleaseDescription(item.id);
       const iconName = MODULE_ICONS[item.id] ?? 'circle';
       const IconComponent = getIcon(iconName);
       const LockIcon = getIcon('lock');
@@ -139,9 +148,27 @@ export default function DiscoverScreen() {
                 )}
               </View>
               <View style={styles.moduleInfo}>
-                <Text variant="subheading">{item.name}</Text>
+                <View style={styles.titleRow}>
+                  <Text variant="subheading">{item.name}</Text>
+                  <View
+                    style={[
+                      styles.releaseBadge,
+                      releaseState === 'ga' ? styles.releaseBadgeGa : styles.releaseBadgeBeta,
+                    ]}
+                  >
+                    <Text
+                      variant="label"
+                      color={releaseState === 'ga' ? colors.success : colors.textSecondary}
+                    >
+                      {releaseLabel}
+                    </Text>
+                  </View>
+                </View>
                 <Text variant="caption" color={colors.textSecondary}>
                   {item.tagline}
+                </Text>
+                <Text variant="caption" color={colors.textTertiary}>
+                  {releaseDescription}
                 </Text>
               </View>
               {isPremiumLocked ? (
@@ -242,6 +269,22 @@ const styles = StyleSheet.create({
   moduleInfo: {
     flex: 1,
     gap: 2,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  releaseBadge: {
+    paddingHorizontal: spacing.xs + 2,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  releaseBadgeGa: {
+    backgroundColor: 'rgba(48, 209, 88, 0.14)',
+  },
+  releaseBadgeBeta: {
+    backgroundColor: 'rgba(240, 240, 245, 0.08)',
   },
   statusBadge: {
     paddingHorizontal: spacing.sm,

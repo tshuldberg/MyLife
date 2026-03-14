@@ -12,10 +12,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { icons } from 'lucide-react-native';
 import {
-  MODULE_IDS,
   MODULE_METADATA,
   MODULE_ICONS,
   DOCK_ITEMS,
+  USER_VISIBLE_MODULE_IDS,
   type ModuleId,
 } from '@mylife/module-registry';
 import { Text, colors, spacing, borderRadius } from '@mylife/ui';
@@ -84,9 +84,8 @@ function ModuleGridItem({ moduleId }: { moduleId: ModuleId }) {
   }, [scale, opacity]);
 
   const handlePress = useCallback(() => {
-    // Navigate to the module when ready; for now just feedback
-    void router;
-  }, [router]);
+    router.push(`/(${moduleId})` as never);
+  }, [router, moduleId]);
 
   return (
     <Pressable
@@ -183,7 +182,7 @@ function DockBar() {
  * iOS-style 4-column icon grid with glass search pill and dock bar.
  */
 export default function HubHomeScreen() {
-  const modules = useMemo(() => [...MODULE_IDS], []);
+  const modules = useMemo(() => [...USER_VISIBLE_MODULE_IDS], []);
 
   const renderItem = useCallback(
     ({ item }: { item: ModuleId }) => <ModuleGridItem moduleId={item} />,

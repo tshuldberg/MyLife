@@ -9,12 +9,14 @@ export type ModuleId =
   | 'cycle'
   | 'fast'
   | 'flash'
+  | 'forums'
   | 'garden'
   | 'habits'
   | 'health'
   | 'homes'
   | 'journal'
   | 'mail'
+  | 'market'
   | 'meds'
   | 'mood'
   | 'notes'
@@ -39,12 +41,14 @@ export const ModuleIdSchema = z.enum([
   'cycle',
   'fast',
   'flash',
+  'forums',
   'garden',
   'habits',
   'health',
   'homes',
   'journal',
   'mail',
+  'market',
   'meds',
   'mood',
   'notes',

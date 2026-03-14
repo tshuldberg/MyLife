@@ -95,6 +95,22 @@ export default function RecipesLayout() {
           name="event/[id]"
           options={{ href: null, title: 'Event' }}
         />
+        <Tabs.Screen
+          name="import-source"
+          options={{ href: null, title: 'Import Recipe' }}
+        />
+        <Tabs.Screen
+          name="import-review"
+          options={{ href: null, title: 'Review Import' }}
+        />
+        <Tabs.Screen
+          name="shopping-list"
+          options={{ href: null, title: 'Shopping List' }}
+        />
+        <Tabs.Screen
+          name="shopping-lists"
+          options={{ href: null, title: 'Shopping Lists' }}
+        />
       </Tabs>
     </ModuleErrorBoundary>
   );

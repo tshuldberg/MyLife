@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ScrollView, View, Alert, Pressable, Switch, StyleSheet } from 'react-native';
+import { ScrollView, View, Alert, Pressable, Share, Switch, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Text, Card, colors, spacing } from '@mylife/ui';
-import { getGoals, getSetting } from '@mylife/budget';
+import { exportBudgetTransactionsCsv, getGoals, getSetting, resetBudgetData, serializeBudgetExportJson } from '@mylife/budget';
 import { useDatabase } from '../../components/DatabaseProvider';
 
 const BUDGET_ACCENT = colors.modules.budget;
@@ -53,6 +53,11 @@ export default function BudgetSettingsScreen() {
   const db = useDatabase();
   const router = useRouter();
   const [appLockEnabled, setAppLockEnabled] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  const refresh = useCallback(() => {
+    setRefreshTick((value) => value + 1);
+  }, []);
 
   const goalsCount = useMemo(() => {
     try {
@@ -60,7 +65,7 @@ export default function BudgetSettingsScreen() {
     } catch {
       return 0;
     }
-  }, [db]);
+  }, [db, refreshTick]);
 
   const currencyCode = useMemo(() => {
     try {
@@ -69,7 +74,7 @@ export default function BudgetSettingsScreen() {
     } catch {
       return 'USD';
     }
-  }, [db]);
+  }, [db, refreshTick]);
 
   const handleCurrencyFormat = useCallback(() => {
     Alert.alert('Currency Format', 'Multi-currency support is planned for a future release.');
@@ -83,9 +88,46 @@ export default function BudgetSettingsScreen() {
     router.push('/(budget)/import-csv');
   }, [router]);
 
-  const handleExportData = useCallback(() => {
-    Alert.alert('Export Data', 'Export to CSV/JSON is in progress and will ship in an upcoming update.');
+  const shareExport = useCallback(async (title: string, message: string) => {
+    await Share.share({
+      message,
+      title,
+    });
   }, []);
+
+  const runJsonExport = useCallback(async () => {
+    try {
+      await shareExport('MyBudget Backup', serializeBudgetExportJson(db));
+    } catch {
+      Alert.alert('Export Failed', 'Failed to export the JSON backup.');
+    }
+  }, [db, shareExport]);
+
+  const runTransactionsExport = useCallback(async () => {
+    try {
+      await shareExport('MyBudget Transactions Export', exportBudgetTransactionsCsv(db));
+    } catch {
+      Alert.alert('Export Failed', 'Failed to export transactions CSV.');
+    }
+  }, [db, shareExport]);
+
+  const handleExportData = useCallback(() => {
+    Alert.alert('Export Data', 'Choose the export format to share.', [
+      {
+        text: 'JSON Backup',
+        onPress: () => {
+          void runJsonExport();
+        },
+      },
+      {
+        text: 'Transactions CSV',
+        onPress: () => {
+          void runTransactionsExport();
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }, [runJsonExport, runTransactionsExport]);
 
   const handleLicenses = useCallback(() => {
     Alert.alert('Licenses', 'Open-source license details are being prepared.');
@@ -105,12 +147,21 @@ export default function BudgetSettingsScreen() {
           text: 'Reset',
           style: 'destructive',
           onPress: () => {
-            Alert.alert('Reset', 'Budget data reset is not yet implemented in the hub app.');
+            try {
+              const result = resetBudgetData(db);
+              refresh();
+              Alert.alert(
+                'Reset Complete',
+                `Removed ${result.rowsDeleted} rows and restored default budget settings, accounts, and envelopes.`,
+              );
+            } catch {
+              Alert.alert('Reset Failed', 'Budget data could not be reset.');
+            }
           },
         },
       ],
     );
-  }, []);
+  }, [db, refresh]);
 
   return (
     <ScrollView
@@ -146,7 +197,7 @@ export default function BudgetSettingsScreen() {
       <Card style={styles.section}>
         <SettingsRow label="CSV Import Profiles" onPress={handleCsvProfiles} />
         <View style={styles.divider} />
-        <SettingsRow label="Export Data" value="CSV / JSON" onPress={handleExportData} />
+        <SettingsRow label="Export Data" value="JSON backup / transactions CSV" onPress={handleExportData} />
       </Card>
 
       <SectionHeader title="ABOUT" />

@@ -126,10 +126,10 @@ export async function optOutOfSocial(): Promise<{ ok: true } | { ok: false; erro
   if (!profileResult.ok) return { ok: false, error: profileResult.error };
   if (!profileResult.data) return { ok: true }; // Already opted out
 
-  // Deleting the profile cascades to all social data via FK constraints
-  // This is handled by RLS policy + CASCADE on the database side
-  // The client needs to call a dedicated delete endpoint
-  return { ok: false, error: 'Profile deletion requires a server-side function. Use the delete-profile Edge Function.' };
+  const deleteResult = await client.deleteMyProfile();
+  if (!deleteResult.ok) return { ok: false, error: deleteResult.error };
+
+  return { ok: true };
 }
 
 // ── Privacy Validation ────────────────────────────────────────────────

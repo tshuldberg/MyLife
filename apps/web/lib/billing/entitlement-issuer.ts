@@ -6,11 +6,11 @@ import {
   type BillingSku,
 } from '@mylife/billing-config';
 import {
-  createEntitlementSignature,
   type Entitlements,
   type PlanMode,
   type UnsignedEntitlements,
 } from '@mylife/entitlements';
+import { createEntitlementSignature } from '@mylife/entitlements/server';
 
 export interface IssueEntitlementInput {
   appId: string;

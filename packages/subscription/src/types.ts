@@ -103,6 +103,8 @@ export interface StripeSDK {
     cancelAtPeriodEnd: boolean;
     status: string;
   }>>;
+  /** Verify a webhook payload signature and return the parsed event. Throws on invalid signature. */
+  constructWebhookEvent(payload: string, signature: string, webhookSecret: string): unknown;
 }
 
 // ---------------------------------------------------------------------------
