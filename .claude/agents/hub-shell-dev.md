@@ -1,7 +1,7 @@
 ---
 name: hub-shell-dev
 description: Works on the hub-level app shell (mobile Expo app, web Next.js app, sidebar, dashboard, module registry, db package, ui package). Does not modify per-module business logic or standalone submodules.
-allowed-tools: Read, Edit, Write, Bash, Glob, Grep, Task, Skill
+allowed-tools: Read, Edit, Write, Bash(pnpm *), Bash(git *), Bash(tsc *), Bash(node *), Bash(ls *), Bash(cat *), Bash(mkdir *), Glob, Grep, Task, Skill
 ---
 
 # Hub Shell Developer Agent

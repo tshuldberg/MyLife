@@ -6,7 +6,7 @@
 
 ```yaml
 project: MyBudget (standalone + hub module parity)
-priority: 01
+priority: 04
 effort: XL
 dependencies: []
 worktree: true

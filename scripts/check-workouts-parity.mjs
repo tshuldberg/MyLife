@@ -61,20 +61,7 @@ const hubFiles = [
   'apps/mobile/app/(workouts)/progress.tsx',
   'apps/mobile/app/(workouts)/recordings.tsx',
   'apps/mobile/app/(workouts)/workouts.tsx',
-  'apps/web/app/workouts/page.tsx',
-  'apps/web/app/workouts/explore/page.tsx',
-  'apps/web/app/workouts/exercise/[id]/page.tsx',
-  'apps/web/app/workouts/workouts/page.tsx',
-  'apps/web/app/workouts/workouts/builder/page.tsx',
-  'apps/web/app/workouts/workout/[id]/page.tsx',
-  'apps/web/app/workouts/plans/page.tsx',
-  'apps/web/app/workouts/plans/[id]/page.tsx',
-  'apps/web/app/workouts/plans/builder/page.tsx',
-  'apps/web/app/workouts/recordings/page.tsx',
-  'apps/web/app/workouts/recordings/[id]/page.tsx',
-  'apps/web/app/workouts/progress/page.tsx',
-  'apps/web/app/workouts/profile/page.tsx',
-  'apps/web/app/workouts/pricing/page.tsx',
+  'apps/web/app/workouts/[[...slug]]/page.tsx',
 ];
 
 console.log('\nChecking hub workouts module artifacts...\n');
@@ -136,6 +123,7 @@ for (const tableName of requiredTables) {
 }
 
 const indexSource = ensureFile('modules/workouts/src/index.ts');
+const webFallbackSource = ensureFile('apps/web/app/workouts/[[...slug]]/page.tsx');
 const requiredExports = [
   'createPlayerStatus',
   'reducePlayer',
@@ -154,6 +142,19 @@ for (const exp of requiredExports) {
   } else {
     ok(`index.ts exports ${exp}`);
   }
+}
+
+console.log('\nChecking archived web fallback...\n');
+if (!webFallbackSource.includes('ModuleWebFallback')) {
+  fail('apps/web/app/workouts/[[...slug]]/page.tsx must use ModuleWebFallback');
+} else {
+  ok('workouts web fallback uses ModuleWebFallback');
+}
+
+if (!webFallbackSource.includes('archived MyWorkouts web app') || !webFallbackSource.includes('folded into MyLife')) {
+  fail('apps/web/app/workouts/[[...slug]]/page.tsx should explain archived standalone routing');
+} else {
+  ok('workouts web fallback explains archived standalone routing');
 }
 
 if (failures > 0) {

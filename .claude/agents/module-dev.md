@@ -1,7 +1,7 @@
 ---
 name: module-dev
 description: Migrates standalone apps into MyLife hub modules. Understands ModuleDefinition contract, table prefix conventions, parity rules, and standalone submodule workflow. Handles both standalone submodule edits and hub-side module wiring.
-allowed-tools: Read, Edit, Write, Bash, Glob, Grep, Task, Skill
+allowed-tools: Read, Edit, Write, Bash(pnpm *), Bash(git *), Bash(tsc *), Bash(node *), Bash(ls *), Bash(cat *), Bash(mkdir *), Glob, Grep, Task, Skill
 ---
 
 # Module Developer Agent

@@ -65,6 +65,18 @@ Project-specific agent instructions for `/Users/trey/Desktop/Apps/MyLife`.
 - See `.claude/plugins.md` for the current verified inventory and re-verification steps.
 - `.claude/settings.json` enables agent teams and runs `pnpm check:parity --quiet` on task completion.
 
+## Automation Hooks
+
+- `.claude/settings.json` is the source of truth for Claude Code hook enforcement in this repo.
+- The current hook stack includes:
+  - `PreToolUse` Bash policy validation
+  - `PostToolUse` targeted TypeScript and debug-code checks after source edits
+  - `PreCompact` context snapshot persistence
+  - `Stop` response-end snapshot persistence
+  - `TaskCompleted` parity enforcement
+- Hook-generated runtime snapshots are written under `.claude/memory/runtime/` and are gitignored. Do not treat them as product docs.
+- `.husky/pre-commit` runs `pnpm gate:function:changed --staged`. Keep staged source changes compatible with the function gate before committing.
+
 
 ## Archive Strategy
 
