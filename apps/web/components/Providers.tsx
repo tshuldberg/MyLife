@@ -25,6 +25,7 @@ import { HOMES_MODULE } from '@mylife/homes';
 import { WORDS_MODULE } from '@mylife/words';
 import { JOURNAL_MODULE } from '@mylife/journal';
 import { PETS_MODULE } from '@mylife/pets';
+import { HEALTH_MODULE } from '@mylife/health';
 import { RSVP_MODULE } from '@mylife/rsvp';
 import {
   AuthProvider,
@@ -99,6 +100,7 @@ export function Providers({ children, initialEnabledIds }: ProvidersProps) {
     reg.register(WORDS_MODULE);
     reg.register(JOURNAL_MODULE);
     reg.register(PETS_MODULE);
+    reg.register(HEALTH_MODULE);
     reg.register(RSVP_MODULE);
     // Restore enabled state from SQLite (passed from server layout)
     for (const id of initialEnabledIds) {

@@ -8,6 +8,7 @@ let enabledModules: ModuleDefinition[] = [];
 vi.mock('@mylife/module-registry', () => ({
   useModuleRegistry: () => ({}),
   useEnabledModules: () => enabledModules,
+  FREE_MODULES: ['fast', 'forums', 'journal', 'market', 'mood', 'notes', 'voice'],
 }));
 
 vi.mock('@/components/UpdatePrompt', () => ({

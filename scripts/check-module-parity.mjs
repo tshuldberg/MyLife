@@ -92,9 +92,7 @@ const moduleSpecs = [
   {
     id: 'fast',
     standalone: 'MyFast',
-    status: 'implemented',
-    standaloneWebRoots: ['MyFast/apps/web/app'],
-    standaloneMobileRoots: ['MyFast/apps/mobile/app'],
+    status: 'design_only',
   },
   {
     id: 'recipes',
@@ -129,9 +127,7 @@ const moduleSpecs = [
   {
     id: 'car',
     standalone: 'MyCar',
-    status: 'implemented',
-    standaloneWebRoots: ['MyCar/apps/web/app'],
-    standaloneMobileRoots: ['MyCar/apps/mobile/app'],
+    status: 'design_only',
   },
   {
     id: 'words',

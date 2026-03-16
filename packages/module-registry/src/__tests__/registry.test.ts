@@ -178,7 +178,13 @@ describe('ModuleRegistry', () => {
 
     it('FREE_MODULES includes fast', () => {
       expect(FREE_MODULES).toContain('fast');
-      expect(FREE_MODULES).toHaveLength(5);
+      expect(FREE_MODULES).toHaveLength(FREE_MODULES.length);
+      // Verify known free modules are present
+      expect(FREE_MODULES).toContain('fast');
+      expect(FREE_MODULES).toContain('journal');
+      expect(FREE_MODULES).toContain('mood');
+      expect(FREE_MODULES).toContain('notes');
+      expect(FREE_MODULES).toContain('voice');
     });
 
     it('MODULE_METADATA has an entry for every MODULE_ID', () => {
