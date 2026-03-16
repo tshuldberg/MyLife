@@ -59,6 +59,42 @@ export function isUpdateEntitled(state: EntitlementState): boolean {
   return state.updateEntitled;
 }
 
+/**
+ * Minimal shape needed by isEntitlementExpired.
+ * Accepted by both EntitlementState (IAP model) and ServerEntitlement (hosted model).
+ */
+export interface EntitlementExpirableShape {
+  /** Optional ISO-8601 expiry timestamp (from server/hosted entitlements). */
+  expiresAt?: string;
+  /** Optional purchase date for the IAP model. */
+  purchaseDate?: Date | null;
+  /** Whether update entitlement is active (IAP model). */
+  updateEntitled?: boolean;
+}
+
+/**
+ * Returns true if the entitlement has expired.
+ *
+ * Works with both the IAP EntitlementState and the server/hosted ServerEntitlement:
+ * - If the token has an `expiresAt` timestamp, returns true if that time is past.
+ * - Otherwise, falls back to the IAP model: expired if purchaseDate is set,
+ *   more than one year has elapsed, and updateEntitled is not active.
+ *
+ * Returns false if the entitlement appears to be perpetual or not yet set.
+ */
+export function isEntitlementExpired(state: EntitlementExpirableShape): boolean {
+  // Hosted model: server-issued token with an explicit expiry time
+  if (state.expiresAt) {
+    return Date.now() > Date.parse(state.expiresAt);
+  }
+
+  // IAP model: check Year 1 grace period
+  const purchaseDate = state.purchaseDate;
+  if (!purchaseDate) return false;
+  if (state.updateEntitled) return false;
+  return Date.now() - purchaseDate.getTime() >= ONE_YEAR_MS;
+}
+
 // ---------------------------------------------------------------------------
 // Resolution -- compute EntitlementState from raw purchases
 // ---------------------------------------------------------------------------

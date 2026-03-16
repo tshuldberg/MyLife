@@ -1,94 +1,88 @@
-import crypto from 'node:crypto';
-import { EntitlementsSchema, UnsignedEntitlementsSchema } from './schema';
-import { isEntitlementExpired } from './runtime';
-import type { Entitlements, UnsignedEntitlements } from './types';
+import type { Entitlements, UnsignedEntitlements } from './hosted-types';
 
-export interface VerifyEntitlementSignatureOptions {
-  nowMs?: number;
-  isRevoked?: (signature: string) => boolean | Promise<boolean>;
+function bytesToBase64(bytes: Uint8Array): string {
+  const table = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let output = '';
+  for (let index = 0; index < bytes.length; index += 3) {
+    const byte1 = bytes[index]!;
+    const byte2 = bytes[index + 1];
+    const byte3 = bytes[index + 2];
+    const combined = (byte1 << 16) | ((byte2 ?? 0) << 8) | (byte3 ?? 0);
+    output += table[(combined >> 18) & 0x3f];
+    output += table[(combined >> 12) & 0x3f];
+    output += byte2 === undefined ? '=' : table[(combined >> 6) & 0x3f];
+    output += byte3 === undefined ? '=' : table[combined & 0x3f];
+  }
+  return output;
 }
 
-function normalizeUnsignedEntitlements(input: UnsignedEntitlements): UnsignedEntitlements {
-  return {
-    appId: input.appId.trim(),
-    mode: input.mode,
-    hostedActive: input.hostedActive,
-    selfHostLicense: input.selfHostLicense,
-    updatePackYear: input.updatePackYear,
-    features: [...new Set(input.features)].sort(),
-    issuedAt: new Date(input.issuedAt).toISOString(),
-    expiresAt: input.expiresAt ? new Date(input.expiresAt).toISOString() : undefined,
-  };
+function toBase64Url(bytes: Uint8Array): string {
+  return bytesToBase64(bytes)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
 }
 
-function canonicalizeUnsignedEntitlements(input: UnsignedEntitlements): string {
-  const normalized = normalizeUnsignedEntitlements(input);
+function normalizeForSigning(payload: UnsignedEntitlements): string {
   return JSON.stringify({
-    appId: normalized.appId,
-    mode: normalized.mode,
-    hostedActive: normalized.hostedActive,
-    selfHostLicense: normalized.selfHostLicense,
-    updatePackYear: normalized.updatePackYear ?? null,
-    features: normalized.features,
-    issuedAt: normalized.issuedAt,
-    expiresAt: normalized.expiresAt ?? null,
+    appId: payload.appId,
+    mode: payload.mode,
+    hostedActive: payload.hostedActive,
+    selfHostLicense: payload.selfHostLicense,
+    updatePackYear: payload.updatePackYear ?? null,
+    features: [...payload.features].sort(),
+    issuedAt: payload.issuedAt,
+    expiresAt: payload.expiresAt ?? null,
   });
 }
 
-export function stripEntitlementSignature(input: Entitlements): UnsignedEntitlements {
-  return {
-    appId: input.appId,
-    mode: input.mode,
-    hostedActive: input.hostedActive,
-    selfHostLicense: input.selfHostLicense,
-    updatePackYear: input.updatePackYear,
-    features: input.features,
-    issuedAt: input.issuedAt,
-    expiresAt: input.expiresAt,
-  };
+async function signMessage(message: string, secret: string): Promise<string> {
+  const cryptoApi = globalThis.crypto;
+  if (!cryptoApi?.subtle) {
+    throw new Error('WebCrypto API is unavailable in this runtime.');
+  }
+  const encoder = new TextEncoder();
+  const key = await cryptoApi.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signatureBuffer = await cryptoApi.subtle.sign('HMAC', key, encoder.encode(message));
+  return toBase64Url(new Uint8Array(signatureBuffer));
 }
 
+/** Generate a signature for an entitlement payload. */
 export async function createEntitlementSignature(
-  input: UnsignedEntitlements,
+  payload: UnsignedEntitlements,
   secret: string,
 ): Promise<string> {
-  const parsed = UnsignedEntitlementsSchema.parse(input);
-  return crypto
-    .createHmac('sha256', secret)
-    .update(canonicalizeUnsignedEntitlements(parsed))
-    .digest('base64url');
+  return signMessage(normalizeForSigning(payload), secret);
 }
 
+export interface VerifyEntitlementOptions {
+  revokedSignatures?: Iterable<string>;
+  isRevoked?: (signature: string) => boolean;
+}
+
+/** Verify an entitlement payload against a shared signing secret. */
 export async function verifyEntitlementSignature(
-  input: Entitlements,
+  entitlements: Entitlements,
   secret: string,
-  options?: VerifyEntitlementSignatureOptions,
+  options?: VerifyEntitlementOptions,
 ): Promise<boolean> {
-  const parsed = EntitlementsSchema.safeParse(input);
-  if (!parsed.success) {
+  if (options?.isRevoked?.(entitlements.signature) === true) {
     return false;
   }
-
-  if (isEntitlementExpired(parsed.data, options?.nowMs)) {
-    return false;
-  }
-
-  if (options?.isRevoked) {
-    const revoked = await options.isRevoked(parsed.data.signature);
-    if (revoked) {
-      return false;
+  if (options?.revokedSignatures) {
+    for (const signature of options.revokedSignatures) {
+      if (signature === entitlements.signature) {
+        return false;
+      }
     }
   }
-
-  const expectedSignature = await createEntitlementSignature(
-    stripEntitlementSignature(parsed.data),
-    secret,
-  );
-  const receivedBuffer = Buffer.from(parsed.data.signature, 'utf8');
-  const expectedBuffer = Buffer.from(expectedSignature, 'utf8');
-  if (receivedBuffer.length !== expectedBuffer.length) {
-    return false;
-  }
-
-  return crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
+  const { signature, ...unsignedPayload } = entitlements;
+  const expected = await createEntitlementSignature(unsignedPayload, secret);
+  return signature === expected;
 }

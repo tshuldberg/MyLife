@@ -7,9 +7,6 @@ export type {
   StorageTier,
   Purchase,
   EntitlementState,
-  PlanMode,
-  UnsignedEntitlements,
-  Entitlements,
 } from './types';
 
 export {
@@ -25,13 +22,21 @@ export {
   EntitlementsSchema,
 } from './schema';
 
+export type { EntitlementExpirableShape } from './gates';
+
 export {
   isModuleUnlocked,
   getUnlockedModules,
   isHubUnlocked,
   getStorageTier,
   isUpdateEntitled,
+  isEntitlementExpired,
   resolveEntitlements,
 } from './gates';
 
-export { isEntitlementExpired } from './runtime';
+export type { PlanMode, UnsignedEntitlements, Entitlements } from './hosted-types';
+
+export {
+  createEntitlementSignature,
+  verifyEntitlementSignature,
+} from './verify';
