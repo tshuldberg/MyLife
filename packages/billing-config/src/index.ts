@@ -57,7 +57,15 @@ export const PRODUCTS = {
     surf: { id: 'mylife_surf_unlock', price: 4.99 },
     words: { id: 'mylife_words_unlock', price: 4.99 },
     workouts: { id: 'mylife_workouts_unlock', price: 4.99 },
-  } satisfies Record<Exclude<ModuleId, 'fast'>, StandaloneModuleConfig>,
+  } satisfies Record<
+    Exclude<
+      ModuleId,
+      | 'closet' | 'cycle' | 'fast' | 'flash' | 'forums' | 'garden'
+      | 'journal' | 'mail' | 'market' | 'mood' | 'notes' | 'nutrition'
+      | 'pets' | 'stars' | 'subs' | 'trails' | 'voice'
+    >,
+    StandaloneModuleConfig
+  >,
 } as const;
 
 // ---------------------------------------------------------------------------

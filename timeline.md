@@ -1,5 +1,31 @@
 # Timeline
 
+## 2026-03-17
+
+- **CEO plan review (`/plan-ceo-review`) of MyBudget module (SCOPE EXPANSION mode).** Reviewed the budget module from a founder/product perspective. Identified core tension: 14 deeply-built pure-function engines computing rich financial data, but the mobile home screen is a button grid that surfaces none of it. Key decisions:
+  - **Dashboard Insight Aggregator (BUILD NOW):** New `getDashboardState(db, month)` function in `engine/dashboard.ts` that orchestrates all 14 engines into a single `DashboardState` payload. Uses query-then-compute pattern: fetch all data first, then compute insights in-memory. Powers a "Morning Briefing" dashboard replacing the 273-line button grid in `apps/mobile/app/(budget)/index.tsx`.
+  - **Household Budget Sharing (BUILD NOW):** Full custom CRDT framework for shared envelopes between partners. Architecture: G-Set (transaction adds), 2P-Set (deletes), LWW-Register (edits), PN-Counter (balances), Hybrid Logical Clock (ordering), State Vectors (delta sync), operation log with compaction. Leverages existing `bg_shared_envelopes` table (V4 schema). Module stays `requiresNetwork: false` with offline queue.
+  - **DB-layer input validation guards (DEFERRED):** Guard at DB read layer so engines never receive NaN/Infinity. Added to TODOS.md.
+  - **Derived account balances (DEFERRED):** V5 migration to compute `current_balance = initial_balance + SUM(transactions)`. Added to TODOS.md.
+  - **Test 11 untested engines (DEFERRED):** 11 of 14 engine files have zero dedicated test coverage. Added to TODOS.md.
+  - **Mobile dashboard rewrite (DEFERRED):** UI implementation depends on Dashboard Aggregator. Added to TODOS.md.
+  - **Fix stale module CLAUDE.md (DEFERRED):** `modules/budget/CLAUDE.md` says schemaVersion 3, actual is 4 with 29 tables. Added to TODOS.md.
+  - **Onboarding flow (DEFERRED):** 90-second first-run wizard. Added to TODOS.md.
+  - **5 delight opportunities added to TODOS.md Vision section:** Days Until Broke counter, Paycheck Allocation Wizard, Subscription Price Increase Alerts, Envelope Squeeze Quick-Rebalance, Monthly Financial Health Score.
+
+- **Engineering plan review (`/plan-eng-review`) of MyBudget build-now items (BIG CHANGE mode).** Reviewed the Dashboard Aggregator and Household Sharing implementation plans against the existing codebase (14 engines, 29 tables, `modules/budget/`). 9 architectural and code quality issues raised and resolved:
+  - **Architecture (4 issues):** (1) Sync transport: chose Supabase Realtime over WebSocket/libp2p since MySurf/MyWorkouts already use Supabase. (2) Conflict resolution: chose full CRDTs over OT or LWW-only for mathematical convergence guarantees on financial data. (3) CRDT implementation: chose custom framework over Yjs/Automerge to avoid 200KB+ bundle size and control serialization format. (4) Offline posture: keep `requiresNetwork: false`, queue ops in SQLite outbox, flush on reconnect.
+  - **Code quality (2 issues):** (5) DRY fix: `parseDate()` and `formatDate()` duplicated identically in 4 engine files (`goals.ts`, `upcoming.ts`, `schedule.ts`, `payday-detector.ts`). Extract to `engine/date-utils.ts`. (6) Package placement: CRDT primitives go in new `packages/sync/` (`@mylife/sync`) so future modules can reuse sharing infrastructure.
+  - **Test strategy (3 issues):** (7) Property-based tests with fast-check for CRDT algebraic law verification (commutativity, associativity, idempotency). (8) Dashboard aggregator uses query-then-compute pattern for testability. (9) Op log compaction only after state vector confirms all devices received ops.
+  - **Performance:** 0 issues found.
+  - **3 new TODOs added:** Property-based CRDT tests with fast-check (P2), Supabase schema for sync relay (P2), Sharing invitation table and flow (P2).
+  - **Test plan artifact written** to `~/.gstack/projects/tshuldberg-MyLife/trey-tshuldberg-budget-ceo-review-test-plan-20260317-000022.md` covering affected routes, key interactions, edge cases, and critical end-to-end paths.
+  - **0 critical failure mode gaps** identified. All failure modes (engine throws during aggregation, malformed CRDT ops, Supabase offline, expired/self-accept invitation codes, compaction during active sync) have planned tests and error handling.
+
+- **TODOS.md created and populated.** New file tracking all deferred work from both reviews. Organized into P1 (5 items: test engines, derived balances, DB guards, dashboard rewrite, fix stale CLAUDE.md), P2 (4 items: onboarding flow, fast-check CRDT tests, Supabase sync schema, invitation table), and Vision (5 delight opportunities). Each item includes module, what, why, how to apply, effort, and dependencies.
+
+- **Branch:** `tshuldberg/tyler` (reviews conducted, no code changes beyond TODOS.md)
+
 ## 2026-03-09
 
 - **Module expansion batch merged to main (PR #8).** Added 12 new hub modules (closet, cycle, flash, garden, journal, mail, mood, notes, pets, stars, trails, voice) with full CRUD, schemas, engines, tests, and mobile/web routes. Closet expanded with laundry and packing features. Fixed cycle CRUD to follow canonical `id: string` parameter pattern. Fixed mail MessageFilter types using `z.input<>` for function params. Updated test assertions for new module counts, archive directories, EntitlementsProvider mocks, and Lucide icon rendering. Created archive placeholder directories for MyBooks, MyBudget, MyRecipes, MyWorkouts. 5-agent PR review team completed with parity validation passing all gates. All module tests green. 3 pre-existing web test failures (car/fast submodule resolution, billing config) and 2 pre-existing mobile test failures (Expo JSX parsing) remain from main.
