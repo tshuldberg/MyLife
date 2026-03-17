@@ -6,8 +6,8 @@ import {
   GA_MODULE_IDS,
   PUBLIC_BETA_MODULE_IDS,
   isGeneralAvailabilityModule,
-  useModuleRegistry,
 } from '@mylife/module-registry';
+import { useModuleRegistry } from '@mylife/module-registry/hooks';
 import type { Entitlements, PlanMode } from '@mylife/entitlements';
 import {
   getModeConfigAction,
@@ -77,7 +77,7 @@ export default function SettingsPage() {
           </div>
           <p style={styles.planNote}>
             MyLife Pro guarantees {GA_MODULE_IDS.length} suite GA modules. {enabledGaCount} of your
-            currently enabled web modules are part of that launch promise, and {PUBLIC_BETA_MODULE_IDS.length}
+            currently enabled web modules are part of that launch promise, and {PUBLIC_BETA_MODULE_IDS.length}{' '}
             more modules are available in public beta.
           </p>
         </div>
