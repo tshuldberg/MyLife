@@ -1,5 +1,85 @@
 # Timeline
 
+## 2026-03-17
+
+### Session: Gstack install + MyWorkouts web expansion plan reviews
+
+**Branch:** `tshuldberg/belo-horizonte`
+**What happened:** Installed gstack at project level, then ran two full plan reviews (`/plan-ceo-review` and `/plan-eng-review`) on the MyWorkouts web expansion -- replacing the dead passthrough web routes with native Next.js pages backed by the existing workout engine and CRUD layer.
+
+#### Gstack project-level install
+- Added gstack section to `CLAUDE.md` documenting the `/browse` browsing rule and all 10 available skills (`/plan-ceo-review`, `/plan-eng-review`, `/review`, `/ship`, `/browse`, `/qa`, `/qa-only`, `/setup-browser-cookies`, `/retro`, `/document-release`).
+- Upgraded gstack from 0.4.4 to 0.5.0 via vendored install at `.claude/skills/gstack/`.
+- Skills now available to all teammates via project-level `.claude/skills/` directory.
+
+#### CEO plan review (`/plan-ceo-review MyWorkouts`)
+- **Mode:** SCOPE EXPANSION -- push the plan to its ambitious best.
+- Ran full 10-section mega review covering architecture, errors, security, data flow, code quality, tests, performance, observability, deployment, and long-term trajectory.
+- Produced complete system audit of the MyWorkouts module: traced the dead passthrough pattern (`@myworkouts-web` resolves to type shim, all 14 web pages render `ModuleWebFallback`), mapped the books module as the reference native-page pattern, and classified all hub web routes across all modules as NATIVE vs PASSTHROUGH.
+- Discovered and flagged CLAUDE.md Supabase doc mismatch (claims workouts uses Supabase, but it is pure local SQLite).
+- Discovered dual data model confusion: legacy V1 tables (`wk_workout_logs`, `wk_programs`) alongside modern V2/V3, dashboard queries both.
+
+**Key CEO review decisions (7 architectural, 7 TODOs, 5 delight items):**
+
+| # | Decision | Choice |
+|---|----------|--------|
+| 1 | Passthrough routes | Replace ALL 14 with native Next.js pages |
+| 2 | Module init overhead | Move seed/migration to database provider layer |
+| 3 | Legacy data model | Deprecate V1, build new UI on V2/V3, plan V4 migration |
+| 4 | Supabase doc bug | Fix CLAUDE.md reference |
+| 5 | Zod validation | Validate in both CRUD and server actions |
+| 6 | Error handling | Try/catch in server actions with structured error returns |
+| 7 | Stale sessions | Auto-cleanup at module init |
+
+All 7 TODOs and 5 delight items accepted as "Add to TODOS.md".
+
+#### Eng plan review (`/plan-eng-review MyWorkouts`)
+- **Mode:** BIG CHANGE -- interactive, section by section.
+- Ran all 4 review sections: Architecture (4 issues), Code Quality (3 issues), Tests (4 gaps), Performance (1 issue).
+- Produced test plan artifact at `~/.gstack/projects/tshuldberg-MyLife/trey-tshuldberg-add-gstack-claude-md-test-plan-20260316-235549.md` covering all 14 affected routes, 10 key interactions, 9 edge cases, and 3 critical end-to-end paths.
+
+**Key eng review decisions (9 total):**
+
+| # | Decision | Choice | Rationale |
+|---|----------|--------|-----------|
+| 1A | Error return pattern | Structured `{success, data?, error?}` | Workouts pioneers pattern for hub |
+| 2B | Data fetching | Granular server actions, parallel calls | One action per engine function |
+| 3A | Theme | Cool Obsidian dark theme | Match hub design system |
+| 4A | Engine placement | Client-side engine + server-side persistence | Pure functions in browser, actions for writes only |
+| 5B | Row mappers | Defer refactor | Cross-module debt, not workouts-specific |
+| 7A | Recording lookup | Add `getWorkoutFormRecordingById` | Blocks detail page, 10 lines |
+| 8A | Test gaps | Write all 4 | recordingById, Zod rejection, structured errors, stale cleanup |
+| 9A | Redundant reads | Accept | SQLite local is effectively free |
+
+**Failure modes mapped:** 12 codepaths traced, 4 critical gaps flagged (module migration error path untested, corrupt seed JSON silent failure, duplicate session completion, duplicate plan subscription).
+
+**6 eng review TODOs accepted (all "Add to TODOS.md"):**
+1. Idempotent session completion (P1, S)
+2. Stale session cleanup at module init (P2, S)
+3. Add `getWorkoutFormRecordingById` (P1, S)
+4. Fix CLAUDE.md Supabase reference (P1, S)
+5. Duplicate plan subscription guard (P1, S)
+6. Legacy V1 table deprecation plan (P2, M)
+
+#### What was NOT built (review only, no code changes beyond gstack install + CLAUDE.md)
+- No workouts web pages written yet -- plan reviews are complete, implementation is next.
+- No TODOS.md file created yet -- TODOs from both reviews need to be written.
+- The 14 native web pages, ~20 new server actions, layout theme update, and test suite are all planned but unstarted.
+
+#### Files modified
+- `CLAUDE.md` -- added gstack section with browsing rules and skill list.
+- `.claude/skills/gstack/` -- upgraded vendored gstack from 0.4.4 to 0.5.0 (21 files, +1432/-67 lines).
+
+#### Artifacts created (not in repo)
+- `~/.gstack/projects/tshuldberg-MyLife/trey-tshuldberg-add-gstack-claude-md-test-plan-20260316-235549.md` -- test plan for `/qa` and `/qa-only` consumption.
+- `~/.gstack/projects/tshuldberg-MyLife/trey-tshuldberg-budget-ceo-review-test-plan-20260317-000022.md` -- budget CEO review test plan (separate session artifact).
+
+#### Architecture understanding documented
+- **Passthrough pattern is hub-wide:** Budget, car, fast, habits, homes, recipes, surf, and words modules also use passthrough routes to `ModuleWebFallback`. Not unique to workouts.
+- **Books module is the reference:** Native `'use client'` pages with `useEffect` + `useState` calling server actions, inline CSSProperties, Cool Obsidian tokens.
+- **Workout engine is pure:** `reducePlayer` state machine (10 action types) runs client-side in browser. Server actions handle SQLite writes only. This is the correct split.
+- **13 existing subsystems reused as-is:** Nothing is being rebuilt. The web expansion is a thin presentation layer on existing module functions through server actions.
+
 ## 2026-03-09
 
 - **Module expansion batch merged to main (PR #8).** Added 12 new hub modules (closet, cycle, flash, garden, journal, mail, mood, notes, pets, stars, trails, voice) with full CRUD, schemas, engines, tests, and mobile/web routes. Closet expanded with laundry and packing features. Fixed cycle CRUD to follow canonical `id: string` parameter pattern. Fixed mail MessageFilter types using `z.input<>` for function params. Updated test assertions for new module counts, archive directories, EntitlementsProvider mocks, and Lucide icon rendering. Created archive placeholder directories for MyBooks, MyBudget, MyRecipes, MyWorkouts. 5-agent PR review team completed with parity validation passing all gates. All module tests green. 3 pre-existing web test failures (car/fast submodule resolution, billing config) and 2 pre-existing mobile test failures (Expo JSX parsing) remain from main.

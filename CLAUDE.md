@@ -54,6 +54,24 @@ MyLife is a unified hub app consolidating privacy-first personal app modules int
 - Local execution allow-list settings live in `.claude/settings.local.json`.
 - `.claude/settings.json` enables agent teams and runs `pnpm check:parity --quiet` on task completion.
 
+## Gstack (Browser + Workflow Skills)
+
+- For all web browsing, use the `/browse` skill from gstack. Never use `mcp__claude-in-chrome__*` tools.
+- Available gstack skills:
+
+| Skill | Purpose |
+|-------|---------|
+| `/plan-ceo-review` | CEO/founder-mode plan review |
+| `/plan-eng-review` | Eng manager-mode plan review |
+| `/review` | Pre-landing PR review |
+| `/ship` | Ship workflow (merge, test, review, bump, PR) |
+| `/browse` | Headless browser for QA and site testing |
+| `/qa` | QA test a web app and fix bugs found |
+| `/qa-only` | Report-only QA testing (no fixes) |
+| `/setup-browser-cookies` | Import cookies from your real browser |
+| `/retro` | Weekly engineering retrospective |
+| `/document-release` | Post-ship documentation update |
+
 ## Automation Hooks
 
 - `.claude/settings.json` is the source of truth for Claude Code hook enforcement in this repo.
