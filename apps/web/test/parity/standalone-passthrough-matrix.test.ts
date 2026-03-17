@@ -234,12 +234,9 @@ const standaloneMatrix: StandaloneParitySpec[] = [
   },
 ];
 
+const habitsHubNativePages = ['apps/web/app/habits/page.tsx'];
+
 const habitsWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
-  {
-    hub: 'apps/web/app/habits/page.tsx',
-    expected: "export { default } from '@myhabits-web/app/habits/page';",
-    standalone: 'MyHabits/apps/web/app/habits/page.tsx',
-  },
   {
     hub: 'apps/web/app/habits/stats/page.tsx',
     expected: "export { default } from '@myhabits-web/app/habits/stats/page';",
@@ -257,13 +254,9 @@ const habitsWrappers: Array<{ hub: string; expected: string; standalone: string 
   },
 ];
 
-const wordsWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
-  {
-    hub: 'apps/web/app/words/page.tsx',
-    expected: "export { default } from '@mywords-web/app/page';",
-    standalone: 'MyWords/apps/web/app/page.tsx',
-  },
-];
+const wordsHubNativePages = ['apps/web/app/words/page.tsx'];
+
+const wordsWrappers: Array<{ hub: string; expected: string; standalone: string }> = [];
 
 const fastWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
   {
@@ -288,16 +281,13 @@ const fastWrappers: Array<{ hub: string; expected: string; standalone: string }>
   },
 ];
 
+const homesHubNativePages = ['apps/web/app/homes/page.tsx'];
+
 const homesWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
   {
     hub: 'apps/web/app/homes/messages/page.tsx',
     expected: "export { default } from '@myhomes-web/src/app/(app)/messages/page';",
     standalone: 'MyHomes/apps/web/src/app/(app)/messages/page.tsx',
-  },
-  {
-    hub: 'apps/web/app/homes/page.tsx',
-    expected: "export { default } from '@myhomes-web/src/app/(app)/discover/page';",
-    standalone: 'MyHomes/apps/web/src/app/(app)/discover/page.tsx',
   },
   {
     hub: 'apps/web/app/homes/profile/page.tsx',
@@ -311,12 +301,9 @@ const homesWrappers: Array<{ hub: string; expected: string; standalone: string }
   },
 ];
 
+const surfHubNativePages = ['apps/web/app/surf/page.tsx'];
+
 const surfWrappers: Array<{ hub: string; expected: string; standalone: string }> = [
-  {
-    hub: 'apps/web/app/surf/page.tsx',
-    expected: "export { default } from '@mysurf-web/app/page';",
-    standalone: 'MySurf/apps/web/app/page.tsx',
-  },
   {
     hub: 'apps/web/app/surf/map/page.tsx',
     expected: "export { default } from '@mysurf-web/app/map/page';",
@@ -563,8 +550,8 @@ describe('budget web parity after archive', () => {
 });
 
 describe('words web passthrough enforcement', () => {
-  it('all words hub web routes are thin passthrough wrappers to standalone pages', () => {
-    const expectedFiles = wordsWrappers.map((wrapper) => wrapper.hub).sort();
+  it('all words hub web routes are thin passthrough wrappers or hub-native fallbacks', () => {
+    const expectedFiles = [...wordsWrappers.map((w) => w.hub), ...wordsHubNativePages].sort();
     const actualFiles = listRouteTsx('apps/web/app/words');
 
     expect(actualFiles).toEqual(expectedFiles);
@@ -574,6 +561,9 @@ describe('words web passthrough enforcement', () => {
       expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
     }
 
+    for (const page of wordsHubNativePages) {
+      expect(read(page)).toContain('ModuleWebFallback');
+    }
   });
 
   it('MyLife web host wiring supports standalone words passthrough', () => {
@@ -594,8 +584,8 @@ describe('words web passthrough enforcement', () => {
 });
 
 describe('habits web passthrough enforcement', () => {
-  it('all habits hub web routes are thin passthrough wrappers to standalone pages', () => {
-    const expectedFiles = habitsWrappers.map((wrapper) => wrapper.hub).sort();
+  it('all habits hub web routes are thin passthrough wrappers or hub-native fallbacks', () => {
+    const expectedFiles = [...habitsWrappers.map((w) => w.hub), ...habitsHubNativePages].sort();
     const actualFiles = listRouteTsx('apps/web/app/habits');
 
     expect(actualFiles).toEqual(expectedFiles);
@@ -603,6 +593,10 @@ describe('habits web passthrough enforcement', () => {
     for (const wrapper of habitsWrappers) {
       expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
       expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
+    }
+
+    for (const page of habitsHubNativePages) {
+      expect(read(page)).toContain('ModuleWebFallback');
     }
   });
 });
@@ -657,8 +651,8 @@ describe.skip('fast web passthrough enforcement', () => {
 });
 
 describe('homes web passthrough enforcement', () => {
-  it('all homes hub web routes are thin passthrough wrappers to standalone pages', () => {
-    const expectedFiles = homesWrappers.map((wrapper) => wrapper.hub).sort();
+  it('all homes hub web routes are thin passthrough wrappers or hub-native fallbacks', () => {
+    const expectedFiles = [...homesWrappers.map((w) => w.hub), ...homesHubNativePages].sort();
     const actualFiles = listRouteTsx('apps/web/app/homes');
 
     expect(actualFiles).toEqual(expectedFiles);
@@ -666,6 +660,10 @@ describe('homes web passthrough enforcement', () => {
     for (const wrapper of homesWrappers) {
       expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
       expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
+    }
+
+    for (const page of homesHubNativePages) {
+      expect(read(page)).toContain('ModuleWebFallback');
     }
   });
 
@@ -747,8 +745,8 @@ describe('workouts web parity after archive', () => {
 });
 
 describe('surf web passthrough enforcement', () => {
-  it('all surf hub web routes are thin passthrough wrappers to standalone pages', () => {
-    const expectedFiles = surfWrappers.map((wrapper) => wrapper.hub).sort();
+  it('all surf hub web routes are thin passthrough wrappers or hub-native fallbacks', () => {
+    const expectedFiles = [...surfWrappers.map((w) => w.hub), ...surfHubNativePages].sort();
     const actualFiles = listRouteTsx('apps/web/app/surf');
 
     expect(actualFiles).toEqual(expectedFiles);
@@ -756,6 +754,10 @@ describe('surf web passthrough enforcement', () => {
     for (const wrapper of surfWrappers) {
       expect(existsSync(repoPath(wrapper.standalone))).toBe(true);
       expect(read(wrapper.hub).trim()).toBe(wrapper.expected);
+    }
+
+    for (const page of surfHubNativePages) {
+      expect(read(page)).toContain('ModuleWebFallback');
     }
   });
 

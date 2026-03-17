@@ -6,8 +6,9 @@ import { describe, expect, it } from 'vitest';
 const thisDir = dirname(fileURLToPath(import.meta.url));
 
 describe('Habits hub page wrapper', () => {
-  it('is a thin passthrough re-export to standalone MyHabits web page', () => {
-    const source = readFileSync(resolve(thisDir, '../page.tsx'), 'utf8').trim();
-    expect(source).toBe("export { default } from '@myhabits-web/app/habits/page';");
+  it('renders a hub-native ModuleWebFallback for MyHabits', () => {
+    const source = readFileSync(resolve(thisDir, '../page.tsx'), 'utf8');
+    expect(source).toContain("import { ModuleWebFallback } from '@/components/module-web-fallback'");
+    expect(source).toContain('moduleName="MyHabits"');
   });
 });
