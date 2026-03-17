@@ -90,9 +90,12 @@ describe('correlation analysis engine', () => {
       createMedicationExtended(adapter, 'm1', { name: 'Test', frequency: 'daily' });
 
       // Create paired data: adherent days with pleasant mood, missed days with unpleasant
+      // Use recent dates relative to today so they fall within the 30-day window
+      const today = new Date();
       for (let i = 1; i <= 10; i++) {
-        const day = String(i).padStart(2, '0');
-        const dateStr = `2026-02-${day}`;
+        const d = new Date(today);
+        d.setDate(d.getDate() - (11 - i)); // days 11 down to 2 days ago
+        const dateStr = d.toISOString().slice(0, 10);
         const taken = i <= 7;
 
         logDose(adapter, `dl-${i}`, {

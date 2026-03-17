@@ -30,7 +30,7 @@ function normalizeForSigning(payload: UnsignedEntitlements): string {
     hostedActive: payload.hostedActive,
     selfHostLicense: payload.selfHostLicense,
     updatePackYear: payload.updatePackYear ?? null,
-    features: [...payload.features].sort(),
+    features: [...new Set(payload.features)].sort(),
     issuedAt: payload.issuedAt,
     expiresAt: payload.expiresAt ?? null,
   });
@@ -63,7 +63,9 @@ export async function createEntitlementSignature(
 
 export interface VerifyEntitlementOptions {
   revokedSignatures?: Iterable<string>;
-  isRevoked?: (signature: string) => boolean;
+  isRevoked?: (signature: string) => boolean | Promise<boolean>;
+  /** Override the current time (ms since epoch) for expiry checks. Defaults to Date.now(). */
+  nowMs?: number;
 }
 
 /** Verify an entitlement payload against a shared signing secret. */
@@ -72,8 +74,20 @@ export async function verifyEntitlementSignature(
   secret: string,
   options?: VerifyEntitlementOptions,
 ): Promise<boolean> {
-  if (options?.isRevoked?.(entitlements.signature) === true) {
-    return false;
+  // Check expiry first
+  if (entitlements.expiresAt) {
+    const nowMs = options?.nowMs ?? Date.now();
+    const expiresAtMs = Date.parse(entitlements.expiresAt);
+    if (!Number.isNaN(expiresAtMs) && expiresAtMs <= nowMs) {
+      return false;
+    }
+  }
+
+  if (options?.isRevoked) {
+    const revoked = await options.isRevoked(entitlements.signature);
+    if (revoked === true) {
+      return false;
+    }
   }
   if (options?.revokedSignatures) {
     for (const signature of options.revokedSignatures) {
