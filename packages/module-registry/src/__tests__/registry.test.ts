@@ -178,9 +178,8 @@ describe('ModuleRegistry', () => {
 
     it('FREE_MODULES includes fast', () => {
       expect(FREE_MODULES).toContain('fast');
-      expect(FREE_MODULES).toHaveLength(FREE_MODULES.length);
+      expect(FREE_MODULES).toHaveLength(7);
       // Verify known free modules are present
-      expect(FREE_MODULES).toContain('fast');
       expect(FREE_MODULES).toContain('journal');
       expect(FREE_MODULES).toContain('mood');
       expect(FREE_MODULES).toContain('notes');
