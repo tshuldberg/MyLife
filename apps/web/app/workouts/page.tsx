@@ -11,9 +11,9 @@ export default function WorkoutsPage() {
       primaryHref="/"
       primaryLabel="Open MyLife Hub"
       links={[
-        { href: '/workouts/workouts', label: 'My Workouts' },
         { href: '/workouts/explore', label: 'Explore' },
         { href: '/workouts/progress', label: 'Progress' },
+        { href: '/workouts/recordings', label: 'Recordings' },
       ]}
     />
   );

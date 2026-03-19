@@ -178,7 +178,7 @@ export const MODULE_METADATA: Record<ModuleId, ModuleDefinition> = {
   },
   recipes: {
     id: 'recipes',
-    name: 'MyGarden',
+    name: 'MyRecipes',
     tagline: 'Grow it, cook it, host it',
     icon: '\u{1F331}',
     accentColor: '#22C55E',

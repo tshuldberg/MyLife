@@ -8,7 +8,7 @@ Recipe management module that has expanded into MyGarden -- a unified cooking, m
 
 | Name | Type | Description |
 |------|------|-------------|
-| `RECIPES_MODULE` | ModuleDefinition | Module registration contract (id: `recipes`, name: MyGarden, prefix: `rc_`, tier: premium) |
+| `RECIPES_MODULE` | ModuleDefinition | Module registration contract (id: `recipes`, name: MyRecipes, prefix: `rc_`, tier: premium) |
 | `Recipe`, `Ingredient`, `Step`, `RecipeTag`, `Difficulty` | Types | Core recipe domain types |
 | `Collection`, `CreateCollection` | Types | Recipe collection types |
 | `NutritionData`, `CreateNutritionData`, `UpdateNutritionData`, `NutritionSource` | Types | Nutrition data types |

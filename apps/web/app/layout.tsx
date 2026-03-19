@@ -23,6 +23,7 @@ export default async function RootLayout({
           <div style={{ display: 'flex', minHeight: '100vh' }}>
             <Sidebar />
             <main
+              data-main
               style={{
                 flex: 1,
                 marginLeft: 'var(--sidebar-width)',

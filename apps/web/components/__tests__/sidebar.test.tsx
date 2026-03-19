@@ -9,7 +9,7 @@ vi.mock('next/navigation', () => ({
 const mockRegistry = {
   getEnabled: vi.fn(),
 };
-vi.mock('@mylife/module-registry', () => ({
+vi.mock('@mylife/module-registry/hooks', () => ({
   useModuleRegistry: () => mockRegistry,
 }));
 
@@ -59,11 +59,12 @@ describe('Sidebar', () => {
   it('renders logo with link to home', () => {
     render(<Sidebar />);
 
-    expect(screen.getByText('M')).toBeInTheDocument();
-    expect(screen.getByText('MyLife')).toBeInTheDocument();
+    // Desktop sidebar + mobile header both render the logo
+    expect(screen.getAllByText('M').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('MyLife').length).toBeGreaterThanOrEqual(1);
 
-    const homeLink = screen.getByRole('link', { name: /mylife/i });
-    expect(homeLink).toHaveAttribute('href', '/');
+    const homeLinks = screen.getAllByRole('link', { name: /mylife/i });
+    expect(homeLinks[0]).toHaveAttribute('href', '/');
   });
 
   it('shows enabled module links in sidebar', () => {

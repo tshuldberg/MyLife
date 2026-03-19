@@ -7,8 +7,8 @@ interface FallbackLink {
 
 interface ModuleWebFallbackProps {
   moduleName: string;
-  title: string;
-  routePath: string;
+  title?: string;
+  routePath?: string;
   summary: string;
   accentColor: string;
   primaryHref: string;
@@ -18,8 +18,6 @@ interface ModuleWebFallbackProps {
 
 export function ModuleWebFallback({
   moduleName,
-  title,
-  routePath,
   summary,
   accentColor,
   primaryHref,
@@ -32,10 +30,9 @@ export function ModuleWebFallback({
         display: 'grid',
         gap: 20,
         padding: 28,
-        borderRadius: 28,
-        backgroundColor: '#FFFFFF',
-        border: '1px solid rgba(17, 24, 39, 0.08)',
-        boxShadow: '0 22px 44px rgba(17, 24, 39, 0.08)',
+        borderRadius: 20,
+        backgroundColor: 'var(--surface)',
+        border: '1px solid var(--glass-border)',
       }}
     >
       <div style={{ display: 'grid', gap: 12 }}>
@@ -55,13 +52,19 @@ export function ModuleWebFallback({
           Web Beta
         </span>
         <div>
-          <h1 style={{ margin: 0, fontSize: 34, lineHeight: 1.05 }}>{title}</h1>
-          <p style={{ margin: '10px 0 0', color: '#4B5563', fontSize: 16, lineHeight: 1.6 }}>
+          <h1 style={{ margin: 0, fontSize: 34, lineHeight: 1.05, color: 'var(--text)' }}>
+            {moduleName} Web
+          </h1>
+          <p
+            style={{
+              margin: '10px 0 0',
+              color: 'var(--text-secondary)',
+              fontSize: 16,
+              lineHeight: 1.6,
+            }}
+          >
             {summary}
           </p>
-        </div>
-        <div style={{ color: '#6B7280', fontSize: 14 }}>
-          Requested route: <code>{routePath}</code>
         </div>
       </div>
 
@@ -85,8 +88,8 @@ export function ModuleWebFallback({
             href={link.href}
             style={{
               borderRadius: 999,
-              border: '1px solid rgba(17, 24, 39, 0.12)',
-              color: '#374151',
+              border: '1px solid var(--glass-border)',
+              color: 'var(--text-secondary)',
               padding: '10px 16px',
               fontWeight: 700,
               textDecoration: 'none',
@@ -100,15 +103,16 @@ export function ModuleWebFallback({
       <div
         style={{
           padding: 18,
-          borderRadius: 20,
-          backgroundColor: '#F9FAFB',
-          border: '1px solid rgba(17, 24, 39, 0.06)',
-          color: '#4B5563',
+          borderRadius: 16,
+          backgroundColor: 'var(--glass)',
+          border: '1px solid var(--border)',
+          color: 'var(--text-secondary)',
           lineHeight: 1.6,
+          fontSize: 14,
         }}
       >
         {moduleName} is included in MyLife, but the full native web rebuild is still in progress.
-        This fallback keeps saved links alive and avoids broken route imports while the consolidated web experience is finished.
+        This fallback keeps saved links alive while the consolidated web experience is finished.
       </div>
     </section>
   );

@@ -91,3 +91,24 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+/* Mobile responsive: hide sidebar, show mobile header */
+@media (max-width: 768px) {
+  :root {
+    --sidebar-width: 0px;
+  }
+
+  nav[data-sidebar] {
+    display: none !important;
+  }
+
+  header[data-mobile-header] {
+    display: flex !important;
+  }
+
+  main[data-main] {
+    margin-left: 0 !important;
+    padding: 16px !important;
+    padding-top: 72px !important;
+  }
+}

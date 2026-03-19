@@ -42,8 +42,8 @@ describe('@mylife/recipes', () => {
       expect(RECIPES_MODULE.tablePrefix).toBe('rc_');
     });
 
-    it('has MyGarden navigation tabs', () => {
-      expect(RECIPES_MODULE.name).toBe('MyGarden');
+    it('has MyRecipes navigation tabs', () => {
+      expect(RECIPES_MODULE.name).toBe('MyRecipes');
       expect(RECIPES_MODULE.navigation.tabs).toHaveLength(6);
     });
   });
