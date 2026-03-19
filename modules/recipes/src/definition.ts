@@ -93,7 +93,7 @@ const RECIPES_MIGRATION_V5: Migration = {
 
 export const RECIPES_MODULE: ModuleDefinition = {
   id: 'recipes',
-  name: 'MyGarden',
+  name: 'MyRecipes',
   tagline: 'Grow it, cook it, host it',
   icon: '\u{1F331}',
   accentColor: '#22C55E',
