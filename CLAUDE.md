@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-MyLife is a unified hub app consolidating privacy-first personal app modules into a single cross-platform application. The registry currently defines 27 module IDs, with 14 full modules wired on mobile and 12 wired on web. Users enable or disable modules from a hub dashboard, funded by a suite subscription.
+MyLife is a unified hub app consolidating privacy-first personal app modules into a single cross-platform application. The registry currently defines 29 module IDs, with 28 full modules wired on mobile and 19 wired on web. Users enable or disable modules from a hub dashboard, funded by a suite subscription.
 
 **Platforms:** iOS (Expo), Android (Expo), Web (Next.js 15), macOS (SwiftUI — future)
 **Monetization:** Suite subscription via RevenueCat (mobile) + Stripe (web)
@@ -125,10 +125,9 @@ MyLife/
 │       │   └── settings/          # Account, subscription
 │       └── components/            # Sidebar, ModuleCard, Providers
 ├── modules/                       # Per-module business logic (@mylife/<name>)
-│   ├── books budget car fast habits health homes meds nutrition/
-│   ├── recipes rsvp surf words workouts/    # currently wired in at least one host app
-│   └── closet cycle flash garden journal mail mood notes pets stars subs trails voice/
-│                                         # scaffolded or partially wired modules
+│   ├── books budget car closet cycle fast flash forums garden habits/
+│   ├── health homes journal mail market meds mood notes nutrition/
+│   ├── pets recipes rsvp stars subs surf trails voice words workouts/
 ├── packages/
 │   ├── ui/                        # @mylife/ui, Cool Obsidian tokens + shared components
 │   ├── db/                        # @mylife/db, SQLite adapter, hub schema, migration orchestration
@@ -153,10 +152,10 @@ MyLife/
 
 ### Registry vs Host App Wiring
 
-- `packages/module-registry/src/types.ts` defines 27 known `ModuleId` values.
-- Mobile currently registers full module definitions for `books`, `budget`, `car`, `fast`, `habits`, `health`, `homes`, `meds`, `nutrition`, `recipes`, `rsvp`, `surf`, `words`, and `workouts`.
-- Web currently registers full module definitions for `books`, `budget`, `car`, `fast`, `habits`, `homes`, `meds`, `recipes`, `rsvp`, `surf`, `words`, and `workouts`.
-- Registry metadata also exists for scaffolded or partially wired modules such as `closet`, `cycle`, `flash`, `garden`, `journal`, `mail`, `mood`, `notes`, `pets`, `stars`, `subs`, `trails`, and `voice`.
+- `packages/module-registry/src/types.ts` defines 29 known `ModuleId` values.
+- Mobile currently registers full module definitions for `books`, `budget`, `car`, `closet`, `cycle`, `fast`, `flash`, `forums`, `garden`, `habits`, `health`, `homes`, `journal`, `mail`, `market`, `meds`, `mood`, `notes`, `nutrition`, `pets`, `recipes`, `rsvp`, `stars`, `surf`, `trails`, `voice`, `words`, and `workouts` (28 total).
+- Web currently registers full module definitions for `books`, `budget`, `car`, `closet`, `fast`, `flash`, `forums`, `habits`, `health`, `homes`, `journal`, `market`, `meds`, `pets`, `recipes`, `rsvp`, `surf`, `words`, and `workouts` (19 total).
+- Registry metadata also exists for modules not yet fully wired on web: `cycle`, `garden`, `mail`, `mood`, `notes`, `nutrition`, `stars`, `subs`, `trails`, and `voice`.
 - Treat `packages/module-registry/src/constants.ts` and each `modules/*/src/definition.ts` file as the source of truth for live IDs, tiers, and prefixes.
 
 ### Module Table Prefixes
@@ -164,10 +163,11 @@ MyLife/
 | Module | Prefix | Module | Prefix |
 |--------|--------|--------|--------|
 | Hub | `hub_` | Homes | `hm_` |
-| Books | `bk_` | Meds | `md_` |
-| Budget | `bg_` | Nutrition | `nu_` |
-| Car | `cr_` | Recipes | `rc_` |
-| Fast | `ft_` | RSVP | `rv_` |
+| Books | `bk_` | Market | `mk_` |
+| Budget | `bg_` | Meds | `md_` |
+| Car | `cr_` | Nutrition | `nu_` |
+| Fast | `ft_` | Recipes | `rc_` |
+| Forums | `fr_` | RSVP | `rv_` |
 | Habits | `hb_` | Surf | `sf_` |
 | Health | `hl_` | Words | `wd_` |
 | Workouts | `wk_` | Source of truth | `modules/*/src/definition.ts` |
@@ -175,7 +175,7 @@ MyLife/
 ### Subscription Tiers
 
 - **Registry free modules:** `fast`, `journal`, `mood`, `notes`, `voice`
-- **Current live free surface:** `fast` is wired in both host apps today; the other free IDs remain scaffolded or partially wired.
+- **Current live free surface:** `fast`, `journal`, `mood`, `notes`, and `voice` are all wired on mobile; `fast` and `journal` are also wired on web.
 - **MyLife Pro:** Required for premium modules once they are wired into the hub. Verify current packaging and pricing against billing config before publishing product copy.
 
 ## Module System
@@ -259,12 +259,22 @@ Token source of truth: packages/ui/src/tokens/
 | Phase 5 | MySurf consolidation | Done |
 | Phase 6 | MyCar consolidation | Pending |
 
+## Session Memory (Critical)
+
+After completing each task, update `memory.md` at the repo root:
+1. Update **Project State** and **Known Tech Debt** if anything changed.
+2. Add a new row to the **Sessions** table with the date, a one-line summary, and a link to a session log file.
+3. Create a session log at `docs/sessions/YYYY-MM-DD-short-description.md` covering: what was done, why, files changed, verification, and any remaining items.
+4. Add any reusable insight to **Key Patterns Learned** (avoid duplicating what's already in CLAUDE.md).
+
+This replaces `timeline.md` as the primary session tracking mechanism.
+
 ## Git Workflow
 
 - **Branch naming:** `feature/`, `fix/`, `refactor/`, `docs/`
 - **Commit format:** Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`)
 - **Merge strategy:** Squash merge to `main`
-- **Change tracking:** Update `timeline.md` after every development session
+- **Change tracking:** Update `memory.md` after every development session
 
 ## File Ownership Zones (Parallel Agent Work)
 
